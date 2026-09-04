@@ -3,10 +3,10 @@
 Refonte **SAVER Fleet Ops** (feuille de route, semaine 1). Ce document décrit ce qui
 est livré, comment le lancer et le tester, et ce qui est volontairement reporté.
 
-> **Avancement**
+> **Avancement — Partie A terminée**
 > - **Bloc 1 — Profils & RBAC** : ✅ livré et testé.
 > - **Bloc 2 — Flux 7 (enregistrement véhicule)** : ✅ livré et testé.
-> - **Bloc 3 — Flux 8 (attribution quotidienne)** : ⏳ à venir.
+> - **Bloc 3 — Flux 8 (attribution quotidienne)** : ✅ livré et testé.
 
 ---
 
@@ -37,6 +37,9 @@ Mot de passe commun : **`Easy2026!`**
 | client@easy.ci | Client en gestion de flotte (portail externe) |
 
 Sites seedés : **Hub Abidjan** et **Hub Yamoussoukro** (avec zones + paramètres v1).
+Flotte de démo : **10 véhicules** (échéances variées → alertes), **3 téléphones/SIM**,
+et **20 chauffeurs** supplémentaires (`drv_01@easy.ci` … `drv_20@easy.ci`, même mot de
+passe) répartis par site et par zone, pour tester l'attribution.
 
 ---
 
@@ -128,6 +131,38 @@ assistant de création multi-étapes avec upload, fiche détail.
 Unitaires (machine à états, calcul des échéances). E2E (upload, création complète,
 unicité, brouillon, transitions, cloisonnement des documents pour le client externe).
 **119 tests au total.**
+
+## Bloc 3 — ce qui est livré (Flux 8)
+
+### Modèle de données
+`Assignment` (attribution courante, **contrainte d'unicité `(véhicule, date, shift)`
+au niveau BASE** — empêche toute double attribution, même en concurrence) et
+`AssignmentEvent` (historique append-only : création, remplacement, annulation).
+
+### Fonctionnalités
+- **Attribution quotidienne** par jour + shift (A 6h-14h, B 15h-23h) : le Dispatcher
+  choisit un chauffeur puis un véhicule.
+- **Suggestions** de véhicules classées **par zone du chauffeur puis rotation
+  équitable** (on privilégie les véhicules qu'il n'a pas conduits récemment). Les
+  véhicules Immobilisé/En maintenance/Hors flotte et ceux déjà pris sur le créneau
+  sont exclus (grisés côté UI).
+- **Avertissements non bloquants** : double shift (enchaînement A+B), recharge de
+  handover si SOC < seuil (ou SOC inconnu), dépassement du rythme (6 j/7).
+- **Remplacement de chauffeur** réservé au **Dispatcher** (motif obligatoire, tracé).
+- **Annulation** qui libère le créneau (tracée). Chaque action est **historisée**.
+- **Notification** au chauffeur à la confirmation (WhatsApp mocké + in-app) avec
+  véhicule, shift et horaire.
+- **Planning** du jour (2 shifts, chauffeurs et véhicules non affectés visibles) et
+  de la semaine, par site.
+
+### Front
+Écran **Attribution** : vue Jour (colonnes Shift A / Shift B, assistant d'attribution
+avec suggestions, remplacement, annulation) et vue Semaine.
+
+### Tests
+Unitaires (suggestions/rotation, avertissements). E2E (confirmation, unicité y compris
+**concurrente**, véhicule indisponible, suggestions, remplacement réservé au Dispatcher,
+annulation qui libère le créneau, RBAC). **148 tests au total.**
 
 ## Incohérences corrigées dans le périmètre
 - **#2** (`App.tsx`) : les deux listes `allowedPages` divergentes sont unifiées en une

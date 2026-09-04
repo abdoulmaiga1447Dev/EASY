@@ -183,6 +183,34 @@ async function main() {
   });
 
   // ---------------------------------------------------------------------------
+  // 5bis. ~20 chauffeurs de démonstration (répartis par site et zone)
+  // ---------------------------------------------------------------------------
+  console.log("Seed : chauffeurs de démonstration...");
+  const chauffeurRoleId = roleIdByCode.get("chauffeur")!;
+  const prenoms = ["Koffi", "Awa", "Yao", "Aya", "Kouassi", "Fatou", "Ibrahim", "Adjoua", "Moussa", "Mariam", "Seydou", "Akissi", "Amadou", "Rokia", "Konan", "Bintou", "Drissa", "Nadège", "Souleymane", "Affoué"];
+  const noms = ["N'Guessan", "Traoré", "Kouamé", "Diarra", "Bamba", "Koné", "Ouattara", "Yao", "Cissé", "Touré", "Aka", "Gbagbo", "Doumbia", "Sangaré", "Kouadio", "Fofana", "Brou", "Coulibaly", "Kacou", "Zadi"];
+  const zonesAbj = ["Cocody", "Plateau", "Zone 4", "Marcory", "Yopougon", "Abobo"];
+  const zonesYam = ["Centre-ville", "Habitat", "N'Zuessy", "Kokrenou"];
+  for (let i = 0; i < 20; i++) {
+    const id = `drv_${String(i + 1).padStart(2, "0")}`;
+    const abj = i < 14; // 14 à Abidjan, 6 à Yamoussoukro
+    const siteId = abj ? "site_abidjan" : "site_yamoussoukro";
+    const zn = abj ? zonesAbj[i % zonesAbj.length] : zonesYam[i % zonesYam.length];
+    const name = `${prenoms[i]} ${noms[i]}`;
+    await prisma.user.upsert({
+      where: { id },
+      update: { roleId: chauffeurRoleId, active: true },
+      create: { id, name, email: `${id}@easy.ci`, phone: `+225 07${String(10000000 + i).slice(0, 8)}`, passwordHash, role: "chauffeur", createdAt: now, roleId: chauffeurRoleId, active: true },
+    });
+    await prisma.userSite.upsert({ where: { userId_siteId: { userId: id, siteId } }, update: {}, create: { userId: id, siteId } });
+    await prisma.driverProfile.upsert({
+      where: { userId: id },
+      update: { siteId, zoneId: zoneIdByKey.get(`${siteId}:${zn}`) },
+      create: { userId: id, siteId, zoneId: zoneIdByKey.get(`${siteId}:${zn}`), permisNumero: `CI-${2020 + (i % 6)}-${1000 + i}`, permisExpiration: new Date(`${2027 + (i % 3)}-06-30T00:00:00Z`), dateEntree: new Date(`2025-0${(i % 9) + 1}-15T00:00:00Z`), statut: "actif" },
+    });
+  }
+
+  // ---------------------------------------------------------------------------
   // 6. Flotte de démonstration (~10 véhicules) + téléphones/SIM
   // ---------------------------------------------------------------------------
   console.log("Seed : flotte de démonstration...");

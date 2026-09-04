@@ -26,6 +26,8 @@ const MATRIX: Row[] = [
   { method: "get", path: "/api/fleet/vehicles", admin: true, superviseur: true, terrain: true, dispatcher: true, finance: true, maintenance: true, chauffeur: false, banque: false, client: false },
   { method: "get", path: "/api/fleet/phones",   admin: true, superviseur: true, terrain: false, dispatcher: false, finance: false, maintenance: false, chauffeur: false, banque: false, client: false },
   { method: "get", path: "/api/fleet/alerts",   admin: true, superviseur: true, terrain: false, dispatcher: false, finance: false, maintenance: false, chauffeur: false, banque: false, client: false },
+  // --- Bloc 3 (Flux 8) ---
+  { method: "get", path: "/api/fleet/assignments?siteId=site_abidjan", admin: true, superviseur: true, terrain: true, dispatcher: true, finance: false, maintenance: false, chauffeur: false, banque: false, client: false },
 ];
 
 const ROLE_KEYS = Object.keys(DEMO) as DemoKey[];
