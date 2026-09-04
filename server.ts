@@ -12,6 +12,7 @@ import { createServer as createHttpServer } from "http";
 import { Server as SocketIOServer } from "socket.io";
 import PDFDocument from "pdfkit";
 import nodemailer from "nodemailer";
+import { createPartARouter } from "./server/partA/index";
 
 // Configuration
 const PORT = 3000;
@@ -4494,6 +4495,12 @@ async function startServer() {
         res.status(500).json({ error: err.message });
      }
   });
+
+  // ==========================================
+  // SAVER Fleet Ops — Partie A (RBAC, sites, utilisateurs, paramètres, audit)
+  // Monté avant le middleware SPA pour que les routes /api/* soient prioritaires.
+  // ==========================================
+  app.use(createPartARouter(prisma));
 
   if (process.env.NODE_ENV !== "production") {
     console.log("Starting server in development mode with Vitest/Vite middleware.");

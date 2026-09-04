@@ -26,7 +26,14 @@ import { Corporate } from "./pages/Corporate";
 import { Admin } from "./pages/Admin";
 import { RapportEcologique } from "./pages/RapportEcologique";
 import { Commandes } from "./pages/Commandes";
+import { RbacProvider, FLEET_ROLE_CODES } from "./context/RbacContext";
+import { FleetWorkspace } from "./pages/fleet/FleetWorkspace";
 import { motion, AnimatePresence } from "motion/react";
+
+// Liste unique des pages publiques autorisées dans l'URL (hash).
+// (Corrige l'incohérence #2 : l'état initial et le gestionnaire hashchange
+//  utilisaient deux listes divergentes, ce qui cassait la navigation vers #admin.)
+const ALLOWED_PAGES = ["home", "vehicules", "nos-chauffeurs", "tarifs", "contact", "connexion", "inscription", "forgot", "reservation", "devis", "chauffeur", "partenaire", "corporate", "admin", "rapport-ecologique", "commandes"];
 
 function MainAppApplet() {
   const { setSegment } = useSegment();
@@ -34,8 +41,7 @@ function MainAppApplet() {
   // Simple responsive state router synced with URL hashes for deep linking and navigation
   const [currentPage, setCurrentPage] = useState<string>(() => {
     const hash = window.location.hash.replace("#", "");
-    const allowedPages = ["home", "vehicules", "nos-chauffeurs", "tarifs", "contact", "connexion", "inscription", "forgot", "reservation", "devis", "chauffeur", "partenaire", "corporate", "admin", "rapport-ecologique", "commandes"];
-    if (allowedPages.includes(hash) || hash.startsWith("suivi")) {
+    if (ALLOWED_PAGES.includes(hash) || hash.startsWith("suivi")) {
       return hash;
     }
     return "home";
@@ -56,8 +62,7 @@ function MainAppApplet() {
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace("#", "");
-      const allowedPages = ["home", "vehicules", "nos-chauffeurs", "tarifs", "contact", "connexion", "inscription", "forgot", "reservation", "devis", "chauffeur", "partenaire", "corporate", "rapport-ecologique", "commandes"];
-      if (allowedPages.includes(hash) || hash.startsWith("suivi")) {
+      if (ALLOWED_PAGES.includes(hash) || hash.startsWith("suivi")) {
         setCurrentPage(hash);
       } else {
         setCurrentPage("home");
@@ -77,6 +82,9 @@ function MainAppApplet() {
   // Automatically redirect authenticated professional users to their space if on generic entry points
   useEffect(() => {
     if (isLoading) return;
+
+    // Les profils SAVER Fleet Ops ont leur propre espace : pas de redirection legacy.
+    if (isAuthenticated && user && FLEET_ROLE_CODES.includes(user.role)) return;
 
     if (isAuthenticated && user) {
       const publicLandingPages = ["home", "connexion", "inscription", "forgot", "tarifs", "vehicules", "devis", "contact", "rapport-ecologique"];
@@ -139,6 +147,11 @@ function MainAppApplet() {
     }
   };
 
+  // Aiguillage SAVER Fleet Ops : les profils internes/externes ont leur propre espace.
+  if (isAuthenticated && user && FLEET_ROLE_CODES.includes(user.role)) {
+    return <FleetWorkspace />;
+  }
+
   return (
     <div className="flex flex-col min-h-screen bg-dark text-white-premium font-sans overflow-x-hidden selection:bg-gold/30 selection:text-white-premium">
       {/* Navigation Header */}
@@ -170,7 +183,9 @@ export default function App() {
     <LanguageProvider>
       <SegmentProvider>
         <AuthProvider>
-          <MainAppApplet />
+          <RbacProvider>
+            <MainAppApplet />
+          </RbacProvider>
         </AuthProvider>
       </SegmentProvider>
     </LanguageProvider>

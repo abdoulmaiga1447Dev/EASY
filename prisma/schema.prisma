@@ -8,9 +8,9 @@ generator client {
 }
 
 model User {
-  id              String   @id
+  id              String  @id
   name            String
-  email           String   @unique
+  email           String  @unique
   phone           String
   passwordHash    String
   role            String
@@ -18,12 +18,206 @@ model User {
   partnerType     String?
   status          String?
   starRating      String?
-  documents       String?  // Saved as serialized JSON string
+  documents       String? // Saved as serialized JSON string
   rejectionReason String?
+
+  // --- SAVER Fleet Ops (Partie A) : RBAC, sites, profils ---
+  roleId          String?
+  rolePrincipal   Role?          @relation("RolePrincipal", fields: [roleId], references: [id])
+  secondaryRoleId String?
+  roleSecondaire  Role?          @relation("RoleSecondaire", fields: [secondaryRoleId], references: [id])
+  active          Boolean        @default(true) // soft delete : false = compte désactivé
+  clientId        String? // contact rattaché à un Client externe (accès flotte)
+  client          Client?        @relation(fields: [clientId], references: [id])
+  sites           UserSite[]
+  driverProfile   DriverProfile?
+  auditLogs       AuditLog[]     @relation("AuditActor")
+  settingsCreated SiteSettings[] @relation("SettingsCreatedBy")
+}
+
+// =============================================================================
+// SAVER Fleet Ops — Partie A (Bloc 1 : Profils & RBAC)
+// =============================================================================
+
+// --- Organisation : sites (villes) et zones géographiques ---
+model Site {
+  id             String          @id @default(cuid())
+  nom            String
+  ville          String
+  timezone       String          @default("Africa/Abidjan")
+  waveAccountId  String? // identifiant du compte Wave dédié (jamais de secret en clair)
+  active         Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  zones          Zone[]
+  users          UserSite[]
+  settings       SiteSettings[]
+  driverProfiles DriverProfile[]
+}
+
+model Zone {
+  id        String          @id @default(cuid())
+  siteId    String
+  site      Site            @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  nom       String
+  createdAt DateTime        @default(now())
+  drivers   DriverProfile[]
+
+  @@unique([siteId, nom])
+}
+
+// --- RBAC : permissions granulaires, rôles, associations modifiables ---
+model Permission {
+  id        String           @id @default(cuid())
+  code      String           @unique // ex. "vehicule.creer", "avance.autoriser"
+  libelle   String
+  categorie String // regroupement pour l'écran d'admin (ex. "Véhicules")
+  roles     RolePermission[]
+}
+
+model Role {
+  id              String           @id @default(cuid())
+  code            String           @unique // ex. "admin_direction", "dispatcher"
+  nom             String
+  description     String?
+  isSystem        Boolean          @default(false) // rôle protégé (non supprimable)
+  active          Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  permissions     RolePermission[]
+  usersPrincipal  User[]           @relation("RolePrincipal")
+  usersSecondaire User[]           @relation("RoleSecondaire")
+}
+
+model RolePermission {
+  roleId       String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permissionId String
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+// --- Rattachement multi-sites d'un utilisateur ---
+model UserSite {
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  siteId String
+  site   Site   @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@id([userId, siteId])
+}
+
+// --- Profil chauffeur (champs nécessaires dès la Partie A pour les flux B/C/D) ---
+model DriverProfile {
+  id               String    @id @default(cuid())
+  userId           String    @unique
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  siteId           String?
+  site             Site?     @relation(fields: [siteId], references: [id])
+  zoneId           String?
+  zone             Zone?     @relation(fields: [zoneId], references: [id])
+  permisNumero     String?
+  permisExpiration DateTime? // utilisée plus tard pour bloquer le check-in (Flux 1)
+  dateEntree       DateTime? // ancienneté (éligibilité avance, Flux 6)
+  statut           String    @default("actif") // actif | suspendu
+  socDernierConnu  Int? // dernier SOC connu (%), alimenté au check-out (Flux 1)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+// --- Client externe en gestion de flotte (entité + contacts multiples) ---
+model Client {
+  id            String   @id @default(cuid())
+  raisonSociale String
+  contactNom    String?
+  contactEmail  String?
+  contactPhone  String?
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  contacts      User[] // utilisateurs externes rattachés (accès flotte)
+}
+
+// --- Paramètres globaux par site, versionnés (source de tous les calculs B/C/D) ---
+model SiteSettings {
+  id            String   @id @default(cuid())
+  siteId        String
+  site          Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  version       Int
+  effectiveFrom DateTime @default(now())
+  createdById   String?
+  createdBy     User?    @relation("SettingsCreatedBy", fields: [createdById], references: [id])
+  createdAt     DateTime @default(now())
+
+  devise String @default("FCFA")
+
+  // Salaire & éligibilité au fixe
+  salaireFixeJour          Int @default(5357)
+  eligibiliteCaJour        Int @default(65000)
+  eligibiliteCoursesJour   Int @default(40)
+  eligibiliteHeures        Int @default(8)
+  eligibiliteHeuresEnLigne Int @default(7)
+
+  // KPI & période de paie
+  kpiObjectifMontant Int @default(350000)
+  kpiSeuilCourses    Int @default(168)
+  periodePaieJours   Int @default(14)
+
+  // Bonus (paliers) & plafond
+  bonusPaliers Json @default("[{\"minCoursesSupp\":1,\"maxCoursesSupp\":10,\"pct\":10},{\"minCoursesSupp\":11,\"maxCoursesSupp\":19,\"pct\":25},{\"minCoursesSupp\":20,\"maxCoursesSupp\":25,\"pct\":35},{\"minCoursesSupp\":26,\"maxCoursesSupp\":35,\"pct\":50},{\"minCoursesSupp\":36,\"maxCoursesSupp\":null,\"pct\":75}]")
+  bonusPlafond Int  @default(25000)
+
+  // Pénalités
+  penaliteRetardHeure    Int @default(2000)
+  penaliteNonReversement Int @default(5000)
+  penaliteAbsence        Int @default(10000)
+
+  // Reversement & avances
+  toleranceEcartReversement Int @default(5000)
+  avanceEligibiliteJours    Int @default(90)
+  avancePlafond             Int @default(50000)
+
+  // Exploitation : SOC, maintenance, préavis d'alertes
+  socHandoverSeuil           Int @default(70)
+  maintenanceKm              Int @default(15000)
+  maintenanceJours           Int @default(90)
+  alerteVisiteTechniqueJours Int @default(15)
+  alerteAssuranceJours       Int @default(7)
+
+  // Horaires de shift & rythme chauffeur
+  shiftADebut                 String @default("06:00")
+  shiftAFin                   String @default("14:00")
+  shiftBDebut                 String @default("15:00")
+  shiftBFin                   String @default("23:00")
+  handoverMinutes             Int    @default(30)
+  handoverRechargeMinutes     Int    @default(30)
+  rythmeJoursTravailles       Int    @default(6)
+  rythmeReposDemiJourSemaines Int    @default(2)
+
+  @@unique([siteId, version])
+}
+
+// --- Journal d'audit : toute action sensible ---
+model AuditLog {
+  id           String   @id @default(cuid())
+  actorId      String?
+  actor        User?    @relation("AuditActor", fields: [actorId], references: [id])
+  actorName    String? // dénormalisé (conservé même si le compte est supprimé)
+  action       String // ex. "role.permissions.update"
+  resourceType String // ex. "Role", "Vehicle", "Assignment"
+  resourceId   String?
+  siteId       String?
+  before       Json?
+  after        Json?
+  createdAt    DateTime @default(now())
+
+  @@index([resourceType, resourceId])
+  @@index([siteId])
 }
 
 model Driver {
-  id           String   @id
+  id           String  @id
   userId       String?
   name         String
   phone        String
@@ -38,7 +232,7 @@ model Driver {
 }
 
 model Vehicle {
-  id              String   @id
+  id              String  @id
   category        String
   brand           String
   name            String
@@ -55,24 +249,24 @@ model Vehicle {
 }
 
 model Reservation {
-  id            String   @id
-  userId        String
-  driverId      String?
-  vehicleId     String
-  departureDate String
-  departureTime String
-  pickup        String
-  destination   String
-  formula       String
-  totalPrice    Float
-  status        String
-  segment       String
-  options       String?  // Saved as serialized JSON array of strings
-  createdAt     String
-  clientName    String?
-  clientPhone   String?
-  clientEmail   String?
-  specialInstructions String?
+  id                   String   @id
+  userId               String
+  driverId             String?
+  vehicleId            String
+  departureDate        String
+  departureTime        String
+  pickup               String
+  destination          String
+  formula              String
+  totalPrice           Float
+  status               String
+  segment              String
+  options              String? // Saved as serialized JSON array of strings
+  createdAt            String
+  clientName           String?
+  clientPhone          String?
+  clientEmail          String?
+  specialInstructions  String?
   dispositionConfirmed Boolean? @default(false)
 }
 
@@ -84,17 +278,17 @@ model ReservationOption {
 }
 
 model Quote {
-  id          String   @id
-  userId      String
-  vehicleId   String
-  details     String   // Saved as serialized JSON string
-  adminPrice  Float?
-  status      String
-  createdAt   String
+  id         String @id
+  userId     String
+  vehicleId  String
+  details    String // Saved as serialized JSON string
+  adminPrice Float?
+  status     String
+  createdAt  String
 }
 
 model Partner {
-  id             String   @id
+  id             String @id
   userId         String
   companyName    String
   commissionRate Float
@@ -104,7 +298,7 @@ model Partner {
 }
 
 model Invoice {
-  id               String   @id
+  id               String  @id
   partnerId        String?
   corporateId      String?
   month            Int
@@ -146,7 +340,7 @@ model Shift {
   endArrivalTime        String?
   endExteriorPhoto      String?
   endDashPhoto          String?
-  endDailyReport        String?  // Saved as serialized JSON string
+  endDailyReport        String? // Saved as serialized JSON string
   endRechargeProofPhoto String?
   endPassationConfirmed Boolean?
 }
@@ -158,4 +352,3 @@ model EcoReport {
   co2EviteTonnes Float
   updatedAt      String
 }
-
