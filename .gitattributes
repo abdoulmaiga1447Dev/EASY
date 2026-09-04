@@ -1,0 +1,14 @@
+# Normalise les fins de ligne : LF dans le depot, quelle que soit la plateforme.
+* text=auto eol=lf
+
+# Fichiers binaires : ne jamais convertir ni diffuser en diff textuel.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.webp binary
+*.ico  binary
+*.mp4  binary
+*.webm binary
+*.pdf  binary
+*.db   binary

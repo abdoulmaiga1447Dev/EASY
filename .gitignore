@@ -1,9 +1,26 @@
+# Dependances
 node_modules/
+
+# Build
 build/
 dist/
-coverage/
-.DS_Store
-*.log
+server.js
+
+# Environnement (ne jamais commiter de secrets)
 .env*
 !.env.example
+
+# Base de donnees locale / residus
 prisma/dev.db
+db.json
+
+# Logs et couverture
+*.log
+coverage/
+
+# Systeme et editeurs
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
