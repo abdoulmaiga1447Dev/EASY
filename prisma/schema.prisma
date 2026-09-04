@@ -1,0 +1,161 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id              String   @id
+  name            String
+  email           String   @unique
+  phone           String
+  passwordHash    String
+  role            String
+  createdAt       String
+  partnerType     String?
+  status          String?
+  starRating      String?
+  documents       String?  // Saved as serialized JSON string
+  rejectionReason String?
+}
+
+model Driver {
+  id           String   @id
+  userId       String?
+  name         String
+  phone        String
+  email        String
+  photo        String?
+  availability String?
+  status       String
+  rating       Float?
+  vehicleId    String?
+  shift        String?
+  createdAt    String?
+}
+
+model Vehicle {
+  id              String   @id
+  category        String
+  brand           String
+  name            String
+  immatriculation String
+  batteryLevel    Int
+  status          String
+  photoFront      String?
+  photoBack       String?
+  photoLeft       String?
+  photoRight      String?
+  maxSpeed        Int?
+  fuelConsumption String?
+  totalDistance   String?
+}
+
+model Reservation {
+  id            String   @id
+  userId        String
+  driverId      String?
+  vehicleId     String
+  departureDate String
+  departureTime String
+  pickup        String
+  destination   String
+  formula       String
+  totalPrice    Float
+  status        String
+  segment       String
+  options       String?  // Saved as serialized JSON array of strings
+  createdAt     String
+  clientName    String?
+  clientPhone   String?
+  clientEmail   String?
+  specialInstructions String?
+  dispositionConfirmed Boolean? @default(false)
+}
+
+model ReservationOption {
+  id            String @id
+  reservationId String
+  optionName    String
+  price         Float
+}
+
+model Quote {
+  id          String   @id
+  userId      String
+  vehicleId   String
+  details     String   // Saved as serialized JSON string
+  adminPrice  Float?
+  status      String
+  createdAt   String
+}
+
+model Partner {
+  id             String   @id
+  userId         String
+  companyName    String
+  commissionRate Float
+  contractStart  String
+  contractEnd    String
+  createdAt      String
+}
+
+model Invoice {
+  id               String   @id
+  partnerId        String?
+  corporateId      String?
+  month            Int
+  year             Int
+  totalAmount      Float
+  commissionAmount Float
+  status           String
+  pdfUrl           String
+  currency         String?
+  createdAt        String
+}
+
+model TripLocation {
+  id            String @id
+  reservationId String
+  lat           Float
+  lng           Float
+  timestamp     String
+}
+
+model Shift {
+  id                    String   @id
+  driverId              String
+  driverName            String
+  vehicleId             String
+  date                  String
+  createdAt             String
+  startConfirmed        Boolean?
+  startTime             String?
+  startKm               Int?
+  startDepartureTime    String?
+  startRechargeChecked  Boolean?
+  startInternetChecked  Boolean?
+  startPapersChecked    Boolean?
+  startDashPhoto        String?
+  endConfirmed          Boolean?
+  endTime               String?
+  endKm                 Int?
+  endArrivalTime        String?
+  endExteriorPhoto      String?
+  endDashPhoto          String?
+  endDailyReport        String?  // Saved as serialized JSON string
+  endRechargeProofPhoto String?
+  endPassationConfirmed Boolean?
+}
+
+model EcoReport {
+  id             String @id
+  kmElectrique   Float
+  co2NonEmis     Float
+  co2EviteTonnes Float
+  updatedAt      String
+}
+

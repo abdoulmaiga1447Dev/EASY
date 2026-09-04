@@ -1,0 +1,591 @@
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+:root {
+  --color-gold: #C9A84C;
+  --color-gold-light: #E2C47A;
+  --color-champagne: #F5E8C5;
+  --color-gold-rgb: 201, 168, 76;
+}
+
+/* Public segment override (vibrant Green matching EASY logo #00C853) */
+html.segment-public {
+  --color-gold: #00C853;
+  --color-gold-light: #22E066;
+  --color-champagne: #D9FCDA;
+  --color-gold-rgb: 0, 200, 83;
+}
+
+@theme {
+  --color-dark: #181920;
+  --color-surface: #20222D;
+  --color-card-bg: #292B38;
+  --color-gold: var(--color-gold);
+  --color-gold-light: var(--color-gold-light);
+  --color-champagne: var(--color-champagne);
+  --color-white-premium: #F4F2EE;
+  --color-muted-premium: #8A8A9A;
+
+  --font-sans: "Inter", "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+  --font-display: "Oswald", sans-serif;
+  --font-mono: "Inter", sans-serif;
+}
+
+/* Custom global rules for premium experience */
+body {
+  background-color: #181920;
+  color: #F4F2EE;
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+}
+
+/* Force l'application de la police Oswald et la mise en majuscule sur tous les titres, boutons et menus pour tout le système */
+h1, h2, h3, h4, h5, h6, button, .font-display, .font-sans-display {
+  font-family: 'Oswald', var(--font-display), sans-serif !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+}
+
+/* Premium golden scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #181920;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-gold);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-gold-light);
+}
+
+/* Interactive transitions */
+button, a {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.gold-glow {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.gold-glow:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.gold-gradient-text {
+  color: var(--color-champagne);
+}
+
+.gold-border {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.gold-border:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Ticket Component Styles from Uiverse.io for luxury bookings */
+.ticket-canvas {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ticket-wrapper {
+  --t-bg: #111116;
+  --t-bg-light: #1c1c24;
+  --t-accent: var(--color-gold);
+  --t-accent-glow: rgba(201, 168, 76, 0.4);
+  --t-text-main: #f8fafc;
+  --t-text-muted: #94a3b8;
+  font-size: 13px;
+  perspective: 1000px;
+  display: inline-block;
+  width: 100%;
+  max-width: 44em;
+}
+
+.ticket {
+  position: relative;
+  width: 100%;
+  color: var(--t-text-main);
+  font-family: 'Oswald', sans-serif;
+  transform-style: preserve-3d;
+  transition:
+    transform 0.6s cubic-bezier(0.23, 1, 0.32, 1),
+    box-shadow 0.6s ease;
+  box-shadow:
+    0 15px 35px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+  background: transparent;
+  filter: drop-shadow(0px 8px 16px rgba(0, 0, 0, 0.3));
+}
+
+.ticket-wrapper:hover .ticket {
+  transform: rotateX(5deg) rotateY(-8deg) scale(1.02);
+  box-shadow:
+    15px 15px 35px rgba(0, 0, 0, 0.25),
+    0 0 0 1px rgba(255, 255, 255, 0.1),
+    -5px -5px 15px var(--t-accent-glow);
+}
+
+.ticket::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 1em;
+  pointer-events: none;
+  background: linear-gradient(
+    115deg,
+    transparent 0%,
+    transparent 40%,
+    rgba(255, 255, 255, 0.05) 45%,
+    rgba(255, 255, 255, 0.15) 50%,
+    rgba(255, 255, 255, 0.05) 55%,
+    transparent 60%,
+    transparent 100%
+  );
+  z-index: 10;
+  background-size: 250% 250%;
+  background-position: 100% 100%;
+  transition: background-position 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+  mix-blend-mode: overlay;
+}
+
+.ticket-wrapper:hover .ticket::after {
+  background-position: 0% 0%;
+}
+
+.t-main {
+  padding: 1.8em;
+  position: relative;
+  overflow: hidden;
+  background: radial-gradient(
+      circle at bottom left,
+      transparent 1em,
+      var(--t-bg) 1.05em
+    ),
+    radial-gradient(circle at bottom right, transparent 1em, var(--t-bg) 1.05em);
+  background-size: 51% 100%;
+  background-position:
+    bottom left,
+    bottom right;
+  background-repeat: no-repeat;
+  border-top-left-radius: 1em;
+  border-top-right-radius: 1em;
+}
+
+.t-main::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: linear-gradient(
+      rgba(201, 168, 76, 0.05) 1px,
+      transparent 1px
+    ),
+    linear-gradient(90deg, rgba(201, 168, 76, 0.05) 1px, transparent 1px);
+  background-size: 2em 2em;
+  opacity: 0.6;
+  z-index: 0;
+  pointer-events: none;
+  transform: perspective(500px) rotateX(20deg) scale(1.5);
+  animation: grid-scroll 25s linear infinite;
+}
+
+@keyframes grid-scroll {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 0 4em;
+  }
+}
+
+.t-content {
+  position: relative;
+  z-index: 1;
+}
+
+.t-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.4em;
+}
+
+.t-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  font-weight: 900;
+  font-size: 1em;
+  letter-spacing: -0.02em;
+  color: #fff !important;
+}
+
+.t-logo svg {
+  width: 1.4em;
+  height: 1.4em;
+  fill: none;
+  stroke: var(--t-accent);
+  filter: drop-shadow(0 0 3px var(--t-accent));
+  animation: logo-pulse 3s ease-in-out infinite alternate;
+}
+
+@keyframes logo-pulse {
+  0% {
+    filter: drop-shadow(0 0 2px var(--t-accent));
+  }
+  100% {
+    filter: drop-shadow(0 0 8px var(--t-accent)) brightness(1.2);
+  }
+}
+
+.t-type {
+  font-size: 0.6em;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--t-accent) !important;
+  border: 1px solid var(--t-accent) !important;
+  padding: 0.3em 0.7em;
+  border-radius: 99em;
+  font-weight: 700;
+}
+
+.t-title {
+  font-size: 1.6em;
+  font-weight: 900;
+  line-height: 1.2;
+  margin-bottom: 0.25em;
+  text-transform: uppercase !important;
+  background: linear-gradient(135deg, #fff 0%, var(--color-champagne) 100%) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+.t-subtitle {
+  color: var(--t-text-muted) !important;
+  font-size: 0.85em;
+  margin-bottom: 2em;
+  text-transform: none !important;
+}
+
+.t-details {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.2em;
+  margin-bottom: 0.5em;
+}
+
+.t-detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15em;
+}
+
+.t-label {
+  font-size: 0.6em;
+  text-transform: uppercase !important;
+  letter-spacing: 0.08em;
+  color: var(--t-text-muted) !important;
+}
+
+.t-value {
+  font-size: 0.95em;
+  font-weight: 700;
+  color: var(--t-text-main) !important;
+  word-break: break-word;
+}
+
+.t-perforation {
+  display: flex;
+  justify-content: space-between;
+  height: 1em;
+  align-items: center;
+  position: relative;
+  z-index: 2;
+}
+
+.t-perf-line {
+  flex-grow: 1;
+  height: 0;
+  border-top: 2px dashed rgba(255, 255, 255, 0.15);
+  margin: 0 1.2em;
+}
+
+.t-stub {
+  padding: 1.8em;
+  background: radial-gradient(
+      circle at top left,
+      transparent 1em,
+      var(--t-bg-light) 1.05em
+    ),
+    radial-gradient(
+      circle at top right,
+      transparent 1em,
+      var(--t-bg-light) 1.05em
+    );
+  background-size: 51% 100%;
+  background-position:
+    top left,
+    top right;
+  background-repeat: no-repeat;
+  border-bottom-left-radius: 1em;
+  border-bottom-right-radius: 1em;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: relative;
+}
+
+.t-barcode-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4em;
+}
+
+.t-barcode {
+  width: 10em;
+  height: 2.5em;
+  background: repeating-linear-gradient(
+    90deg,
+    #fff 0,
+    #fff 2px,
+    transparent 2px,
+    transparent 4px,
+    #fff 4px,
+    #fff 5px,
+    transparent 5px,
+    transparent 8px,
+    #fff 8px,
+    #fff 10px,
+    transparent 10px,
+    transparent 13px,
+    #fff 13px,
+    #fff 14px,
+    transparent 14px,
+    transparent 16px
+  );
+  opacity: 0.85;
+}
+
+.t-barcode-id {
+  font-family: monospace;
+  font-size: 0.65em;
+  color: var(--t-text-muted) !important;
+  letter-spacing: 0.15em;
+  text-align: justify;
+}
+
+.t-admit {
+  text-align: right;
+}
+
+.t-admit-text {
+  font-size: 0.65em;
+  text-transform: uppercase !important;
+  letter-spacing: 0.08em;
+  color: var(--t-text-muted) !important;
+}
+
+.t-admit-num {
+  font-size: 2.2em;
+  font-weight: 900;
+  line-height: 1;
+  color: var(--t-accent) !important;
+  text-shadow: 0 0 12px var(--t-accent-glow) !important;
+}
+
+.ticket-wrapper:active .ticket {
+  transform: rotateX(15deg) rotateY(-5deg) scale(0.98);
+}
+
+.ticket-wrapper:active .t-stub {
+  transform: translateY(3px) rotateZ(1deg);
+  opacity: 0.9;
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease;
+}
+
+/* From Uiverse.io by andrew-demchenk0 - Adapted */
+.uiverse-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  width: 100%;
+}
+
+.uiverse-card {
+  position: relative;
+  width: 155px;
+  height: 105px;
+  background: #111116;
+  border-radius: 12px;
+  transition: all 0.3s;
+}
+
+.uiverse-card:hover {
+  transform: scale(1.04);
+}
+
+.uiverse-input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 100%;
+  cursor: pointer;
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  z-index: 10;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  background: transparent;
+  margin: 0;
+}
+
+.uiverse-input + .uiverse-check::before {
+  content: "";
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #444;
+  border-radius: 50%;
+  background-color: #1a1a24;
+  z-index: 11;
+  pointer-events: none;
+}
+
+.uiverse-input:checked + .uiverse-check::after {
+  content: '';
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 8px;
+  height: 8px;
+  background-color: rgba(239, 68, 68, 0.9); /* Red */
+  border-radius: 50%;
+  z-index: 12;
+  pointer-events: none;
+}
+
+.uiverse-input[value="standart"]:checked + .uiverse-check::after {
+  background-color: rgba(245, 158, 11, 0.9); /* Orange */
+}
+
+.uiverse-input[value="premium"]:checked + .uiverse-check::after {
+  background-color: rgba(16, 185, 129, 0.9); /* Green */
+}
+
+.uiverse-input[value="basic"]:checked {
+  border: 1.5px solid rgba(239, 68, 68, 0.9);
+}
+
+.uiverse-input[value="standart"]:checked {
+  border: 1.5px solid rgba(245, 158, 11, 0.9);
+}
+
+.uiverse-input[value="premium"]:checked {
+  border: 1.5px solid rgba(16, 185, 129, 0.9);
+}
+
+.uiverse-label {
+  color: #e5e5e5;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 5;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+.uiverse-label .uiverse-title {
+  font-weight: 800;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #8e8e93;
+  line-height: 1.2;
+  max-width: 110px;
+}
+
+.uiverse-input:checked ~ .uiverse-label .uiverse-title {
+  color: #ffffff;
+}
+
+.uiverse-label .uiverse-price {
+  font-size: 12px;
+  font-weight: 800;
+  font-family: monospace;
+  color: #ffffff;
+}
+
+.uiverse-label .uiverse-span {
+  color: #888;
+  font-weight: 700;
+  font-size: 11px;
+}
+
+/* ===============================
+   LIQUID SLIDER COMPONENT FROM UIVERSE.IO
+================================= */
+.liquid-group {
+  --gap: 6px;
+  --radius: 20px;
+  --speed: 0.55s;
+  --ease: cubic-bezier(0.22, 0.9, 0.25, 1);
+
+  position: relative;
+  background: #09090d;
+  padding: var(--gap);
+  border-radius: var(--radius);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+}
+
+.liquid-slider {
+  position: absolute;
+  inset: var(--gap);
+  border-radius: calc(var(--radius) - 4px);
+  background: #1c1c26;
+  z-index: 1;
+  transition:
+    transform var(--speed) var(--ease),
+    background 0.3s ease;
+}
+
+/* Internal reflection shine effect */
+.liquid-slider::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.06),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.6);
+}
+
+
+
+
+
+
