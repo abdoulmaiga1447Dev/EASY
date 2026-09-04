@@ -13,6 +13,7 @@ import {
 import { useAuth } from "../../context/AuthContext";
 import { useRbac } from "../../context/RbacContext";
 import { FleetAdmin } from "./FleetAdmin";
+import { FleetVehicles } from "./FleetVehicles";
 import { Spinner, EmptyState } from "./ui";
 
 type Section = "dashboard" | "admin" | "vehicules" | "attribution" | "moi";
@@ -145,7 +146,7 @@ export const FleetWorkspace: React.FC = () => {
       <main className="flex-1 p-6 lg:p-8 overflow-x-hidden">
         {section === "dashboard" && <Dashboard />}
         {section === "admin" && <FleetAdmin />}
-        {section === "vehicules" && <Placeholder titre="Fiches véhicules" bloc="Partie A — Bloc 2 (Flux 7)" />}
+        {section === "vehicules" && <FleetVehicles />}
         {section === "attribution" && <Placeholder titre="Attribution quotidienne" bloc="Partie A — Bloc 3 (Flux 8)" />}
         {section === "moi" && <Placeholder titre="Mon espace chauffeur" bloc="Partie B (check-in, planning, reversement)" />}
       </main>

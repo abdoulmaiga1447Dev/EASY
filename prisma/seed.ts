@@ -5,6 +5,7 @@ import {
   ROLES,
   expandRolePermissions,
 } from "../lib/rbac";
+import { runVehicleAlerts } from "../lib/alerts";
 
 const prisma = new PrismaClient();
 
@@ -180,6 +181,64 @@ async function main() {
       statut: "actif",
     },
   });
+
+  // ---------------------------------------------------------------------------
+  // 6. Flotte de démonstration (~10 véhicules) + téléphones/SIM
+  // ---------------------------------------------------------------------------
+  console.log("Seed : flotte de démonstration...");
+  const days = (n: number) => new Date(Date.now() + n * 86400000);
+  const fleet = [
+    { id: "v_f1", immatriculation: "1111-AA-01", vin: "VF1SAVER0000001", marque: "BYD", modele: "Han EV", siteId: "site_abidjan", vt: 200, ass: 200, statut: "Disponible", km: 12000, contract: "INTERNE_SAVER" },
+    { id: "v_f2", immatriculation: "2222-AB-01", vin: "VF1SAVER0000002", marque: "Hyundai", modele: "Kona Electric", siteId: "site_abidjan", vt: 10, ass: 40, statut: "Disponible", km: 28000, contract: "INTERNE_SAVER" },
+    { id: "v_f3", immatriculation: "3333-AC-01", vin: "VF1SAVER0000003", marque: "MG", modele: "MG4", siteId: "site_abidjan", vt: 60, ass: 5, statut: "Attribue", km: 45000, contract: "INTERNE_SAVER" },
+    { id: "v_f4", immatriculation: "4444-AD-01", vin: "VF1SAVER0000004", marque: "Tesla", modele: "Model 3", siteId: "site_abidjan", vt: 300, ass: 300, statut: "EnCharge", km: 8000, contract: "INTERNE_SAVER" },
+    { id: "v_f5", immatriculation: "5555-AE-01", vin: "VF1SAVER0000005", marque: "BYD", modele: "Dolphin", siteId: "site_abidjan", vt: 150, ass: 150, statut: "Disponible", km: 33000, contract: "EXTERNE_CLIENT" },
+    { id: "v_f6", immatriculation: "6666-AF-01", vin: "VF1SAVER0000006", marque: "Nissan", modele: "Leaf", siteId: "site_abidjan", vt: 90, ass: 12, statut: "EnMaintenance", km: 61000, contract: "INTERNE_SAVER" },
+    { id: "v_f7", immatriculation: "7777-BA-02", vin: "VF1SAVER0000007", marque: "BYD", modele: "Atto 3", siteId: "site_yamoussoukro", vt: 20, ass: 220, statut: "Disponible", km: 15000, contract: "INTERNE_SAVER" },
+    { id: "v_f8", immatriculation: "8888-BB-02", vin: "VF1SAVER0000008", marque: "Hyundai", modele: "Ioniq 5", siteId: "site_yamoussoukro", vt: 250, ass: 250, statut: "Disponible", km: 5000, contract: "INTERNE_SAVER" },
+    { id: "v_f9", immatriculation: "9999-BC-02", vin: "VF1SAVER0000009", marque: "MG", modele: "ZS EV", siteId: "site_yamoussoukro", vt: 3, ass: 3, statut: "Immobilise", km: 72000, contract: "INTERNE_SAVER" },
+    { id: "v_f10", immatriculation: "1010-BD-02", vin: "VF1SAVER0000010", marque: "Renault", modele: "Zoe", siteId: "site_yamoussoukro", vt: 120, ass: 120, statut: "Disponible", km: 22000, contract: "INTERNE_SAVER" },
+  ];
+  for (const f of fleet) {
+    await prisma.fleetVehicle.upsert({
+      where: { id: f.id },
+      update: {},
+      create: {
+        id: f.id, immatriculation: f.immatriculation, vin: f.vin, marque: f.marque, modele: f.modele, siteId: f.siteId,
+        autonomieNominale: 450, capaciteBatterieKwh: 60, statut: f.statut as any,
+        contractType: f.contract as any, clientId: f.contract === "EXTERNE_CLIENT" ? "cli_demo" : null,
+        dureeContratMois: f.contract === "EXTERNE_CLIENT" ? 24 : null, montantRemboursement: f.contract === "EXTERNE_CLIENT" ? 8000000 : null,
+        serviceType: "VTC", classes: ["Eco", "Confort"], kmActuel: f.km, gpsBoitierId: `LUOGU-${f.id}`,
+        dernierEntretienKm: f.km, dernierEntretienDate: new Date(), prochainEntretienKm: f.km + 15000, prochainEntretienDate: days(90),
+        createdById: "usr_admin",
+      },
+    });
+    // Documents (VT + assurance) avec échéances variées, pour alimenter le moteur d'alertes.
+    await prisma.vehicleDocument.deleteMany({ where: { vehicleId: f.id } });
+    await prisma.vehicleDocument.createMany({ data: [
+      { vehicleId: f.id, type: "CARTE_GRISE", numero: `CG-${f.id}`, proprietaire: f.contract === "EXTERNE_CLIENT" ? "Client démo" : "SAVER", dateDebut: days(-400) },
+      { vehicleId: f.id, type: "VISITE_TECHNIQUE", dateFin: days(f.vt) },
+      { vehicleId: f.id, type: "ASSURANCE", numero: `ASS-${f.id}`, dateDebut: days(-180), dateFin: days(f.ass) },
+    ] });
+  }
+
+  // Téléphones / SIM (matériel SAVER), certains affectés.
+  const phones = [
+    { id: "ph_1", numero: "+225 0500000001", imei: "356938035643809", operateur: "Orange CI", siteId: "site_abidjan", vehicleId: "v_f1" },
+    { id: "ph_2", numero: "+225 0500000002", imei: "356938035643810", operateur: "MTN CI", siteId: "site_abidjan", vehicleId: "v_f2" },
+    { id: "ph_3", numero: "+225 0500000003", imei: "356938035643811", operateur: "Moov Africa", siteId: "site_yamoussoukro", vehicleId: null },
+  ];
+  for (const p of phones) {
+    await prisma.devicePhone.upsert({
+      where: { id: p.id },
+      update: {},
+      create: { id: p.id, numero: p.numero, imei: p.imei, operateur: p.operateur, siteId: p.siteId, vehicleId: p.vehicleId, dateAffectation: p.vehicleId ? new Date() : null },
+    });
+  }
+
+  // Calcule les alertes d'échéance de démonstration (idempotent).
+  const created = await runVehicleAlerts(prisma);
+  console.log(`Seed : ${fleet.length} véhicules, ${phones.length} téléphones, ${created} alerte(s) générée(s).`);
 
   console.log(`\nSeed terminé. Mot de passe de démonstration : ${DEMO_PASSWORD}`);
   console.log("Comptes : admin@easy.ci, superviseur@easy.ci, terrain@easy.ci, dispatcher@easy.ci,");

@@ -11,6 +11,10 @@ import { wrap, serverError } from "./helpers";
 import { rbacRouter } from "./rbac";
 import { orgRouter } from "./org";
 import { usersRouter } from "./users";
+import { mediaRouter } from "./media";
+import { vehiclesRouter } from "./vehicles";
+import { phonesRouter } from "./phones";
+import { alertsRouter } from "./alerts";
 
 export function createPartARouter(prisma: PrismaClient): express.Router {
   const root = express.Router();
@@ -66,6 +70,10 @@ export function createPartARouter(prisma: PrismaClient): express.Router {
   root.use(rbacRouter(prisma));
   root.use(orgRouter(prisma));
   root.use(usersRouter(prisma));
+  root.use(mediaRouter(prisma));
+  root.use(vehiclesRouter(prisma));
+  root.use(phonesRouter(prisma));
+  root.use(alertsRouter(prisma));
   root.use(auditRouter);
 
   return root;

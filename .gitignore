@@ -24,3 +24,6 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+
+# Fichiers uploadés (photos/documents véhicules)
+uploads/

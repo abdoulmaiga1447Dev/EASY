@@ -22,6 +22,10 @@ const MATRIX: Row[] = [
   { method: "get", path: "/api/sites",       admin: true,  superviseur: true,  terrain: true,  dispatcher: true,  finance: true,  maintenance: true,  chauffeur: false, banque: false, client: false },
   { method: "get", path: "/api/clients",     admin: true,  superviseur: false, terrain: false, dispatcher: false, finance: false, maintenance: false, chauffeur: false, banque: false, client: false },
   { method: "get", path: "/api/audit",       admin: true,  superviseur: false, terrain: false, dispatcher: false, finance: false, maintenance: false, chauffeur: false, banque: false, client: false },
+  // --- Bloc 2 (Flux 7) ---
+  { method: "get", path: "/api/fleet/vehicles", admin: true, superviseur: true, terrain: true, dispatcher: true, finance: true, maintenance: true, chauffeur: false, banque: false, client: false },
+  { method: "get", path: "/api/fleet/phones",   admin: true, superviseur: true, terrain: false, dispatcher: false, finance: false, maintenance: false, chauffeur: false, banque: false, client: false },
+  { method: "get", path: "/api/fleet/alerts",   admin: true, superviseur: true, terrain: false, dispatcher: false, finance: false, maintenance: false, chauffeur: false, banque: false, client: false },
 ];
 
 const ROLE_KEYS = Object.keys(DEMO) as DemoKey[];

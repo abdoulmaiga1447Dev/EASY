@@ -1,5 +1,24 @@
 /** Petits composants UI partagés par l'espace SAVER Fleet Ops (thème sombre / accent gold). */
-import React from "react";
+import React, { useEffect, useState } from "react";
+
+/** Affiche une image servie par /api/media/:id (protégée par jeton) via un blob. */
+export const AuthImage: React.FC<{ mediaId: string | null | undefined; alt?: string; className?: string }> = ({ mediaId, alt = "", className = "" }) => {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let revoked: string | null = null;
+    let cancelled = false;
+    if (!mediaId) { setUrl(null); return; }
+    const token = localStorage.getItem("ev_access_token");
+    fetch(`/api/media/${mediaId}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+      .then((r) => (r.ok ? r.blob() : Promise.reject()))
+      .then((b) => { if (!cancelled) { const u = URL.createObjectURL(b); revoked = u; setUrl(u); } })
+      .catch(() => { if (!cancelled) setUrl(null); });
+    return () => { cancelled = true; if (revoked) URL.revokeObjectURL(revoked); };
+  }, [mediaId]);
+  if (!mediaId) return <div className={`bg-dark/60 flex items-center justify-center text-muted-premium text-xs ${className}`}>—</div>;
+  if (!url) return <div className={`bg-dark/60 animate-pulse ${className}`} />;
+  return <img src={url} alt={alt} className={className} style={{ objectFit: "cover" }} />;
+};
 
 export const Field: React.FC<{ label: string; children: React.ReactNode; hint?: string }> = ({ label, children, hint }) => (
   <label className="flex flex-col gap-1.5 text-sm">

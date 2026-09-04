@@ -53,6 +53,8 @@ model Site {
   users          UserSite[]
   settings       SiteSettings[]
   driverProfiles DriverProfile[]
+  fleetVehicles  FleetVehicle[]
+  devicePhones   DevicePhone[]
 }
 
 model Zone {
@@ -137,6 +139,7 @@ model Client {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   contacts      User[] // utilisateurs externes rattachés (accès flotte)
+  fleetVehicles FleetVehicle[]
 }
 
 // --- Paramètres globaux par site, versionnés (source de tous les calculs B/C/D) ---
@@ -351,4 +354,225 @@ model EcoReport {
   co2NonEmis     Float
   co2EviteTonnes Float
   updatedAt      String
+}
+
+// =============================================================================
+// SAVER Fleet Ops — Partie A (Bloc 2 : Flux 7 — Enregistrement véhicule)
+// =============================================================================
+
+enum VehicleStatus {
+  Disponible
+  Attribue
+  EnCharge
+  Immobilise
+  EnMaintenance
+  HorsFlotte
+}
+
+enum ContractType {
+  INTERNE_SAVER
+  EXTERNE_CLIENT
+}
+
+enum ServiceType {
+  VTC
+  LOCATION_B2B
+  B2C
+}
+
+enum VehicleDocType {
+  CARTE_GRISE
+  VISITE_TECHNIQUE
+  ASSURANCE
+}
+
+enum PhoneStatut {
+  ACTIF
+  INACTIF
+  PERDU
+  RECUPERE
+}
+
+enum AlertType {
+  VISITE_TECHNIQUE
+  ASSURANCE
+  ENTRETIEN_KM
+  ENTRETIEN_DATE
+}
+
+enum AlertStatus {
+  OUVERTE
+  RESOLUE
+}
+
+enum NotifCanal {
+  IN_APP
+  EMAIL
+  SMS
+  WHATSAPP
+}
+
+enum NotifStatus {
+  EN_ATTENTE
+  ENVOYE
+  ECHEC
+}
+
+// --- Fichiers uploadés (photos, documents) avec accès contrôlé par RBAC ---
+model MediaAsset {
+  id           String   @id @default(cuid())
+  kind         String // "image" | "pdf" | "autre"
+  mime         String
+  taille       Int // octets
+  chemin       String // chemin relatif dans uploads/
+  originalName String?
+  resourceType String? // ex. "FleetVehicle" une fois rattaché
+  resourceId   String?
+  uploadedById String?
+  createdAt    DateTime @default(now())
+
+  @@index([resourceType, resourceId])
+  @@index([uploadedById])
+}
+
+// --- Fiche véhicule (Flux 7) ---
+model FleetVehicle {
+  id                  String        @id @default(cuid())
+  immatriculation     String        @unique
+  vin                 String        @unique
+  marque              String
+  modele              String
+  siteId              String
+  site                Site          @relation(fields: [siteId], references: [id])
+  autonomieNominale   Int? // km
+  capaciteBatterieKwh Float? // kWh
+  statut              VehicleStatus @default(Disponible)
+
+  // Contrat
+  contractType         ContractType @default(INTERNE_SAVER)
+  clientId             String?
+  client               Client?      @relation(fields: [clientId], references: [id])
+  dureeContratMois     Int?
+  montantRemboursement Int? // FCFA (pour le portail client externe)
+
+  // Service
+  serviceType ServiceType @default(VTC)
+  classes     Json        @default("[]") // ["Eco","Confort","VIP"]
+
+  // Exploitation
+  kmActuel        Int  @default(0)
+  socDernierConnu Int? // dernier SOC connu (%)
+  gpsBoitierId    String? // boîtier GPS LUOGU (association simple)
+  isDraft         Boolean @default(false) // brouillon sauvegardable
+
+  // Maintenance préventive (programmée à l'enregistrement)
+  dernierEntretienKm    Int       @default(0)
+  dernierEntretienDate  DateTime?
+  prochainEntretienKm   Int?
+  prochainEntretienDate DateTime?
+
+  // Photos obligatoires (références MediaAsset)
+  photoAvant       String?
+  photoArriere     String?
+  photoGauche      String?
+  photoDroite      String?
+  photoInterieur   String?
+  photoTableauBord String?
+  photoEcran       String?
+  photoSieges      String?
+
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  documents VehicleDocument[]
+  kmHistory VehicleKmHistory[]
+  phone     DevicePhone?
+
+  @@index([siteId])
+  @@index([statut])
+  @@index([clientId])
+}
+
+// --- Documents véhicule : carte grise, visite technique, assurance ---
+model VehicleDocument {
+  id           String         @id @default(cuid())
+  vehicleId    String
+  vehicle      FleetVehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  type         VehicleDocType
+  numero       String?
+  proprietaire String?
+  dateDebut    DateTime?
+  dateFin      DateTime? // date d'expiration (VT, assurance)
+  mediaId      String? // photo du document
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@index([vehicleId])
+}
+
+// --- Téléphone + SIM (matériel propriété SAVER) ---
+model DevicePhone {
+  id               String        @id @default(cuid())
+  siteId           String?
+  site             Site?         @relation(fields: [siteId], references: [id])
+  imei             String?
+  numero           String
+  operateur        String?
+  statut           PhoneStatut   @default(ACTIF)
+  vehicleId        String?       @unique
+  vehicle          FleetVehicle? @relation(fields: [vehicleId], references: [id])
+  dateAffectation  DateTime?
+  dateRecuperation DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+}
+
+// --- Historique du compteur kilométrique ---
+model VehicleKmHistory {
+  id        String       @id @default(cuid())
+  vehicleId String
+  vehicle   FleetVehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  km        Int
+  source    String       @default("manuel")
+  createdAt DateTime     @default(now())
+
+  @@index([vehicleId])
+}
+
+// --- Alertes (moteur d'échéances, réutilisable, idempotent via dedupeKey) ---
+model Alert {
+  id           String      @id @default(cuid())
+  type         AlertType
+  resourceType String // ex. "FleetVehicle"
+  resourceId   String
+  siteId       String?
+  dueDate      DateTime?
+  severity     String      @default("warning") // info | warning | critical
+  status       AlertStatus @default(OUVERTE)
+  message      String
+  dedupeKey    String      @unique // évite les doublons (idempotence)
+  createdAt    DateTime    @default(now())
+  resolvedAt   DateTime?
+
+  @@index([siteId])
+  @@index([status])
+}
+
+// --- Notifications (file d'attente + retry, multi-canal) ---
+model Notification {
+  id        String      @id @default(cuid())
+  userId    String?
+  canal     NotifCanal
+  type      String
+  titre     String
+  message   String
+  payload   Json?
+  status    NotifStatus @default(EN_ATTENTE)
+  retries   Int         @default(0)
+  createdAt DateTime    @default(now())
+  sentAt    DateTime?
+
+  @@index([userId])
+  @@index([status])
 }

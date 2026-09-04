@@ -13,6 +13,8 @@ import { Server as SocketIOServer } from "socket.io";
 import PDFDocument from "pdfkit";
 import nodemailer from "nodemailer";
 import { createPartARouter } from "./server/partA/index";
+import { runVehicleAlerts } from "./lib/alerts";
+import { retryPendingNotifications } from "./lib/notifications";
 
 // Configuration
 const PORT = 3000;
@@ -4501,6 +4503,22 @@ async function startServer() {
   // Monté avant le middleware SPA pour que les routes /api/* soient prioritaires.
   // ==========================================
   app.use(createPartARouter(prisma));
+
+  // Job quotidien : moteur d'alertes (échéances véhicules) + renvoi des notifications
+  // en échec. Idempotent : aucune action manuelle requise, aucun doublon.
+  if (process.env.NODE_ENV !== "test") {
+    const runAlertsJob = async () => {
+      try {
+        const created = await runVehicleAlerts(prisma);
+        const sent = await retryPendingNotifications(prisma);
+        if (created || sent) console.log(`[Alertes] ${created} alerte(s) créée(s), ${sent} notification(s) (re)envoyée(s)`);
+      } catch (e) {
+        console.error("[Alertes] job quotidien échoué:", e);
+      }
+    };
+    setTimeout(runAlertsJob, 10_000); // premier passage après le démarrage
+    setInterval(runAlertsJob, 24 * 60 * 60 * 1000); // puis tous les jours
+  }
 
   if (process.env.NODE_ENV !== "production") {
     console.log("Starting server in development mode with Vitest/Vite middleware.");

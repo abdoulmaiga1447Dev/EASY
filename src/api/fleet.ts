@@ -39,6 +39,14 @@ export const api = {
   del: <T>(path: string) => fetch(path, { method: "DELETE", headers: { ...authHeaders() } }).then((r) => handle<T>(r)),
 };
 
+/** Upload d'un fichier (photo/document) → renvoie l'id du média. */
+export async function uploadMedia(file: File): Promise<{ id: string; kind: string; mime: string }> {
+  const fd = new FormData();
+  fd.append("file", file);
+  const res = await fetch("/api/media", { method: "POST", headers: { ...authHeaders() }, body: fd });
+  return handle(res);
+}
+
 // ---- Types partagés (Partie A) ----
 export interface RbacContextDTO {
   userId: string;
@@ -118,4 +126,52 @@ export interface AuditEntryDTO {
   resourceId: string | null;
   siteId: string | null;
   createdAt: string;
+}
+
+// ---- Types véhicules (Bloc 2 — Flux 7) ----
+export interface FleetVehicleDTO {
+  id: string;
+  immatriculation: string;
+  vin: string;
+  marque: string;
+  modele: string;
+  siteId: string;
+  site?: { nom: string; ville?: string };
+  client?: { raisonSociale: string } | null;
+  autonomieNominale: number | null;
+  capaciteBatterieKwh: number | null;
+  statut: string;
+  contractType: string;
+  clientId: string | null;
+  dureeContratMois: number | null;
+  montantRemboursement: number | null;
+  serviceType: string;
+  classes: string[];
+  kmActuel: number;
+  gpsBoitierId: string | null;
+  isDraft: boolean;
+  prochainEntretienKm: number | null;
+  prochainEntretienDate: string | null;
+  photoAvant: string | null; photoArriere: string | null; photoGauche: string | null; photoDroite: string | null;
+  photoInterieur: string | null; photoTableauBord: string | null; photoEcran: string | null; photoSieges: string | null;
+  documents?: VehicleDocumentDTO[];
+  phone?: DevicePhoneDTO | null;
+  kmHistory?: { id: string; km: number; source: string; createdAt: string }[];
+  alerts?: AlertDTO[];
+}
+
+export interface VehicleDocumentDTO {
+  id: string; type: string; numero: string | null; proprietaire: string | null;
+  dateDebut: string | null; dateFin: string | null; mediaId: string | null;
+}
+
+export interface DevicePhoneDTO {
+  id: string; numero: string; imei: string | null; operateur: string | null;
+  statut: string; vehicleId: string | null; siteId: string | null;
+  vehicle?: { immatriculation: string } | null;
+}
+
+export interface AlertDTO {
+  id: string; type: string; severity: string; status: string; message: string;
+  dueDate: string | null; resourceId: string; siteId: string | null; createdAt: string;
 }

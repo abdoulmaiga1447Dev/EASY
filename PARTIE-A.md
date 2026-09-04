@@ -5,7 +5,7 @@ est livré, comment le lancer et le tester, et ce qui est volontairement report�
 
 > **Avancement**
 > - **Bloc 1 — Profils & RBAC** : ✅ livré et testé.
-> - **Bloc 2 — Flux 7 (enregistrement véhicule)** : ⏳ à venir.
+> - **Bloc 2 — Flux 7 (enregistrement véhicule)** : ✅ livré et testé.
 > - **Bloc 3 — Flux 8 (attribution quotidienne)** : ⏳ à venir.
 
 ---
@@ -89,6 +89,45 @@ Sites seedés : **Hub Abidjan** et **Hub Yamoussoukro** (avec zones + paramètre
   édition des permissions d'un rôle avec trace d'audit.
 
 ---
+
+## Bloc 2 — ce qui est livré (Flux 7)
+
+### Modèle de données (nouvelles tables)
+`FleetVehicle` (machine à états), `VehicleDocument` (carte grise / VT / assurance),
+`MediaAsset` (fichiers), `DevicePhone` (téléphones/SIM), `VehicleKmHistory`,
+`Alert` (idempotente via `dedupeKey`), `Notification` (file + retry).
+
+### Fonctionnalités
+- **Enregistrement multi-étapes** d'un véhicule (identification, contrat, service,
+  documents, photos, validation) avec **brouillon** sauvegardable. Côté serveur ET
+  côté UI : l'enregistrement complet est **refusé tant qu'un champ ou une photo
+  obligatoire manque** (le bouton reste désactivé).
+- **Unicité** de l'immatriculation et du VIN.
+- **Machine à états** explicite (Disponible, Attribué, En charge, Immobilisé, En
+  maintenance, Hors flotte) : transitions arbitraires interdites ; la **réactivation**
+  (sortie de maintenance) est réservée au **Dispatcher**.
+- À l'enregistrement : statut **Disponible**, **maintenance préventive programmée**
+  (km + date depuis les paramètres du site), **alertes d'échéance générées**.
+- **Moteur d'alertes** quotidien (job) : visite technique, assurance, entretien
+  (km/date). **Idempotent** (aucun doublon), avec **notifications** in-app + email
+  (SMS/WhatsApp en adaptateurs mockés, file d'attente + retry).
+- **Uploads** photos/documents : multer + compression (jimp) + limites (8 Mo, types
+  autorisés) + **accès contrôlé par RBAC** (un client externe ne lit que les fichiers
+  de ses propres véhicules).
+- **Téléphones/SIM** (matériel SAVER) : enregistrement et affectation à un véhicule.
+- **Historique kilométrique** ; **GPS LUOGU** = champ d'association.
+- **Liste véhicules** : recherche, filtres (statut, contrat, échéances proches),
+  pagination, **export CSV**. Fiche détail (documents, photos, GPS, téléphone,
+  historique, alertes, changement de statut).
+
+### Front
+Écran **Véhicules** (onglets Véhicules / Téléphones-SIM / Alertes) : liste filtrable,
+assistant de création multi-étapes avec upload, fiche détail.
+
+### Tests
+Unitaires (machine à états, calcul des échéances). E2E (upload, création complète,
+unicité, brouillon, transitions, cloisonnement des documents pour le client externe).
+**119 tests au total.**
 
 ## Incohérences corrigées dans le périmètre
 - **#2** (`App.tsx`) : les deux listes `allowedPages` divergentes sont unifiées en une
