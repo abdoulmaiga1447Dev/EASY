@@ -20,6 +20,14 @@ import { assignmentsRouter } from "./assignments";
 export function createPartARouter(prisma: PrismaClient): express.Router {
   const root = express.Router();
 
+  // Garde-fou : la Partie A ne traite QUE les routes /api/*. Toute autre requête
+  // (la page web, les assets du front servis par Vite) sort immédiatement de ce
+  // router — sinon l'authentification des sous-routers bloquerait le chargement du front.
+  root.use((req, _res, next) => {
+    if (!req.path.startsWith("/api/")) return next("router");
+    next();
+  });
+
   // --- Contexte RBAC du user connecté ---
   root.get(
     "/api/context",
