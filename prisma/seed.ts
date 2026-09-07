@@ -143,7 +143,9 @@ async function main() {
     const roleId = roleIdByCode.get(u.roleCode)!;
     await prisma.user.upsert({
       where: { id: u.id },
-      update: { roleId, clientId: u.clientId ?? null, active: true },
+      // On resynchronise le champ legacy `role` (il pilote l'aiguillage front) même
+      // pour un compte préexistant, sinon un ancien rôle (ex. "admin") reste en place.
+      update: { role: u.roleCode, roleId, clientId: u.clientId ?? null, active: true },
       create: {
         id: u.id,
         name: u.name,
