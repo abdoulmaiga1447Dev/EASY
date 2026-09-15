@@ -35,9 +35,9 @@ const ROLE_LABELS: Record<string, string> = {
 
 const Placeholder: React.FC<{ titre: string; bloc: string }> = ({ titre, bloc }) => (
   <Reveal>
-    <div className="bg-surface rounded-2xl p-10 text-center shadow-lg shadow-black/20">
-      <h3 className="text-lg font-semibold text-white-premium">{titre}</h3>
-      <p className="text-sm text-muted-premium mt-2">Module prévu pour la {bloc}. L'ossature (rôles, permissions, sites) est déjà en place.</p>
+    <div className="bg-[#141416] border border-[#232327] rounded-2xl p-10 text-center">
+      <h3 className="text-lg font-semibold text-[#EDEDED]">{titre}</h3>
+      <p className="text-sm text-[#8A8A8A] mt-2">Module prévu pour la {bloc}. L'ossature (rôles, permissions, sites) est déjà en place.</p>
     </div>
   </Reveal>
 );
@@ -91,11 +91,11 @@ const Dashboard: React.FC<{ onNavigate: (s: Section) => void }> = ({ onNavigate 
   const showFlotte = can("vehicule.voir") && vehicles.length > 0;
   const showAttrib = can("attribution.voir") && week.length > 0;
 
-  const tilesAll: { key: string; icon: React.ReactNode; label: string; value: React.ReactNode; hint?: string; tone: any; show: boolean }[] = [
-    { key: "veh", icon: <Car size={20} />, label: "Véhicules", value: vehicles.length || "—", hint: `${disponibles} disponibles`, tone: "gold", show: can("vehicule.voir") },
-    { key: "dispo", icon: <TrendingUp size={20} />, label: "Disponibilité flotte", value: vehicles.length ? `${dispoRate}%` : "—", tone: dispoRate >= 50 ? "green" : "amber", show: can("vehicule.voir") },
-    { key: "alt", icon: <AlertTriangle size={20} />, label: "Alertes en cours", value: can("alerte.voir") ? alerts.length : "—", tone: alerts.length > 0 ? "red" : "green", show: can("alerte.voir") },
-    { key: "att", icon: <CalendarClock size={20} />, label: "Attributions du jour", value: attribsJour, hint: planning ? `${planning.chauffeurs.length} chauffeurs` : undefined, tone: "neutral", show: can("attribution.voir") },
+  const tilesAll: { key: string; label: string; value: React.ReactNode; delta?: string; deltaTone?: "green" | "red" | "muted"; show: boolean }[] = [
+    { key: "veh", label: "Véhicules", value: vehicles.length || "—", delta: `${disponibles} disponibles`, deltaTone: "muted", show: can("vehicule.voir") },
+    { key: "dispo", label: "Disponibilité flotte", value: vehicles.length ? `${dispoRate}%` : "—", delta: vehicles.length ? (dispoRate >= 50 ? "Flotte opérationnelle" : "Sous 50 %") : undefined, deltaTone: dispoRate >= 50 ? "green" : "red", show: can("vehicule.voir") },
+    { key: "alt", label: "Alertes en cours", value: can("alerte.voir") ? alerts.length : "—", delta: alerts.length > 0 ? "à traiter" : "aucune", deltaTone: alerts.length > 0 ? "red" : "green", show: can("alerte.voir") },
+    { key: "att", label: "Attributions du jour", value: attribsJour, delta: planning ? `${planning.chauffeurs.length} chauffeurs` : undefined, deltaTone: "muted", show: can("attribution.voir") },
   ];
   const tiles = tilesAll.filter((t) => t.show);
 
@@ -115,15 +115,15 @@ const Dashboard: React.FC<{ onNavigate: (s: Section) => void }> = ({ onNavigate 
             <h1 className="text-3xl font-bold text-white-premium tracking-tight">{greet}, {ctx.name.split(" ")[0]}</h1>
             <p className="text-muted-premium mt-1.5">{ROLE_LABELS[ctx.roleCode || ""] || ctx.roleCode} · {ctx.allSites ? "Tous les sites" : ctx.sites.map((s) => s.nom).join(", ") || "Aucun site"}</p>
           </div>
-          <div className="hidden sm:flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-surface text-sm text-muted-premium capitalize">
-            <CalendarClock size={16} className="text-gold" /> {dateJour}
+          <div className="hidden sm:flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-[#141416] border border-[#232327] text-sm text-[#8A8A8A] capitalize">
+            <CalendarClock size={16} className="text-[#22C55E]" /> {dateJour}
           </div>
         </div>
       </Reveal>
 
       {tiles.length > 0 && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {tiles.map((t, i) => <StatCard key={t.key} icon={t.icon} label={t.label} value={t.value} hint={t.hint} tone={t.tone} delay={i * 0.06} />)}
+          {tiles.map((t, i) => <StatCard key={t.key} label={t.label} value={t.value} delta={t.delta} deltaTone={t.deltaTone} delay={i * 0.06} />)}
         </div>
       )}
 
@@ -141,14 +141,14 @@ const Dashboard: React.FC<{ onNavigate: (s: Section) => void }> = ({ onNavigate 
                     <AreaChart data={areaData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                       <defs>
                         <linearGradient id="gAttr" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#00C853" stopOpacity={0.35} />
-                          <stop offset="100%" stopColor="#00C853" stopOpacity={0} />
+                          <stop offset="0%" stopColor="#E5E5E5" stopOpacity={0.28} />
+                          <stop offset="100%" stopColor="#E5E5E5" stopOpacity={0} />
                         </linearGradient>
                       </defs>
-                      <XAxis dataKey="jour" tick={{ fill: "#8A8A9A", fontSize: 12 }} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fill: "#8A8A9A", fontSize: 12 }} axisLine={false} tickLine={false} allowDecimals={false} width={30} />
-                      <Tooltip contentStyle={{ background: "#20222D", border: "none", borderRadius: 12, color: "#F4F2EE" }} labelStyle={{ color: "#8A8A9A" }} cursor={{ stroke: "#33363F" }} />
-                      <Area type="monotone" dataKey="attributions" stroke="#00C853" strokeWidth={2.5} fill="url(#gAttr)" />
+                      <XAxis dataKey="jour" tick={{ fill: "#8A8A8A", fontSize: 12 }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fill: "#8A8A8A", fontSize: 12 }} axisLine={false} tickLine={false} allowDecimals={false} width={30} />
+                      <Tooltip contentStyle={{ background: "#141416", border: "1px solid #232327", borderRadius: 12, color: "#EDEDED" }} labelStyle={{ color: "#8A8A8A" }} cursor={{ stroke: "#33343A" }} />
+                      <Area type="monotone" dataKey="attributions" stroke="#E5E5E5" strokeWidth={2.5} fill="url(#gAttr)" />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
@@ -165,7 +165,7 @@ const Dashboard: React.FC<{ onNavigate: (s: Section) => void }> = ({ onNavigate 
                       <Pie data={donutData} dataKey="value" nameKey="name" innerRadius={50} outerRadius={70} paddingAngle={2} stroke="none">
                         {donutData.map((d) => <Cell key={d.statut} fill={STATUT_COLORS[d.statut] || "#6B7280"} />)}
                       </Pie>
-                      <Tooltip contentStyle={{ background: "#20222D", border: "none", borderRadius: 12, color: "#F4F2EE" }} />
+                      <Tooltip contentStyle={{ background: "#141416", border: "1px solid #232327", borderRadius: 12, color: "#EDEDED" }} />
                     </PieChart>
                   </ResponsiveContainer>
                   <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
@@ -193,7 +193,7 @@ const Dashboard: React.FC<{ onNavigate: (s: Section) => void }> = ({ onNavigate 
             <h2 className="font-semibold text-white-premium mb-3">Alertes récentes</h2>
             <div className="space-y-2">
               {alerts.slice(0, 5).map((a) => (
-                <div key={a.id} className="flex items-center gap-3 rounded-xl bg-[#15161C] px-3.5 py-2.5">
+                <div key={a.id} className="flex items-center gap-3 rounded-xl bg-[#0F0F11] px-3.5 py-2.5">
                   <span className="w-2 h-2 rounded-full shrink-0" style={{ background: a.severity === "critical" ? "#EF4444" : "#F59E0B" }} />
                   <span className="text-sm text-white-premium flex-1 min-w-0 truncate">{a.message}</span>
                 </div>
@@ -210,12 +210,12 @@ const Dashboard: React.FC<{ onNavigate: (s: Section) => void }> = ({ onNavigate 
             {shortcuts.map((s, i) => (
               <Reveal key={s.section} delay={0.1 + i * 0.06}>
                 <Panel hover onClick={() => onNavigate(s.section)} className="p-5 flex items-center gap-4">
-                  <div className="w-11 h-11 rounded-xl bg-[#0F3D28] text-gold flex items-center justify-center shrink-0">{s.icon}</div>
+                  <div className="w-11 h-11 rounded-xl bg-[#1C1C20] text-[#8A8A8A] flex items-center justify-center shrink-0">{s.icon}</div>
                   <div className="min-w-0 flex-1">
-                    <div className="font-semibold text-white-premium">{s.titre}</div>
-                    <div className="text-xs text-muted-premium mt-0.5 truncate">{s.desc}</div>
+                    <div className="font-semibold text-[#EDEDED]">{s.titre}</div>
+                    <div className="text-xs text-[#8A8A8A] mt-0.5 truncate">{s.desc}</div>
                   </div>
-                  <ChevronRight size={18} className="text-muted-premium shrink-0" />
+                  <ChevronRight size={18} className="text-[#8A8A8A] shrink-0" />
                 </Panel>
               </Reveal>
             ))}
@@ -233,13 +233,13 @@ const ExternalPortal: React.FC = () => {
   if (!ctx) return null;
   const isBank = ctx.roleCode === "externe_banque";
   return (
-    <div className="min-h-screen bg-dark text-white-premium">
-      <header className="flex justify-between items-center px-5 sm:px-8 h-16 bg-surface shadow-md shadow-black/20">
+    <div className="min-h-screen bg-[#0A0A0B] text-[#EDEDED]">
+      <header className="flex justify-between items-center px-5 sm:px-8 h-16 bg-[#0A0A0B] border-b border-[#1A1A1D]">
         <div className="flex items-center gap-2.5">
-          {isBank ? <Building2 className="text-gold" size={20} /> : <Car className="text-gold" size={20} />}
+          {isBank ? <Building2 className="text-[#22C55E]" size={20} /> : <Car className="text-[#22C55E]" size={20} />}
           <span className="font-semibold">{isBank ? "Portail Investisseur" : "Portail Client — Flotte"}</span>
         </div>
-        <button onClick={logout} className="text-sm text-muted-premium hover:text-white-premium flex items-center gap-1.5"><LogOut size={16} /> Déconnexion</button>
+        <button onClick={logout} className="text-sm text-[#8A8A8A] hover:text-[#EDEDED] flex items-center gap-1.5"><LogOut size={16} /> Déconnexion</button>
       </header>
       <main className="max-w-4xl mx-auto p-5 sm:p-8">
         <Reveal>
@@ -265,8 +265,8 @@ export const FleetWorkspace: React.FC = () => {
   const [section, setSection] = useState<Section>("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  if (loading) return <div className="min-h-screen bg-dark"><Spinner /></div>;
-  if (!ctx) return <div className="min-h-screen bg-dark flex items-center justify-center"><EmptyState>Contexte indisponible. Reconnectez-vous.</EmptyState></div>;
+  if (loading) return <div className="min-h-screen bg-[#0A0A0B]"><Spinner /></div>;
+  if (!ctx) return <div className="min-h-screen bg-[#0A0A0B] flex items-center justify-center"><EmptyState>Contexte indisponible. Reconnectez-vous.</EmptyState></div>;
 
   if (ctx.roleCode === "externe_banque" || ctx.roleCode === "externe_client") return <ExternalPortal />;
 
@@ -286,20 +286,19 @@ export const FleetWorkspace: React.FC = () => {
     const active = section === n.key;
     return (
       <button onClick={() => go(n.key)}
-        className={`relative w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${active ? "bg-[#2A2D3A] text-gold" : "text-muted-premium hover:text-white-premium hover:bg-[#23262F]"}`}>
-        {active && <motion.span layoutId="nav-accent" className="absolute left-0 top-2 bottom-2 w-1 rounded-full bg-gold" />}
+        className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${active ? "bg-[#1C1C20] text-[#EDEDED]" : "text-[#8A8A8A] hover:text-[#EDEDED] hover:bg-[#141416]"}`}>
         {n.icon} {n.label}
       </button>
     );
   };
 
   return (
-    <div className="min-h-screen bg-dark text-white-premium">
+    <div className="min-h-screen bg-[#0A0A0B] text-[#EDEDED]">
       {/* En-tête mobile */}
-      <header className="lg:hidden sticky top-0 z-30 flex items-center justify-between px-4 h-14 bg-surface shadow-md shadow-black/20">
-        <button aria-label="Ouvrir le menu" onClick={() => setSidebarOpen(true)} className="p-1 text-white-premium"><Menu size={22} /></button>
-        <span className="font-bold text-gold">SAVER Fleet Ops</span>
-        <button aria-label="Déconnexion" onClick={logout} className="p-1 text-muted-premium"><LogOut size={20} /></button>
+      <header className="lg:hidden sticky top-0 z-30 flex items-center justify-between px-4 h-14 bg-[#0A0A0B] border-b border-[#1A1A1D]">
+        <button aria-label="Ouvrir le menu" onClick={() => setSidebarOpen(true)} className="p-1 text-[#EDEDED]"><Menu size={22} /></button>
+        <span className="font-bold text-[#EDEDED]">SAVER Fleet Ops</span>
+        <button aria-label="Déconnexion" onClick={logout} className="p-1 text-[#8A8A8A]"><LogOut size={20} /></button>
       </header>
 
       <div className="lg:flex">
@@ -308,28 +307,28 @@ export const FleetWorkspace: React.FC = () => {
         </AnimatePresence>
 
         {/* Barre latérale */}
-        <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-surface flex flex-col transform transition-transform duration-200 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 lg:z-auto ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
+        <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-[#0A0A0B] border-r border-[#1A1A1D] flex flex-col transform transition-transform duration-200 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 lg:z-auto ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
           <div className="px-5 h-16 flex items-center justify-between shrink-0">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gold text-dark font-bold flex items-center justify-center text-sm">E</div>
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#22C55E] to-[#0EA5E9] shrink-0" />
               <div>
-                <div className="font-bold text-white-premium leading-none">Fleet Ops</div>
-                <div className="text-[10px] text-muted-premium mt-0.5">SAVER · EASY</div>
+                <div className="font-bold text-[#EDEDED] leading-none">Fleet Ops</div>
+                <div className="text-[10px] text-[#8A8A8A] mt-0.5">SAVER · EASY</div>
               </div>
             </div>
-            <button aria-label="Fermer le menu" className="lg:hidden text-muted-premium p-1" onClick={() => setSidebarOpen(false)}><X size={20} /></button>
+            <button aria-label="Fermer le menu" className="lg:hidden text-[#8A8A8A] p-1" onClick={() => setSidebarOpen(false)}><X size={20} /></button>
           </div>
           <nav className="flex-1 px-3 py-2 space-y-1 overflow-y-auto">
             {nav.map((n) => <NavButton key={n.key} n={n} />)}
           </nav>
           <div className="p-3">
-            <div className="flex items-center gap-3 px-2 py-2.5 rounded-xl bg-[#23262F]">
-              <div className="w-9 h-9 rounded-full bg-gold text-dark font-bold flex items-center justify-center text-sm shrink-0">{initials}</div>
+            <div className="flex items-center gap-3 px-2 py-2.5 rounded-xl bg-[#141416] border border-[#232327]">
+              <div className="w-9 h-9 rounded-full bg-[#1C1C20] border border-[#232327] text-[#EDEDED] font-semibold flex items-center justify-center text-sm shrink-0">{initials}</div>
               <div className="min-w-0 flex-1">
-                <div className="text-sm text-white-premium truncate">{ctx.name}</div>
-                <div className="text-xs text-gold truncate">{ROLE_LABELS[ctx.roleCode || ""] || ctx.roleCode}</div>
+                <div className="text-sm text-[#EDEDED] truncate">{ctx.name}</div>
+                <div className="text-xs text-[#8A8A8A] truncate">{ROLE_LABELS[ctx.roleCode || ""] || ctx.roleCode}</div>
               </div>
-              <button onClick={logout} aria-label="Déconnexion" className="text-muted-premium hover:text-white-premium p-1"><LogOut size={18} /></button>
+              <button onClick={logout} aria-label="Déconnexion" className="text-[#8A8A8A] hover:text-[#EDEDED] p-1"><LogOut size={18} /></button>
             </div>
           </div>
         </aside>

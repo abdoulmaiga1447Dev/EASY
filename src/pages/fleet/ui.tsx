@@ -1,8 +1,10 @@
 /**
  * Système de composants de l'espace SAVER Fleet Ops.
- * Direction : sobre & pro (type Linear/Stripe) + ergonomie d'app VTC.
- * Règles : surfaces PLEINES (aucun fond translucide), contrastes nets, coins arrondis,
- * animations rapides et discrètes (motion), retours au survol/clic systématiques.
+ * Palette : monochrome très sombre (type dashboard analytics de référence).
+ *   fond #0A0A0B · cartes #141416 · bordures #232327 · champs #0F0F11
+ *   texte #EDEDED · secondaire #8A8A8A · accent vert #22C55E (ponctuel) · rouge #EF4444
+ * Règle : AUCUN aplat de couleur derrière les icônes. Surfaces pleines, bordures fines,
+ * animations rapides et discrètes.
  */
 import React, { useEffect, useState } from "react";
 import { motion } from "motion/react";
@@ -10,12 +12,12 @@ import { motion } from "motion/react";
 // ---------------------------------------------------------------- Boutons
 type BtnVariant = "primary" | "secondary" | "ghost" | "danger";
 type BtnSize = "sm" | "md" | "lg";
-const BTN_BASE = "inline-flex items-center justify-center gap-2 font-semibold rounded-xl transition-colors duration-150 outline-none disabled:opacity-40 disabled:pointer-events-none whitespace-nowrap";
+const BTN_BASE = "inline-flex items-center justify-center gap-2 font-medium rounded-xl transition-colors duration-150 outline-none disabled:opacity-40 disabled:pointer-events-none whitespace-nowrap";
 const BTN_VARIANT: Record<BtnVariant, string> = {
-  primary: "bg-gold text-dark hover:brightness-110 shadow-sm shadow-black/20",
-  secondary: "bg-[#2A2D3A] text-white-premium hover:bg-[#333747]",
-  ghost: "bg-transparent text-muted-premium hover:text-white-premium",
-  danger: "bg-[#E5484D] text-white hover:brightness-110",
+  primary: "bg-[#22C55E] text-black font-semibold hover:bg-[#16A34A]",
+  secondary: "bg-[#1C1C20] text-[#EDEDED] border border-[#232327] hover:bg-[#26262A]",
+  ghost: "bg-transparent text-[#8A8A8A] hover:text-[#EDEDED]",
+  danger: "bg-[#EF4444] text-white hover:brightness-110",
 };
 const BTN_SIZE: Record<BtnSize, string> = {
   sm: "text-xs px-3 py-2",
@@ -26,11 +28,7 @@ const BTN_SIZE: Record<BtnSize, string> = {
 export const Btn: React.FC<
   React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: BtnVariant; size?: BtnSize }
 > = ({ variant = "primary", size = "md", className = "", children, ...props }) => (
-  <motion.button
-    whileTap={{ scale: 0.96 }}
-    className={`${BTN_BASE} ${BTN_VARIANT[variant]} ${BTN_SIZE[size]} ${className}`}
-    {...(props as any)}
-  >
+  <motion.button whileTap={{ scale: 0.96 }} className={`${BTN_BASE} ${BTN_VARIANT[variant]} ${BTN_SIZE[size]} ${className}`} {...(props as any)}>
     {children}
   </motion.button>
 );
@@ -39,42 +37,29 @@ export const Btn: React.FC<
 export const Panel: React.FC<{ children: React.ReactNode; className?: string; hover?: boolean; onClick?: () => void }> = ({ children, className = "", hover, onClick }) => (
   <motion.div
     onClick={onClick}
-    whileHover={hover ? { y: -3 } : undefined}
+    whileHover={hover ? { y: -2, borderColor: "#33343A" } : undefined}
     transition={{ type: "spring", stiffness: 300, damping: 24 }}
-    className={`bg-surface rounded-2xl shadow-lg shadow-black/20 ${hover ? "cursor-pointer" : ""} ${className}`}
+    className={`bg-[#141416] border border-[#232327] rounded-2xl ${hover ? "cursor-pointer" : ""} ${className}`}
   >
     {children}
   </motion.div>
 );
 
-/** Apparition douce (à utiliser autour d'un écran ou d'une carte). */
 export const Reveal: React.FC<{ children: React.ReactNode; delay?: number; className?: string }> = ({ children, delay = 0, className = "" }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 12 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1], delay }}
-    className={className}
-  >
+  <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1], delay }} className={className}>
     {children}
   </motion.div>
 );
 
-/** Carte statistique (chiffre clé). */
-export const StatCard: React.FC<{ icon: React.ReactNode; label: string; value: React.ReactNode; hint?: string; tone?: "gold" | "green" | "amber" | "red" | "neutral"; delay?: number }> = ({ icon, label, value, hint, tone = "neutral", delay = 0 }) => {
-  const tones: Record<string, string> = {
-    gold: "bg-[#0F3D28] text-gold",
-    green: "bg-[#0F3D28] text-[#3EE07F]",
-    amber: "bg-[#3D3210] text-[#FFCF5C]",
-    red: "bg-[#3D1418] text-[#FF6B6B]",
-    neutral: "bg-[#2A2D3A] text-white-premium",
-  };
+/** Carte KPI épurée (label · grand chiffre · variation optionnelle). Sans icône. */
+export const StatCard: React.FC<{ label: string; value: React.ReactNode; delta?: string; deltaTone?: "green" | "red" | "muted"; delay?: number }> = ({ label, value, delta, deltaTone = "muted", delay = 0 }) => {
+  const tone = deltaTone === "green" ? "text-[#22C55E]" : deltaTone === "red" ? "text-[#EF4444]" : "text-[#8A8A8A]";
   return (
     <Reveal delay={delay}>
       <Panel className="p-5">
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 ${tones[tone]}`}>{icon}</div>
-        <div className="text-3xl font-bold text-white-premium tracking-tight">{value}</div>
-        <div className="text-sm text-muted-premium mt-1">{label}</div>
-        {hint && <div className="text-xs text-muted-premium/70 mt-0.5">{hint}</div>}
+        <div className="text-sm text-[#8A8A8A]">{label}</div>
+        <div className="text-3xl font-bold text-[#EDEDED] tracking-tight mt-2">{value}</div>
+        {delta && <div className={`text-xs mt-2 ${tone}`}>{delta}</div>}
       </Panel>
     </Reveal>
   );
@@ -83,13 +68,13 @@ export const StatCard: React.FC<{ icon: React.ReactNode; label: string; value: R
 // ---------------------------------------------------------------- Formulaires
 export const Field: React.FC<{ label: string; children: React.ReactNode; hint?: string }> = ({ label, children, hint }) => (
   <label className="flex flex-col gap-1.5 text-sm">
-    <span className="text-muted-premium font-medium">{label}</span>
+    <span className="text-[#8A8A8A] font-medium">{label}</span>
     {children}
-    {hint && <span className="text-xs text-muted-premium/70">{hint}</span>}
+    {hint && <span className="text-xs text-[#6B6B72]">{hint}</span>}
   </label>
 );
 
-const CONTROL = "bg-[#15161C] border border-[#33363F] rounded-xl px-3.5 py-2.5 text-white-premium outline-none transition-colors focus:border-gold";
+const CONTROL = "bg-[#0F0F11] border border-[#232327] rounded-xl px-3.5 py-2.5 text-[#EDEDED] outline-none transition-colors focus:border-[#22C55E]";
 export const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement>> = (props) => (
   <input {...props} className={`${CONTROL} ${props.className || ""}`} />
 );
@@ -99,29 +84,27 @@ export const Select: React.FC<React.SelectHTMLAttributes<HTMLSelectElement>> = (
 
 // ---------------------------------------------------------------- Indicateurs
 export const StatusBadge: React.FC<{ active: boolean; labels?: [string, string] }> = ({ active, labels = ["Actif", "Désactivé"] }) => (
-  <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${active ? "bg-[#0F3D28] text-[#3EE07F]" : "bg-[#3D1418] text-[#FF6B6B]"}`}>
-    <span className={`w-1.5 h-1.5 rounded-full ${active ? "bg-[#3EE07F]" : "bg-[#FF6B6B]"}`} />
+  <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border ${active ? "border-[#1E3A2A] text-[#22C55E]" : "border-[#3A1E22] text-[#EF4444]"}`}>
+    <span className={`w-1.5 h-1.5 rounded-full ${active ? "bg-[#22C55E]" : "bg-[#EF4444]"}`} />
     {active ? labels[0] : labels[1]}
   </span>
 );
 
 export const Spinner: React.FC = () => (
   <div className="flex items-center justify-center py-12">
-    <div className="w-6 h-6 border-2 border-[#33363F] border-t-gold rounded-full animate-spin" />
+    <div className="w-6 h-6 border-2 border-[#232327] border-t-[#22C55E] rounded-full animate-spin" />
   </div>
 );
 
 export const EmptyState: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="text-center py-14 text-muted-premium text-sm">{children}</div>
+  <div className="text-center py-14 text-[#8A8A8A] text-sm">{children}</div>
 );
 
 export const Toast: React.FC<{ message: string; kind?: "ok" | "err" }> = ({ message, kind = "ok" }) => (
   <motion.div
-    initial={{ opacity: 0, y: 24, scale: 0.96 }}
-    animate={{ opacity: 1, y: 0, scale: 1 }}
-    exit={{ opacity: 0, y: 24 }}
+    initial={{ opacity: 0, y: 24, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 24 }}
     transition={{ type: "spring", stiffness: 400, damping: 28 }}
-    className={`fixed bottom-6 right-6 z-[60] px-4 py-3 rounded-xl shadow-xl shadow-black/40 text-sm font-medium ${kind === "ok" ? "bg-gold text-dark" : "bg-[#E5484D] text-white"}`}
+    className={`fixed bottom-6 right-6 z-[60] px-4 py-3 rounded-xl shadow-xl shadow-black/50 text-sm font-medium ${kind === "ok" ? "bg-[#22C55E] text-black" : "bg-[#EF4444] text-white"}`}
   >
     {message}
   </motion.div>
@@ -129,16 +112,12 @@ export const Toast: React.FC<{ message: string; kind?: "ok" | "err" }> = ({ mess
 
 /** Modale centrée, animée, surfaces pleines. */
 export const Modal: React.FC<{ title: string; onClose: () => void; children: React.ReactNode }> = ({ title, onClose, children }) => (
-  <motion.div
-    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-    className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onClose}
-  >
+  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4" onClick={onClose}>
     <motion.div
-      initial={{ opacity: 0, y: 20, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ type: "spring", stiffness: 320, damping: 26 }}
-      className="bg-surface rounded-2xl shadow-2xl shadow-black/50 w-full max-w-lg max-h-[85vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}
+      initial={{ opacity: 0, y: 20, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: "spring", stiffness: 320, damping: 26 }}
+      className="bg-[#141416] border border-[#232327] rounded-2xl shadow-2xl shadow-black/60 w-full max-w-lg max-h-[85vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}
     >
-      <h3 className="text-lg font-semibold text-white-premium mb-4">{title}</h3>
+      <h3 className="text-lg font-semibold text-[#EDEDED] mb-4">{title}</h3>
       {children}
     </motion.div>
   </motion.div>
@@ -158,7 +137,7 @@ export const AuthImage: React.FC<{ mediaId: string | null | undefined; alt?: str
       .catch(() => { if (!cancelled) setUrl(null); });
     return () => { cancelled = true; if (revoked) URL.revokeObjectURL(revoked); };
   }, [mediaId]);
-  if (!mediaId) return <div className={`bg-[#15161C] flex items-center justify-center text-muted-premium text-xs ${className}`}>—</div>;
-  if (!url) return <div className={`bg-[#15161C] animate-pulse ${className}`} />;
+  if (!mediaId) return <div className={`bg-[#0F0F11] flex items-center justify-center text-[#8A8A8A] text-xs ${className}`}>—</div>;
+  if (!url) return <div className={`bg-[#0F0F11] animate-pulse ${className}`} />;
   return <img src={url} alt={alt} className={className} style={{ objectFit: "cover" }} />;
 };
