@@ -6,6 +6,7 @@ import {
   expandRolePermissions,
 } from "../lib/rbac";
 import { runVehicleAlerts } from "../lib/alerts";
+import { normalizeDay } from "../lib/assignment";
 
 const prisma = new PrismaClient();
 
@@ -265,6 +266,14 @@ async function main() {
       create: { id: p.id, numero: p.numero, imei: p.imei, operateur: p.operateur, siteId: p.siteId, vehicleId: p.vehicleId, dateAffectation: p.vehicleId ? new Date() : null },
     });
   }
+
+  // Attribution du jour pour le chauffeur de démonstration (pour tester le check-in).
+  const jour = normalizeDay(new Date());
+  await prisma.assignment.deleteMany({ where: { driverId: "usr_chauffeur" } });
+  await prisma.assignment.deleteMany({ where: { vehicleId: "v_f1", date: jour, shift: "A" } });
+  await prisma.assignment.create({
+    data: { siteId: "site_abidjan", date: jour, shift: "A", driverId: "usr_chauffeur", vehicleId: "v_f1", lieu: "Cocody", createdById: "usr_admin" },
+  }).catch(() => {});
 
   // Calcule les alertes d'échéance de démonstration (idempotent).
   const created = await runVehicleAlerts(prisma);

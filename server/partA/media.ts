@@ -9,6 +9,7 @@ import type { PrismaClient } from "@prisma/client";
 import { authenticate, authorize, type AuthContext } from "../../lib/authz";
 import { uploadMiddleware, processAndStore, UPLOAD_DIR } from "../../lib/upload";
 import { canAccessVehicle } from "./vehicleAccess";
+import { canReadShiftMedia } from "./checkin";
 import { wrap, serverError, notFound } from "./helpers";
 
 export function mediaRouter(prisma: PrismaClient): express.Router {
@@ -19,7 +20,7 @@ export function mediaRouter(prisma: PrismaClient): express.Router {
   // --- Upload d'un fichier (photo ou document) ---
   r.post(
     "/api/media",
-    authorize("vehicule.creer", "vehicule.modifier", "document.gerer"),
+    authorize("vehicule.creer", "vehicule.modifier", "document.gerer", "self.checkin", "self.reversement", "self.profil"),
     (req, res) => {
       uploadMiddleware(req, res, async (err: any) => {
         if (err) return res.status(400).json({ error: { fr: err.message || "Upload invalide", en: "Invalid upload" } });
@@ -48,6 +49,9 @@ export function mediaRouter(prisma: PrismaClient): express.Router {
       if (media.resourceType === "FleetVehicle" && media.resourceId) {
         const v = await prisma.fleetVehicle.findUnique({ where: { id: media.resourceId }, select: { siteId: true, clientId: true } });
         if (!v || !canAccessVehicle(ctx, v)) return res.status(403).json({ error: { fr: "Accès refusé à ce fichier", en: "Access denied" } });
+      } else if (media.resourceType === "ShiftRecord" && media.resourceId) {
+        // Preuve de check-in/out : le chauffeur concerné ou un superviseur du site.
+        if (!(await canReadShiftMedia(prisma, ctx, media.resourceId))) return res.status(403).json({ error: { fr: "Accès refusé à ce fichier", en: "Access denied" } });
       } else {
         // Média non encore rattaché : seul l'auteur de l'upload peut le lire.
         if (media.uploadedById !== ctx.userId) return res.status(403).json({ error: { fr: "Accès refusé à ce fichier", en: "Access denied" } });

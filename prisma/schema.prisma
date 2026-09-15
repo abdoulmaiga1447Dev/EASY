@@ -612,6 +612,7 @@ model Assignment {
   createdBy   User?        @relation("CreatedAssignments", fields: [createdById], references: [id])
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+  shiftRecord ShiftRecord?
 
   // Empêche toute double attribution d'un véhicule sur un même créneau (au niveau BASE).
   @@unique([vehicleId, date, shift])
@@ -636,4 +637,57 @@ model AssignmentEvent {
   @@index([siteId, date])
   @@index([vehicleId])
   @@index([driverId])
+}
+
+// =============================================================================
+// SAVER Fleet Ops — Partie B (Bloc B1 : Flux 1 — Check-in / Check-out)
+// =============================================================================
+
+enum ShiftRecordStatut {
+  EN_ATTENTE
+  EN_COURS
+  TERMINE
+}
+
+// --- Déroulé d'un shift attribué : prise et fin de poste (1-1 avec Assignment) ---
+model ShiftRecord {
+  id           String            @id @default(cuid())
+  assignmentId String            @unique
+  assignment   Assignment        @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  driverId     String
+  vehicleId    String
+  siteId       String
+  date         DateTime
+  shift        ShiftCode
+  statut       ShiftRecordStatut @default(EN_ATTENTE)
+
+  // Check-in (prise de poste) : 5 preuves
+  checkinAt     DateTime?
+  gpsLat        Float?
+  gpsLng        Float?
+  kmDebut       Int?
+  photoCompteur String? // mediaId
+  photoVehicule String?
+  photoPermis   String?
+  selfieKyc     String?
+
+  // Check-out (fin de poste) : 4 photos d'état
+  checkoutAt   DateTime?
+  kmFin        Int?
+  photoAvant   String?
+  photoArriere String?
+  photoGauche  String?
+  photoDroite  String?
+
+  // Données d'exploitation calculées au check-out
+  kmParcourus  Int?
+  dureeMinutes Int?
+
+  alerteRetardEnvoyee Boolean @default(false) // anti-doublon du minuteur 15 min
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([siteId, date])
+  @@index([driverId, date])
 }

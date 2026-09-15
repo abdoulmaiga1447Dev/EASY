@@ -15,6 +15,7 @@ import nodemailer from "nodemailer";
 import { createPartARouter } from "./server/partA/index";
 import { runVehicleAlerts } from "./lib/alerts";
 import { retryPendingNotifications } from "./lib/notifications";
+import { runShiftLateAlerts } from "./lib/shiftAlerts";
 
 // Configuration
 const PORT = 3000;
@@ -4518,6 +4519,18 @@ async function startServer() {
     };
     setTimeout(runAlertsJob, 10_000); // premier passage après le démarrage
     setInterval(runAlertsJob, 24 * 60 * 60 * 1000); // puis tous les jours
+
+    // Minuteur 15 min : alerte les shifts non démarrés (Flux 1). Vérification fréquente.
+    const runShiftJob = async () => {
+      try {
+        const n = await runShiftLateAlerts(prisma);
+        if (n) console.log(`[Shifts] ${n} alerte(s) de retard de démarrage envoyée(s)`);
+      } catch (e) {
+        console.error("[Shifts] minuteur échoué:", e);
+      }
+    };
+    setTimeout(runShiftJob, 15_000);
+    setInterval(runShiftJob, 5 * 60 * 1000); // toutes les 5 minutes
   }
 
   if (process.env.NODE_ENV !== "production") {
