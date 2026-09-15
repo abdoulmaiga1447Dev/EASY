@@ -8,8 +8,9 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   LayoutDashboard, Shield, Car, CalendarClock, LogOut, User, Building2, Wallet, Menu, X,
-  AlertTriangle, Users, ChevronRight,
+  AlertTriangle, Users, ChevronRight, TrendingUp,
 } from "lucide-react";
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { useAuth } from "../../context/AuthContext";
 import { useRbac } from "../../context/RbacContext";
 import { api } from "../../api/fleet";
@@ -42,43 +43,61 @@ const Placeholder: React.FC<{ titre: string; bloc: string }> = ({ titre, bloc })
 );
 
 // --------------------------- Tableau de bord ---------------------------
+const STATUT_COLORS: Record<string, string> = {
+  Disponible: "#00C853", Attribue: "#3B82F6", EnCharge: "#06B6D4",
+  Immobilise: "#EF4444", EnMaintenance: "#F59E0B", HorsFlotte: "#6B7280",
+};
+const STATUT_LABEL: Record<string, string> = {
+  Disponible: "Disponible", Attribue: "Attribué", EnCharge: "En charge",
+  Immobilise: "Immobilisé", EnMaintenance: "En maintenance", HorsFlotte: "Hors flotte",
+};
+
 const Dashboard: React.FC<{ onNavigate: (s: Section) => void }> = ({ onNavigate }) => {
   const { ctx, can } = useRbac();
-  const [stats, setStats] = useState<{ vehicules?: number; disponibles?: number; alertes?: number; attributions?: number; chauffeurs?: number }>({});
+  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [alerts, setAlerts] = useState<any[]>([]);
+  const [week, setWeek] = useState<{ date: string; A: any[]; B: any[] }[]>([]);
+  const [planning, setPlanning] = useState<{ shifts: { A: any[]; B: any[] }; chauffeurs: any[] } | null>(null);
 
   useEffect(() => {
     if (!ctx) return;
     const site = ctx.sites[0]?.id;
     (async () => {
-      const s: typeof stats = {};
       try {
-        if (can("vehicule.voir")) {
-          const v = await api.get<{ vehicles: any[] }>("/api/fleet/vehicles?pageSize=100");
-          s.vehicules = v.vehicles.length;
-          s.disponibles = v.vehicles.filter((x) => x.statut === "Disponible").length;
-        }
-        if (can("alerte.voir")) {
-          const a = await api.get<{ alerts: any[] }>("/api/fleet/alerts");
-          s.alertes = a.alerts.length;
-        }
+        if (can("vehicule.voir")) setVehicles((await api.get<{ vehicles: any[] }>("/api/fleet/vehicles?pageSize=100")).vehicles);
+        if (can("alerte.voir")) setAlerts((await api.get<{ alerts: any[] }>("/api/fleet/alerts")).alerts);
         if (can("attribution.voir") && site) {
-          const d = await api.get<{ shifts: { A: any[]; B: any[] }; chauffeurs: any[] }>(`/api/fleet/assignments?siteId=${site}`);
-          s.attributions = d.shifts.A.length + d.shifts.B.length;
-          s.chauffeurs = d.chauffeurs.length;
+          setWeek((await api.get<{ days: { date: string; A: any[]; B: any[] }[] }>(`/api/fleet/assignments/week?siteId=${site}`)).days);
+          setPlanning(await api.get(`/api/fleet/assignments?siteId=${site}`));
         }
-      } catch { /* permissions/erreurs ignorées : les tuiles concernées ne s'affichent pas */ }
-      setStats(s);
+      } catch { /* permissions/erreurs ignorées : les blocs concernés ne s'affichent pas */ }
     })();
   }, [ctx, can]);
 
   if (!ctx) return null;
 
-  const tiles: { key: string; icon: React.ReactNode; label: string; value: React.ReactNode; hint?: string; tone: any; show: boolean }[] = [
-    { key: "veh", icon: <Car size={20} />, label: "Véhicules", value: stats.vehicules ?? "—", hint: stats.disponibles != null ? `${stats.disponibles} disponibles` : undefined, tone: "gold", show: can("vehicule.voir") },
-    { key: "alt", icon: <AlertTriangle size={20} />, label: "Alertes en cours", value: stats.alertes ?? "—", tone: (stats.alertes ?? 0) > 0 ? "amber" : "green", show: can("alerte.voir") },
-    { key: "att", icon: <CalendarClock size={20} />, label: "Attributions du jour", value: stats.attributions ?? "—", tone: "neutral", show: can("attribution.voir") },
-    { key: "chf", icon: <Users size={20} />, label: "Chauffeurs (site)", value: stats.chauffeurs ?? "—", tone: "neutral", show: can("attribution.voir") },
-  ].filter((t) => t.show);
+  const heure = new Date().getHours();
+  const greet = heure < 12 ? "Bonjour" : heure < 18 ? "Bon après-midi" : "Bonsoir";
+  const dateJour = new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+
+  const disponibles = vehicles.filter((v) => v.statut === "Disponible").length;
+  const dispoRate = vehicles.length ? Math.round((disponibles / vehicles.length) * 100) : 0;
+  const attribsJour = planning ? planning.shifts.A.length + planning.shifts.B.length : 0;
+
+  const statutCounts = vehicles.reduce<Record<string, number>>((acc, v) => { acc[v.statut] = (acc[v.statut] || 0) + 1; return acc; }, {});
+  const donutData = Object.entries(statutCounts).map(([statut, value]) => ({ statut, name: STATUT_LABEL[statut] || statut, value }));
+  const areaData = week.map((d) => ({ jour: new Date(d.date).toLocaleDateString("fr-FR", { weekday: "short" }), attributions: d.A.length + d.B.length }));
+
+  const showFlotte = can("vehicule.voir") && vehicles.length > 0;
+  const showAttrib = can("attribution.voir") && week.length > 0;
+
+  const tilesAll: { key: string; icon: React.ReactNode; label: string; value: React.ReactNode; hint?: string; tone: any; show: boolean }[] = [
+    { key: "veh", icon: <Car size={20} />, label: "Véhicules", value: vehicles.length || "—", hint: `${disponibles} disponibles`, tone: "gold", show: can("vehicule.voir") },
+    { key: "dispo", icon: <TrendingUp size={20} />, label: "Disponibilité flotte", value: vehicles.length ? `${dispoRate}%` : "—", tone: dispoRate >= 50 ? "green" : "amber", show: can("vehicule.voir") },
+    { key: "alt", icon: <AlertTriangle size={20} />, label: "Alertes en cours", value: can("alerte.voir") ? alerts.length : "—", tone: alerts.length > 0 ? "red" : "green", show: can("alerte.voir") },
+    { key: "att", icon: <CalendarClock size={20} />, label: "Attributions du jour", value: attribsJour, hint: planning ? `${planning.chauffeurs.length} chauffeurs` : undefined, tone: "neutral", show: can("attribution.voir") },
+  ];
+  const tiles = tilesAll.filter((t) => t.show);
 
   const shortcutsAll: { section: Section; icon: React.ReactNode; titre: string; desc: string; show: boolean }[] = [
     { section: "admin", icon: <Shield size={18} />, titre: "Administration", desc: "Sites, utilisateurs, rôles, paramètres", show: ctx.permissions.some((p) => ["site.voir", "utilisateur.voir", "role.voir", "parametre.voir", "audit.voir"].includes(p)) },
@@ -91,9 +110,14 @@ const Dashboard: React.FC<{ onNavigate: (s: Section) => void }> = ({ onNavigate 
   return (
     <div className="space-y-8">
       <Reveal>
-        <div>
-          <h1 className="text-3xl font-bold text-white-premium tracking-tight">Bonjour, {ctx.name.split(" ")[0]} 👋</h1>
-          <p className="text-muted-premium mt-1.5">{ROLE_LABELS[ctx.roleCode || ""] || ctx.roleCode} · {ctx.allSites ? "Tous les sites" : ctx.sites.map((s) => s.nom).join(", ") || "Aucun site"}</p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-3xl font-bold text-white-premium tracking-tight">{greet}, {ctx.name.split(" ")[0]}</h1>
+            <p className="text-muted-premium mt-1.5">{ROLE_LABELS[ctx.roleCode || ""] || ctx.roleCode} · {ctx.allSites ? "Tous les sites" : ctx.sites.map((s) => s.nom).join(", ") || "Aucun site"}</p>
+          </div>
+          <div className="hidden sm:flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-surface text-sm text-muted-premium capitalize">
+            <CalendarClock size={16} className="text-gold" /> {dateJour}
+          </div>
         </div>
       </Reveal>
 
@@ -101,6 +125,82 @@ const Dashboard: React.FC<{ onNavigate: (s: Section) => void }> = ({ onNavigate 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {tiles.map((t, i) => <StatCard key={t.key} icon={t.icon} label={t.label} value={t.value} hint={t.hint} tone={t.tone} delay={i * 0.06} />)}
         </div>
+      )}
+
+      {(showFlotte || showAttrib) && (
+        <div className="grid lg:grid-cols-3 gap-4">
+          {showAttrib && (
+            <Reveal className="lg:col-span-2">
+              <Panel className="p-5 h-full">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="font-semibold text-white-premium">Attributions · 7 jours</h2>
+                  <span className="text-xs text-muted-premium">{areaData.reduce((s, d) => s + d.attributions, 0)} au total</span>
+                </div>
+                <div className="h-56">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={areaData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="gAttr" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#00C853" stopOpacity={0.35} />
+                          <stop offset="100%" stopColor="#00C853" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <XAxis dataKey="jour" tick={{ fill: "#8A8A9A", fontSize: 12 }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fill: "#8A8A9A", fontSize: 12 }} axisLine={false} tickLine={false} allowDecimals={false} width={30} />
+                      <Tooltip contentStyle={{ background: "#20222D", border: "none", borderRadius: 12, color: "#F4F2EE" }} labelStyle={{ color: "#8A8A9A" }} cursor={{ stroke: "#33363F" }} />
+                      <Area type="monotone" dataKey="attributions" stroke="#00C853" strokeWidth={2.5} fill="url(#gAttr)" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </Panel>
+            </Reveal>
+          )}
+          {showFlotte && (
+            <Reveal delay={0.05}>
+              <Panel className="p-5 h-full">
+                <h2 className="font-semibold text-white-premium mb-2">Répartition de la flotte</h2>
+                <div className="relative h-40">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={donutData} dataKey="value" nameKey="name" innerRadius={50} outerRadius={70} paddingAngle={2} stroke="none">
+                        {donutData.map((d) => <Cell key={d.statut} fill={STATUT_COLORS[d.statut] || "#6B7280"} />)}
+                      </Pie>
+                      <Tooltip contentStyle={{ background: "#20222D", border: "none", borderRadius: 12, color: "#F4F2EE" }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <div className="text-2xl font-bold text-white-premium">{vehicles.length}</div>
+                    <div className="text-xs text-muted-premium">véhicules</div>
+                  </div>
+                </div>
+                <div className="mt-3 space-y-1.5">
+                  {donutData.map((d) => (
+                    <div key={d.statut} className="flex items-center justify-between text-xs">
+                      <span className="flex items-center gap-2 text-muted-premium"><span className="w-2.5 h-2.5 rounded-full" style={{ background: STATUT_COLORS[d.statut] || "#6B7280" }} />{d.name}</span>
+                      <span className="text-white-premium font-medium">{d.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </Panel>
+            </Reveal>
+          )}
+        </div>
+      )}
+
+      {can("alerte.voir") && alerts.length > 0 && (
+        <Reveal>
+          <Panel className="p-5">
+            <h2 className="font-semibold text-white-premium mb-3">Alertes récentes</h2>
+            <div className="space-y-2">
+              {alerts.slice(0, 5).map((a) => (
+                <div key={a.id} className="flex items-center gap-3 rounded-xl bg-[#15161C] px-3.5 py-2.5">
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: a.severity === "critical" ? "#EF4444" : "#F59E0B" }} />
+                  <span className="text-sm text-white-premium flex-1 min-w-0 truncate">{a.message}</span>
+                </div>
+              ))}
+            </div>
+          </Panel>
+        </Reveal>
       )}
 
       {shortcuts.length > 0 && (

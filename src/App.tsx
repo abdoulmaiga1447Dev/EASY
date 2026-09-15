@@ -26,7 +26,7 @@ import { Corporate } from "./pages/Corporate";
 import { Admin } from "./pages/Admin";
 import { RapportEcologique } from "./pages/RapportEcologique";
 import { Commandes } from "./pages/Commandes";
-import { RbacProvider, FLEET_ROLE_CODES } from "./context/RbacContext";
+import { RbacProvider, useRbac, FLEET_ROLE_CODES } from "./context/RbacContext";
 import { FleetWorkspace } from "./pages/fleet/FleetWorkspace";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -38,6 +38,10 @@ const ALLOWED_PAGES = ["home", "vehicules", "nos-chauffeurs", "tarifs", "contact
 function MainAppApplet() {
   const { setSegment } = useSegment();
   const { isAuthenticated, user, isLoading } = useAuth();
+  const { ctx: rbacCtx, loading: rbacLoading } = useRbac();
+  // Rôle de référence pour l'aiguillage : le rôle RBAC réel (via roleId) est prioritaire
+  // sur le champ `role` legacy, qui peut être désynchronisé.
+  const routingRole = rbacCtx?.roleCode ?? user?.role ?? null;
   // Simple responsive state router synced with URL hashes for deep linking and navigation
   const [currentPage, setCurrentPage] = useState<string>(() => {
     const hash = window.location.hash.replace("#", "");
@@ -84,7 +88,7 @@ function MainAppApplet() {
     if (isLoading) return;
 
     // Les profils SAVER Fleet Ops ont leur propre espace : pas de redirection legacy.
-    if (isAuthenticated && user && FLEET_ROLE_CODES.includes(user.role)) return;
+    if (isAuthenticated && user && routingRole && FLEET_ROLE_CODES.includes(routingRole)) return;
 
     if (isAuthenticated && user) {
       const publicLandingPages = ["home", "connexion", "inscription", "forgot", "tarifs", "vehicules", "devis", "contact", "rapport-ecologique"];
@@ -148,8 +152,15 @@ function MainAppApplet() {
   };
 
   // Aiguillage SAVER Fleet Ops : les profils internes/externes ont leur propre espace.
-  if (isAuthenticated && user && FLEET_ROLE_CODES.includes(user.role)) {
-    return <FleetWorkspace />;
+  // Aiguillage SAVER Fleet Ops. On attend le chargement du contexte RBAC pour éviter
+  // un affichage transitoire de l'ancienne interface avant de basculer.
+  if (isAuthenticated && user) {
+    if (rbacLoading) {
+      return <div className="min-h-screen bg-dark flex items-center justify-center"><div className="w-6 h-6 border-2 border-white/20 border-t-gold rounded-full animate-spin" /></div>;
+    }
+    if (routingRole && FLEET_ROLE_CODES.includes(routingRole)) {
+      return <FleetWorkspace />;
+    }
   }
 
   return (
