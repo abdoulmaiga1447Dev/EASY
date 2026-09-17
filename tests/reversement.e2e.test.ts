@@ -32,10 +32,17 @@ describe("Reversement accepté", () => {
   it("un écart dans la tolérance est accepté automatiquement", async () => {
     const aid = await makeTerminatedShift("v_f1", "A");
     const res = await request(app).post(`/api/fleet/shifts/${aid}/reversement`).set(auth(DEMO.chauffeur))
-      .send({ recetteYango: 50000, montantReverse: 49500, preuveYangoMediaId: null, preuveReversementMediaId: null, depenses: [] });
+      .send({ recetteYango: 50000, montantReverse: 49500, preuveYangoMediaId: "m1", preuveReversementMediaId: "m2", depenses: [] });
     expect(res.status).toBe(201);
     expect(res.body.statut).toBe("ACCEPTE");
     expect(res.body.montantAttendu).toBe(49500);
+  });
+
+  it("refuse un reversement sans preuve (relevé Yango / virement obligatoires)", async () => {
+    const aid = await makeTerminatedShift("v_f4", "A");
+    const res = await request(app).post(`/api/fleet/shifts/${aid}/reversement`).set(auth(DEMO.chauffeur))
+      .send({ recetteYango: 10000, montantReverse: 10000, depenses: [] });
+    expect(res.status).toBe(400);
   });
 
   it("check-out requis avant reversement", async () => {
@@ -51,7 +58,7 @@ describe("Écart, double validation et dette", () => {
   it("un écart au-delà de la tolérance passe en ECART_A_VALIDER", async () => {
     const aid = await makeTerminatedShift("v_f2", "A");
     const res = await request(app).post(`/api/fleet/shifts/${aid}/reversement`).set(auth(DEMO.chauffeur))
-      .send({ recetteYango: 50000, montantReverse: 40000, depenses: [] });
+      .send({ recetteYango: 50000, montantReverse: 40000, preuveYangoMediaId: "m1", preuveReversementMediaId: "m2", depenses: [] });
     expect(res.status).toBe(201);
     expect(res.body.statut).toBe("ECART_A_VALIDER");
     expect(res.body.ecart).toBe(9500);

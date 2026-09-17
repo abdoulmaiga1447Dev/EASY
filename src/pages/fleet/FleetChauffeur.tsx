@@ -68,7 +68,8 @@ const ReversementBloc: React.FC<{ assignmentId: string; notify: (t: ToastState) 
   const load = async () => { setLoading(true); try { const d = await api.get<any>("/api/fleet/me/reversement"); setRev(d.reversement); } catch (e) { notify({ message: errMsg(e), kind: "err" }); } finally { setLoading(false); } };
   useEffect(() => { load(); }, []);
 
-  const complet = form.recetteYango !== "" && form.montantReverse !== "" && form.preuveReversementMediaId;
+  const depensesOk = depenses.every((d) => d.montant === "" || d.preuveMediaId);
+  const complet = form.recetteYango !== "" && form.montantReverse !== "" && form.preuveYangoMediaId && form.preuveReversementMediaId && depensesOk;
   const submit = async () => {
     setSaving(true);
     try {
@@ -104,7 +105,7 @@ const ReversementBloc: React.FC<{ assignmentId: string; notify: (t: ToastState) 
         <Field label="Montant reversé (FCFA)"><Input type="number" value={form.montantReverse} onChange={(e) => setForm({ ...form, montantReverse: e.target.value })} /></Field>
       </div>
       <div className="flex flex-wrap gap-4">
-        <FileField label="relevé Yango" mediaId={form.preuveYangoMediaId} onUploaded={(id) => setForm({ ...form, preuveYangoMediaId: id })} notify={notify} />
+        <FileField label="relevé Yango *" mediaId={form.preuveYangoMediaId} onUploaded={(id) => setForm({ ...form, preuveYangoMediaId: id })} notify={notify} />
         <FileField label="preuve du virement *" mediaId={form.preuveReversementMediaId} onUploaded={(id) => setForm({ ...form, preuveReversementMediaId: id })} notify={notify} />
       </div>
       <div>
@@ -116,13 +117,13 @@ const ReversementBloc: React.FC<{ assignmentId: string; notify: (t: ToastState) 
           <div key={i} className="flex flex-wrap items-center gap-2 mb-2">
             <Input type="number" placeholder="Montant" value={d.montant} onChange={(e) => setDepenses(depenses.map((x, j) => j === i ? { ...x, montant: e.target.value } : x))} className="w-28" />
             <Input placeholder="Motif" value={d.motif} onChange={(e) => setDepenses(depenses.map((x, j) => j === i ? { ...x, motif: e.target.value } : x))} className="flex-1 min-w-[120px]" />
-            <FileField label="preuve" mediaId={d.preuveMediaId} onUploaded={(id) => setDepenses(depenses.map((x, j) => j === i ? { ...x, preuveMediaId: id } : x))} notify={notify} />
+            <FileField label="preuve *" mediaId={d.preuveMediaId} onUploaded={(id) => setDepenses(depenses.map((x, j) => j === i ? { ...x, preuveMediaId: id } : x))} notify={notify} />
             <button className="text-xs text-[#EF4444]" onClick={() => setDepenses(depenses.filter((_, j) => j !== i))}>Retirer</button>
           </div>
         ))}
       </div>
       <Btn onClick={submit} disabled={!complet || saving} className="w-full">Valider le reversement</Btn>
-      {!complet && <p className="text-xs text-[#8A8A8A] text-center">Renseignez la recette, le montant reversé et joignez la preuve du virement.</p>}
+      {!complet && <p className="text-xs text-[#8A8A8A] text-center">Renseignez la recette et le montant reversé, joignez le relevé Yango et la preuve du virement, et une preuve pour chaque dépense.</p>}
     </Panel>
   );
 };

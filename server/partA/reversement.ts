@@ -77,7 +77,14 @@ export function reversementRouter(prisma: PrismaClient): express.Router {
       if (!Number.isFinite(recetteYango) || recetteYango < 0 || !Number.isFinite(montantReverse) || montantReverse < 0) {
         return res.status(400).json({ error: { fr: "Recette et montant reversé obligatoires", en: "Revenue and remitted amount required" } });
       }
+      // Preuves obligatoires : relevé Yango + preuve du virement.
+      if (!b.preuveYangoMediaId) return res.status(400).json({ error: { fr: "Le relevé Yango est obligatoire", en: "Yango statement is required" } });
+      if (!b.preuveReversementMediaId) return res.status(400).json({ error: { fr: "La preuve du virement est obligatoire", en: "Transfer proof is required" } });
       const depensesInput: { montant: number; motif?: string; preuveMediaId?: string }[] = Array.isArray(b.depenses) ? b.depenses : [];
+      // Chaque dépense déclarée doit avoir une preuve.
+      if (depensesInput.some((d) => (Number(d.montant) || 0) > 0 && !d.preuveMediaId)) {
+        return res.status(400).json({ error: { fr: "Chaque dépense doit avoir une preuve de paiement", en: "Each expense requires a payment proof" } });
+      }
 
       const settings = await prisma.siteSettings.findFirst({ where: { siteId: a.siteId }, orderBy: { version: "desc" } });
       const tolerance = settings?.toleranceEcartReversement ?? 5000;
