@@ -2,7 +2,34 @@
 
 > **Avancement**
 > - **Bloc B1 — Flux 1 (check-in / check-out)** : ✅ livré et testé.
-> - **Bloc B2 — Flux 2 (reversement)** : ⏳ à venir.
+> - **Bloc B2 — Flux 2 (reversement)** : ✅ livré et testé (cœur ; cas particuliers cash/réseau reportés).
+
+## Modèle de revenus (clarifié) — HYBRIDE
+- **Plateforme SAVER** : commandes clients payées **en ligne** → le chauffeur ne touche pas l'argent → **pas de reversement** (relève du futur module Courses).
+- **Yango** : courses encaissées par le chauffeur → **reversées** (Flux 2, ci-dessous).
+
+## Bloc B2 — ce qui est livré (Flux 2, reversement Yango)
+### Données
+`Reversement` (1‑1 `ShiftRecord`), `ReversementDepense`, `DetteChauffeur`.
+### Règles (lib/reversement.ts)
+Montant attendu = recette Yango − dépenses − frais (~1 %). Écart ≤ **tolérance 5 000 F** →
+**accepté** ; au-delà → **écart à valider**. **Double validation** Finance + Responsable
+terrain → **rapproché** + **création automatique d'une dette** (déduite en paie, Partie D).
+### API (server/partA/reversement.ts)
+`GET /api/fleet/me/reversement` ; `POST /api/fleet/shifts/:id/reversement` (chauffeur,
+check-out requis) ; `GET /api/fleet/reversements` (+ `/:id`) et `POST /:id/valider`
+(double validation). Preuves cloisonnées (chauffeur concerné ou Finance/Terrain du site).
+### Front
+Bloc « Reverser mes recettes » dans l'espace chauffeur ; écran **Reversements**
+(Finance / Responsable terrain) avec preuves et double validation.
+### Tests
+Unit (calcul écart/statut) + e2e (accepté, écart → double validation → dette, RBAC).
+**180 tests au total.**
+
+## Reste à faire dans la Partie B (avant déploiement)
+- Cas particuliers du reversement : **exception cash** + **réseau indisponible**.
+- **Caméra en direct** (anti-galerie) sur les preuves de **check-in/out** (le reversement garde le choix de fichier).
+- **Vérification IA** des preuves (cohérence + OCR, blocage auto) — chantier dédié après la Partie B.
 
 Décisions actées :
 - **Yango abandonné** : toute la chaîne course/recette se fait dans l'app (module Courses

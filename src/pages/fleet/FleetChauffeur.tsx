@@ -35,6 +35,98 @@ const PhotoCapture: React.FC<{ label: string; mediaId: string | null; onUploaded
   );
 };
 
+// Upload d'un justificatif (capture d'écran) — choix de fichier autorisé (pas de caméra live).
+const FileField: React.FC<{ label: string; mediaId: string | null; onUploaded: (id: string) => void; notify: (t: ToastState) => void }> = ({ label, mediaId, onUploaded, notify }) => {
+  const [busy, setBusy] = useState(false);
+  const onPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    setBusy(true);
+    try { const m = await uploadMedia(file); onUploaded(m.id); } catch (err) { notify({ message: errMsg(err), kind: "err" }); } finally { setBusy(false); }
+  };
+  return (
+    <label className="flex items-center gap-2 text-sm cursor-pointer">
+      <span className={`px-3 py-1.5 rounded-lg border text-xs ${mediaId ? "border-[#22C55E] text-[#22C55E]" : "border-dashed border-[#33363F] text-[#8A8A8A]"}`}>{busy ? "…" : mediaId ? `${label} ✓` : `Joindre ${label}`}</span>
+      <input type="file" accept="image/*" className="hidden" onChange={onPick} />
+    </label>
+  );
+};
+
+const STATUT_REV: Record<string, { label: string; color: string }> = {
+  ACCEPTE: { label: "Reversement accepté", color: "#22C55E" },
+  ECART_A_VALIDER: { label: "Écart signalé — en attente de validation", color: "#F59E0B" },
+  RAPPROCHE: { label: "Rapproché", color: "#3B82F6" },
+};
+
+// Bloc de reversement (Flux 2) affiché après le check-out.
+const ReversementBloc: React.FC<{ assignmentId: string; notify: (t: ToastState) => void }> = ({ assignmentId, notify }) => {
+  const [loading, setLoading] = useState(true);
+  const [rev, setRev] = useState<any>(null);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState<any>({ recetteYango: "", preuveYangoMediaId: "", montantReverse: "", preuveReversementMediaId: "" });
+  const [depenses, setDepenses] = useState<{ montant: string; motif: string; preuveMediaId: string }[]>([]);
+
+  const load = async () => { setLoading(true); try { const d = await api.get<any>("/api/fleet/me/reversement"); setRev(d.reversement); } catch (e) { notify({ message: errMsg(e), kind: "err" }); } finally { setLoading(false); } };
+  useEffect(() => { load(); }, []);
+
+  const complet = form.recetteYango !== "" && form.montantReverse !== "" && form.preuveReversementMediaId;
+  const submit = async () => {
+    setSaving(true);
+    try {
+      await api.post(`/api/fleet/shifts/${assignmentId}/reversement`, {
+        recetteYango: Number(form.recetteYango), montantReverse: Number(form.montantReverse),
+        preuveYangoMediaId: form.preuveYangoMediaId || null, preuveReversementMediaId: form.preuveReversementMediaId || null,
+        depenses: depenses.filter((d) => d.montant !== "").map((d) => ({ montant: Number(d.montant), motif: d.motif, preuveMediaId: d.preuveMediaId || null })),
+      });
+      notify({ message: "Reversement enregistré", kind: "ok" });
+      load();
+    } catch (e) { notify({ message: errMsg(e), kind: "err" }); } finally { setSaving(false); }
+  };
+
+  if (loading) return <Spinner />;
+
+  if (rev) {
+    const s = STATUT_REV[rev.statut] || { label: rev.statut, color: "#8A8A8A" };
+    return (
+      <Panel className="p-5 space-y-2">
+        <div className="flex items-center gap-2 text-sm font-medium" style={{ color: s.color }}><span className="w-2 h-2 rounded-full" style={{ background: s.color }} /> {s.label}</div>
+        <div className="text-sm text-[#8A8A8A]">Recette déclarée : <span className="text-[#EDEDED]">{rev.recetteYango.toLocaleString("fr-FR")} FCFA</span> · Reversé : <span className="text-[#EDEDED]">{rev.montantReverse.toLocaleString("fr-FR")} FCFA</span></div>
+        {rev.ecart !== 0 && <div className="text-sm text-[#8A8A8A]">Écart : <span style={{ color: s.color }}>{rev.ecart.toLocaleString("fr-FR")} FCFA</span></div>}
+      </Panel>
+    );
+  }
+
+  return (
+    <Panel className="p-5 space-y-4">
+      <h2 className="font-semibold text-[#EDEDED]">Reverser mes recettes (Yango)</h2>
+      <p className="text-xs text-[#8A8A8A]">Effectuez le virement sur Wave / Orange Money, puis renseignez les montants et joignez les preuves.</p>
+      <div className="grid sm:grid-cols-2 gap-3">
+        <Field label="Recette Yango du shift (FCFA)"><Input type="number" value={form.recetteYango} onChange={(e) => setForm({ ...form, recetteYango: e.target.value })} /></Field>
+        <Field label="Montant reversé (FCFA)"><Input type="number" value={form.montantReverse} onChange={(e) => setForm({ ...form, montantReverse: e.target.value })} /></Field>
+      </div>
+      <div className="flex flex-wrap gap-4">
+        <FileField label="relevé Yango" mediaId={form.preuveYangoMediaId} onUploaded={(id) => setForm({ ...form, preuveYangoMediaId: id })} notify={notify} />
+        <FileField label="preuve du virement *" mediaId={form.preuveReversementMediaId} onUploaded={(id) => setForm({ ...form, preuveReversementMediaId: id })} notify={notify} />
+      </div>
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm text-[#8A8A8A]">Dépenses autorisées</span>
+          <button className="text-xs text-[#22C55E]" onClick={() => setDepenses([...depenses, { montant: "", motif: "", preuveMediaId: "" }])}>+ Ajouter</button>
+        </div>
+        {depenses.map((d, i) => (
+          <div key={i} className="flex flex-wrap items-center gap-2 mb-2">
+            <Input type="number" placeholder="Montant" value={d.montant} onChange={(e) => setDepenses(depenses.map((x, j) => j === i ? { ...x, montant: e.target.value } : x))} className="w-28" />
+            <Input placeholder="Motif" value={d.motif} onChange={(e) => setDepenses(depenses.map((x, j) => j === i ? { ...x, motif: e.target.value } : x))} className="flex-1 min-w-[120px]" />
+            <FileField label="preuve" mediaId={d.preuveMediaId} onUploaded={(id) => setDepenses(depenses.map((x, j) => j === i ? { ...x, preuveMediaId: id } : x))} notify={notify} />
+            <button className="text-xs text-[#EF4444]" onClick={() => setDepenses(depenses.filter((_, j) => j !== i))}>Retirer</button>
+          </div>
+        ))}
+      </div>
+      <Btn onClick={submit} disabled={!complet || saving} className="w-full">Valider le reversement</Btn>
+      {!complet && <p className="text-xs text-[#8A8A8A] text-center">Renseignez la recette, le montant reversé et joignez la preuve du virement.</p>}
+    </Panel>
+  );
+};
+
 export const FleetChauffeur: React.FC = () => {
   const { ctx } = useRbac();
   const [toast, setToast] = useState<ToastState>(null);
@@ -150,16 +242,20 @@ export const FleetChauffeur: React.FC = () => {
         </Reveal>
       )}
 
-      {/* Terminé */}
+      {/* Terminé → récap + reversement */}
       {a && statut === "TERMINE" && (
-        <Reveal delay={0.1}>
-          <Panel className="p-6 text-center">
-            <div className="w-12 h-12 rounded-full bg-[#0F2A1A] text-[#22C55E] flex items-center justify-center mx-auto mb-3"><Check size={24} /></div>
-            <h2 className="font-semibold text-[#EDEDED]">Shift terminé</h2>
-            <p className="text-sm text-[#8A8A8A] mt-1">{rec.kmParcourus != null ? `${rec.kmParcourus} km parcourus` : ""}{rec.dureeMinutes != null ? ` · ${Math.floor(rec.dureeMinutes / 60)}h${String(rec.dureeMinutes % 60).padStart(2, "0")}` : ""}</p>
-            <p className="text-xs text-[#8A8A8A] mt-3">Le reversement des recettes arrive à la prochaine étape (Partie B — Flux 2).</p>
-          </Panel>
-        </Reveal>
+        <>
+          <Reveal delay={0.1}>
+            <Panel className="p-5 flex items-center gap-3">
+              <div className="w-11 h-11 rounded-full bg-[#0F2A1A] text-[#22C55E] flex items-center justify-center shrink-0"><Check size={22} /></div>
+              <div>
+                <div className="font-semibold text-[#EDEDED]">Shift terminé</div>
+                <div className="text-sm text-[#8A8A8A]">{rec.kmParcourus != null ? `${rec.kmParcourus} km parcourus` : ""}{rec.dureeMinutes != null ? ` · ${Math.floor(rec.dureeMinutes / 60)}h${String(rec.dureeMinutes % 60).padStart(2, "0")}` : ""}</div>
+              </div>
+            </Panel>
+          </Reveal>
+          <Reveal delay={0.15}><ReversementBloc assignmentId={a.id} notify={notify} /></Reveal>
+        </>
       )}
 
       {toast && <Toast message={toast.message} kind={toast.kind} />}

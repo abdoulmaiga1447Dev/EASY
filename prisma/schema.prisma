@@ -685,9 +685,102 @@ model ShiftRecord {
 
   alerteRetardEnvoyee Boolean @default(false) // anti-doublon du minuteur 15 min
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  reversement Reversement?
 
   @@index([siteId, date])
   @@index([driverId, date])
+}
+
+// =============================================================================
+// SAVER Fleet Ops — Partie B (Bloc B2 : Flux 2 — Reversement des recettes Yango)
+// =============================================================================
+
+enum ReversementStatut {
+  ACCEPTE // écart <= tolérance, accepté automatiquement
+  ECART_A_VALIDER // écart > tolérance, en attente de double validation
+  RAPPROCHE // double validation (Finance + Responsable terrain) effectuée
+}
+
+enum DetteStatut {
+  EN_COURS
+  REMBOURSEE
+}
+
+// --- Reversement d'un shift (recettes Yango) : 1-1 avec ShiftRecord ---
+model Reversement {
+  id            String            @id @default(cuid())
+  shiftRecordId String            @unique
+  shiftRecord   ShiftRecord       @relation(fields: [shiftRecordId], references: [id], onDelete: Cascade)
+  driverId      String
+  vehicleId     String
+  siteId        String
+  date          DateTime
+  shift         ShiftCode
+
+  // Déclaration du chauffeur
+  recetteYango             Int // recette Yango déclarée
+  preuveYangoMediaId       String? // capture / relevé Yango
+  montantReverse           Int // montant effectivement viré (Wave/OM)
+  preuveReversementMediaId String? // capture du virement
+
+  // Calculs
+  totalDepenses  Int @default(0)
+  frais          Int @default(0) // ~1 % (frais Wave estimés)
+  montantAttendu Int // recette - dépenses - frais
+  ecart          Int // montantAttendu - montantReverse (positif = manquant)
+
+  statut ReversementStatut @default(ACCEPTE)
+
+  // Double validation (Finance + Responsable terrain)
+  valideFinanceById String?
+  valideFinanceAt   DateTime?
+  valideTerrainById String?
+  valideTerrainAt   DateTime?
+
+  reverseeAt    DateTime  @default(now())
+  retardMinutes Int? // retard vs fin de shift (indicatif ; pénalité en paie, Partie D)
+
+  detteId String? // dette créée si écart confirmé
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  depenses ReversementDepense[]
+
+  @@index([siteId, date])
+  @@index([driverId, date])
+  @@index([statut])
+}
+
+// --- Dépense autorisée pendant le shift, déduite du montant à reverser ---
+model ReversementDepense {
+  id            String      @id @default(cuid())
+  reversementId String
+  reversement   Reversement @relation(fields: [reversementId], references: [id], onDelete: Cascade)
+  montant       Int
+  motif         String?
+  preuveMediaId String?
+  createdAt     DateTime    @default(now())
+
+  @@index([reversementId])
+}
+
+// --- Dette chauffeur (créée sur écart de reversement confirmé) ; déduite en paie ---
+model DetteChauffeur {
+  id              String      @id @default(cuid())
+  driverId        String
+  siteId          String
+  montant         Int
+  montantRembourse Int        @default(0)
+  motif           String?
+  sourceType      String      @default("reversement")
+  sourceId        String?
+  statut          DetteStatut @default(EN_COURS)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([driverId])
+  @@index([statut])
 }
