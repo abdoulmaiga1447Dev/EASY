@@ -6,6 +6,7 @@ import React, { useEffect, useState, useMemo } from "react";
 import { useRbac } from "../../context/RbacContext";
 import { api, type ApiError } from "../../api/fleet";
 import { Btn, Field, Input, Select, Spinner, EmptyState, Modal, Toast, AuthImage } from "./ui";
+import { FleetExceptionsCash } from "./FleetExceptionsCash";
 
 type ToastState = { message: string; kind: "ok" | "err" } | null;
 const errMsg = (e: unknown) => (e as ApiError)?.fr || "Erreur inattendue";
@@ -16,7 +17,7 @@ const STATUT: Record<string, { label: string; color: string }> = {
 };
 const fcfa = (n: number) => (n ?? 0).toLocaleString("fr-FR") + " F";
 
-export const FleetReversements: React.FC = () => {
+const ReversementsList: React.FC = () => {
   const { can } = useRbac();
   const [toast, setToast] = useState<ToastState>(null);
   const notify = useMemo(() => (t: ToastState) => { setToast(t); if (t) setTimeout(() => setToast(null), 3500); }, []);
@@ -44,8 +45,7 @@ export const FleetReversements: React.FC = () => {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <h1 className="text-2xl font-bold text-[#EDEDED]">Reversements</h1>
+      <div className="flex justify-end">
         <Field label="Statut"><Select value={filtre} onChange={(e) => setFiltre(e.target.value)}><option value="">Tous</option><option value="ECART_A_VALIDER">Écart à valider</option><option value="ACCEPTE">Accepté</option><option value="RAPPROCHE">Rapproché</option></Select></Field>
       </div>
 
@@ -100,6 +100,22 @@ export const FleetReversements: React.FC = () => {
       )}
 
       {toast && <Toast message={toast.message} kind={toast.kind} />}
+    </div>
+  );
+};
+
+// Conteneur : onglets Reversements / Exceptions cash.
+export const FleetReversements: React.FC = () => {
+  const [tab, setTab] = useState<"rev" | "cash">("rev");
+  const tabCls = (active: boolean) => `px-4 py-2.5 text-sm border-b-2 transition ${active ? "border-[#22C55E] text-[#22C55E]" : "border-transparent text-[#8A8A8A] hover:text-[#EDEDED]"}`;
+  return (
+    <div>
+      <h1 className="text-2xl font-bold text-[#EDEDED] mb-4">Reversements</h1>
+      <div className="flex gap-1 border-b border-[#232327] mb-6">
+        <button onClick={() => setTab("rev")} className={tabCls(tab === "rev")}>Reversements</button>
+        <button onClick={() => setTab("cash")} className={tabCls(tab === "cash")}>Exceptions cash</button>
+      </div>
+      {tab === "rev" ? <ReversementsList /> : <FleetExceptionsCash />}
     </div>
   );
 };

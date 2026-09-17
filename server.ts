@@ -16,6 +16,7 @@ import { createPartARouter } from "./server/partA/index";
 import { runVehicleAlerts } from "./lib/alerts";
 import { retryPendingNotifications } from "./lib/notifications";
 import { runShiftLateAlerts } from "./lib/shiftAlerts";
+import { runCashRegulAlerts } from "./lib/cashAlerts";
 
 // Configuration
 const PORT = 3000;
@@ -4511,8 +4512,9 @@ async function startServer() {
     const runAlertsJob = async () => {
       try {
         const created = await runVehicleAlerts(prisma);
+        const cash = await runCashRegulAlerts(prisma);
         const sent = await retryPendingNotifications(prisma);
-        if (created || sent) console.log(`[Alertes] ${created} alerte(s) créée(s), ${sent} notification(s) (re)envoyée(s)`);
+        if (created || sent || cash) console.log(`[Alertes] ${created} véhicule(s), ${cash} cash non régularisé(s), ${sent} notification(s) (re)envoyée(s)`);
       } catch (e) {
         console.error("[Alertes] job quotidien échoué:", e);
       }

@@ -26,8 +26,13 @@ Bloc « Reverser mes recettes » dans l'espace chauffeur ; écran **Reversements
 Unit (calcul écart/statut) + e2e (accepté, écart → double validation → dette, RBAC).
 **180 tests au total.**
 
+## Bloc B3 — cas particulier : exception cash ✅
+Paiement en espèces exceptionnel : le **Responsable terrain** le déclare (motif obligatoire) →
+compensation enregistrée (écriture tracée, pas d'API Wave) → **régularisation à J+1**, sinon
+**alerte Finance** (job quotidien). Écran dans l'onglet **Reversements → Exceptions cash**.
+- L'exception « **réseau indisponible** » a été **abandonnée** (décision : incohérente et non prioritaire).
+
 ## Reste à faire dans la Partie B (avant déploiement)
-- Cas particuliers du reversement : **exception cash** + **réseau indisponible**.
 - **Caméra en direct** (anti-galerie) sur les preuves de **check-in/out** (le reversement garde le choix de fichier).
 - **Vérification IA** des preuves (cohérence + OCR, blocage auto) — chantier dédié après la Partie B.
 

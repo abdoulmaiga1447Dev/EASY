@@ -784,3 +784,33 @@ model DetteChauffeur {
   @@index([driverId])
   @@index([statut])
 }
+
+// =============================================================================
+// SAVER Fleet Ops — Partie B (Bloc B3 : cas particulier — exception cash)
+// =============================================================================
+
+enum CompensationStatut {
+  EN_ATTENTE_REGUL
+  REGULARISE
+}
+
+// --- Exception cash : paiement en espèces exceptionnel déclaré par le Responsable terrain ---
+model CompensationCash {
+  id              String             @id @default(cuid())
+  siteId          String
+  driverId        String
+  montant         Int
+  motif           String
+  declareParId    String?
+  declareParNom   String?
+  statut          CompensationStatut @default(EN_ATTENTE_REGUL)
+  regulariseAt    DateTime?
+  regulariseParId String?
+  alerteJ1Envoyee Boolean            @default(false) // anti-doublon de l'alerte J+1 à Finance
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@index([siteId])
+  @@index([driverId])
+  @@index([statut])
+}
