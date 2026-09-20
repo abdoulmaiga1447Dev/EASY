@@ -39,7 +39,7 @@ export function assignmentsRouter(prisma: PrismaClient): express.Router {
 
       const assignments = await prisma.assignment.findMany({
         where: { siteId, date: day },
-        include: { vehicle: { select: { immatriculation: true, marque: true, modele: true } }, driver: { select: { id: true, name: true } } },
+        include: { vehicle: { select: { immatriculation: true, marque: true, modele: true } }, driver: { select: { id: true, name: true } }, shiftRecord: { select: { statut: true, checkinAt: true } } },
       });
       const takenA = new Set(assignments.filter((a) => a.shift === "A").map((a) => a.vehicleId));
       const takenB = new Set(assignments.filter((a) => a.shift === "B").map((a) => a.vehicleId));
@@ -184,9 +184,11 @@ export function assignmentsRouter(prisma: PrismaClient): express.Router {
     authorize("remplacement.valider"),
     wrap(async (req, res) => {
       const ctx = actor(req);
-      const a = await prisma.assignment.findUnique({ where: { id: req.params.id } });
+      const a = await prisma.assignment.findUnique({ where: { id: req.params.id }, include: { shiftRecord: true } });
       if (!a) return res.status(404).json({ error: notFound });
       if (!canAccessSite(ctx, a.siteId)) return res.status(403).json({ error: { fr: "Site hors de votre périmètre", en: "Site outside your scope" } });
+      // Une fois le check-in fait, on ne remplace plus le chauffeur (il a pris son service).
+      if (a.shiftRecord?.checkinAt) return res.status(409).json({ error: { fr: "Impossible de remplacer : le chauffeur a déjà fait son check-in", en: "Cannot replace: the driver has already checked in" } });
       const { nouveauDriverId, motif } = req.body || {};
       if (!nouveauDriverId || !motif) return res.status(400).json({ error: { fr: "Le nouveau chauffeur et le motif sont obligatoires", en: "New driver and reason are required" } });
       const driver = await prisma.user.findUnique({ where: { id: nouveauDriverId } });
@@ -213,9 +215,11 @@ export function assignmentsRouter(prisma: PrismaClient): express.Router {
     authorize("attribution.creer", "operation.annuler"),
     wrap(async (req, res) => {
       const ctx = actor(req);
-      const a = await prisma.assignment.findUnique({ where: { id: req.params.id } });
+      const a = await prisma.assignment.findUnique({ where: { id: req.params.id }, include: { shiftRecord: true } });
       if (!a) return res.status(404).json({ error: notFound });
       if (!canAccessSite(ctx, a.siteId)) return res.status(403).json({ error: { fr: "Site hors de votre périmètre", en: "Site outside your scope" } });
+      // Une fois le check-in effectué, le chauffeur a pris son service : annulation interdite.
+      if (a.shiftRecord?.checkinAt) return res.status(409).json({ error: { fr: "Impossible d'annuler : le chauffeur a déjà fait son check-in", en: "Cannot cancel: the driver has already checked in" } });
       const motif = req.body?.motif || (req.query.motif as string) || null;
       await prisma.assignment.delete({ where: { id: a.id } });
       await prisma.assignmentEvent.create({ data: { siteId: a.siteId, date: a.date, shift: a.shift, vehicleId: a.vehicleId, driverId: a.driverId, action: "ANNULATION", motif, byUserId: ctx.userId, byName: ctx.name } });

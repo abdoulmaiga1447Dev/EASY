@@ -137,10 +137,14 @@ const DayView: React.FC<{ siteId: string; notify: (t: ToastState) => void }> = (
               <span className="text-muted-premium">{a.vehicle?.marque} {a.vehicle?.modele}</span>
             </div>
             <div className="text-gold text-xs mt-1">{a.driver?.name}</div>
-            <div className="flex gap-3 mt-2">
-              {can("remplacement.valider") && <button className="text-xs text-muted-premium hover:text-gold" onClick={() => setReplace(a)}>Remplacer</button>}
-              {(can("attribution.creer") || can("operation.annuler")) && <button className="text-xs text-red-400 hover:underline" onClick={() => cancel(a)}>Annuler</button>}
-            </div>
+            {a.shiftRecord?.checkinAt ? (
+              <div className="text-[11px] text-[#22C55E] mt-2">✓ Check-in fait — attribution verrouillée</div>
+            ) : (
+              <div className="flex gap-3 mt-2">
+                {can("remplacement.valider") && <button className="text-xs text-muted-premium hover:text-gold" onClick={() => setReplace(a)}>Remplacer</button>}
+                {(can("attribution.creer") || can("operation.annuler")) && <button className="text-xs text-red-400 hover:underline" onClick={() => cancel(a)}>Annuler</button>}
+              </div>
+            )}
           </div>
         ))}
         {list.length === 0 && <div className="text-xs text-muted-premium">Aucune attribution.</div>}

@@ -109,6 +109,18 @@ describe("Remplacement et annulation", () => {
   });
 });
 
+describe("Verrouillage après check-in", () => {
+  it("annulation et remplacement interdits une fois le check-in fait", async () => {
+    const dd = new Date(DATE + "T00:00:00Z");
+    const a = await prisma.assignment.create({ data: { siteId: "site_abidjan", date: dd, shift: "B", driverId: "drv_02", vehicleId: "v_f5", createdById: DEMO.admin } });
+    await prisma.shiftRecord.create({ data: { assignmentId: a.id, driverId: "drv_02", vehicleId: "v_f5", siteId: "site_abidjan", date: dd, shift: "B", statut: "EN_COURS", checkinAt: new Date() } });
+    const del = await request(app).delete(`/api/fleet/assignments/${a.id}`).set(auth(DEMO.dispatcher)).send({ motif: "test" });
+    expect(del.status).toBe(409);
+    const rep = await request(app).post(`/api/fleet/assignments/${a.id}/replace`).set(auth(DEMO.dispatcher)).send({ nouveauDriverId: "drv_03", motif: "test" });
+    expect(rep.status).toBe(409);
+  });
+});
+
 describe("RBAC", () => {
   it("un chauffeur ne peut pas voir ni créer d'attribution", async () => {
     expect((await request(app).get(`/api/fleet/assignments?siteId=site_abidjan&date=${DATE}`).set(auth(DEMO.chauffeur))).status).toBe(403);
