@@ -191,7 +191,7 @@ async function main() {
   console.log("Seed : chauffeurs de démonstration...");
   const chauffeurRoleId = roleIdByCode.get("chauffeur")!;
   const prenoms = ["Koffi", "Awa", "Yao", "Aya", "Kouassi", "Fatou", "Ibrahim", "Adjoua", "Moussa", "Mariam", "Seydou", "Akissi", "Amadou", "Rokia", "Konan", "Bintou", "Drissa", "Nadège", "Souleymane", "Affoué"];
-  const noms = ["N'Guessan", "Traoré", "Kouamé", "Diarra", "Bamba", "Koné", "Ouattara", "Yao", "Cissé", "Touré", "Aka", "Gbagbo", "Doumbia", "Sangaré", "Kouadio", "Fofana", "Brou", "Coulibaly", "Kacou", "Zadi"];
+  const noms = ["Yeboua", "Traoré", "Kouamé", "Diarra", "Bamba", "Koné", "Ouattara", "Yao", "Cissé", "Touré", "Aka", "Gbagbo", "Doumbia", "Sangaré", "Kouadio", "Fofana", "Brou", "Coulibaly", "Kacou", "Zadi"]; // "Yeboua" évite le doublon avec le chauffeur de démo "Koffi N'Guessan"
   const zonesAbj = ["Cocody", "Plateau", "Zone 4", "Marcory", "Yopougon", "Abobo"];
   const zonesYam = ["Centre-ville", "Habitat", "N'Zuessy", "Kokrenou"];
   for (let i = 0; i < 20; i++) {

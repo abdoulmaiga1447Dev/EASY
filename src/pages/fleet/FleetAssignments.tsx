@@ -34,7 +34,8 @@ const AssignModal: React.FC<{ date: string; siteId: string; planning: DayPlannin
     if (!driverId) { setSuggestions([]); return; }
     setLoadingSug(true);
     api.get<{ suggestions: any[] }>(`/api/fleet/assignments/suggestions?siteId=${siteId}&date=${date}&shift=${shift}&driverId=${driverId}`)
-      .then((d) => setSuggestions(d.suggestions)).catch((e) => notify({ message: errMsg(e), kind: "err" })).finally(() => setLoadingSug(false));
+      .then((d) => { setSuggestions(d.suggestions); setVehicleId(d.suggestions[0]?.id || ""); }) // pré-sélectionne le véhicule suggéré
+      .catch((e) => notify({ message: errMsg(e), kind: "err" })).finally(() => setLoadingSug(false));
   }, [driverId, shift, siteId, date]);
 
   const confirm = async () => {
