@@ -3,38 +3,17 @@
  * avec 5 preuves), service en cours, fin de poste (check-out avec 4 photos).
  */
 import React, { useEffect, useState, useMemo } from "react";
-import { MapPin, Camera, Check, HelpCircle, Car } from "lucide-react";
+import { MapPin, Check, HelpCircle, Car } from "lucide-react";
 import { useRbac } from "../../context/RbacContext";
 import { api, uploadMedia, type ApiError } from "../../api/fleet";
 import { Btn, Panel, Reveal, Field, Input, Spinner, EmptyState, Toast } from "./ui";
 import { FleetDettes } from "./FleetDettes";
+import { CameraCapture } from "./CameraCapture";
 
 type ToastState = { message: string; kind: "ok" | "err" } | null;
 const errMsg = (e: unknown) => (e as ApiError)?.fr || "Erreur inattendue";
 
-// Uploader photo (aperçu local immédiat, upload en tâche de fond).
-const PhotoCapture: React.FC<{ label: string; mediaId: string | null; onUploaded: (id: string) => void; notify: (t: ToastState) => void }> = ({ label, mediaId, onUploaded, notify }) => {
-  const [busy, setBusy] = useState(false);
-  const [preview, setPreview] = useState<string | null>(null);
-  const onPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]; if (!file) return;
-    setBusy(true); setPreview(URL.createObjectURL(file));
-    try { const m = await uploadMedia(file); onUploaded(m.id); }
-    catch (err) { notify({ message: errMsg(err), kind: "err" }); setPreview(null); }
-    finally { setBusy(false); }
-  };
-  return (
-    <label className="flex flex-col gap-1.5 cursor-pointer">
-      <span className="text-xs text-[#8A8A8A]">{label}{mediaId ? " ✓" : " *"}</span>
-      <div className={`h-28 rounded-xl border overflow-hidden flex items-center justify-center ${mediaId ? "border-[#22C55E]" : "border-dashed border-[#33363F]"} bg-[#0F0F11]`}>
-        {preview ? <img src={preview} className="w-full h-full object-cover" alt={label} />
-          : busy ? <span className="text-xs text-[#8A8A8A]">…</span>
-          : <Camera size={20} className="text-[#8A8A8A]" />}
-      </div>
-      <input type="file" accept="image/*" capture="environment" className="hidden" onChange={onPick} />
-    </label>
-  );
-};
+// Preuves check-in/out = capture caméra EN DIRECT (anti-fraude), jamais la galerie → CameraCapture.
 
 // Upload d'un justificatif (capture d'écran) — choix de fichier autorisé (pas de caméra live).
 const FileField: React.FC<{ label: string; mediaId: string | null; onUploaded: (id: string) => void; notify: (t: ToastState) => void }> = ({ label, mediaId, onUploaded, notify }) => {
@@ -244,10 +223,10 @@ export const FleetChauffeur: React.FC = () => {
             </div>
             <Field label="Kilométrage au compteur"><Input type="number" value={ci.kmDebut} onChange={(e) => setCi({ ...ci, kmDebut: e.target.value })} placeholder="ex. 12000" /></Field>
             <div className="grid grid-cols-2 gap-3">
-              <PhotoCapture label="Photo compteur" mediaId={ci.photoCompteur} onUploaded={(id) => setCi({ ...ci, photoCompteur: id })} notify={notify} />
-              <PhotoCapture label="Photo véhicule" mediaId={ci.photoVehicule} onUploaded={(id) => setCi({ ...ci, photoVehicule: id })} notify={notify} />
-              <PhotoCapture label="Photo permis" mediaId={ci.photoPermis} onUploaded={(id) => setCi({ ...ci, photoPermis: id })} notify={notify} />
-              <PhotoCapture label="Selfie au volant" mediaId={ci.selfieKyc} onUploaded={(id) => setCi({ ...ci, selfieKyc: id })} notify={notify} />
+              <CameraCapture label="Photo compteur" mediaId={ci.photoCompteur} onUploaded={(id) => setCi({ ...ci, photoCompteur: id })} notify={notify} />
+              <CameraCapture label="Photo véhicule" mediaId={ci.photoVehicule} onUploaded={(id) => setCi({ ...ci, photoVehicule: id })} notify={notify} />
+              <CameraCapture label="Photo permis" mediaId={ci.photoPermis} onUploaded={(id) => setCi({ ...ci, photoPermis: id })} notify={notify} />
+              <CameraCapture label="Selfie au volant" mediaId={ci.selfieKyc} onUploaded={(id) => setCi({ ...ci, selfieKyc: id })} notify={notify} facing="user" />
             </div>
             <Btn onClick={doCheckin} disabled={!ciComplet || saving} className="w-full">Valider le check-in</Btn>
             {!ciComplet && <p className="text-xs text-[#8A8A8A] text-center">Activez le GPS, saisissez le kilométrage et ajoutez les 4 photos.</p>}
@@ -263,10 +242,10 @@ export const FleetChauffeur: React.FC = () => {
             <h2 className="font-semibold text-[#EDEDED]">Fin de poste (check-out)</h2>
             <Field label="Kilométrage au compteur (fin)"><Input type="number" value={co.kmFin} onChange={(e) => setCo({ ...co, kmFin: e.target.value })} /></Field>
             <div className="grid grid-cols-2 gap-3">
-              <PhotoCapture label="Avant" mediaId={co.photoAvant} onUploaded={(id) => setCo({ ...co, photoAvant: id })} notify={notify} />
-              <PhotoCapture label="Arrière" mediaId={co.photoArriere} onUploaded={(id) => setCo({ ...co, photoArriere: id })} notify={notify} />
-              <PhotoCapture label="Gauche" mediaId={co.photoGauche} onUploaded={(id) => setCo({ ...co, photoGauche: id })} notify={notify} />
-              <PhotoCapture label="Droite" mediaId={co.photoDroite} onUploaded={(id) => setCo({ ...co, photoDroite: id })} notify={notify} />
+              <CameraCapture label="Avant" mediaId={co.photoAvant} onUploaded={(id) => setCo({ ...co, photoAvant: id })} notify={notify} />
+              <CameraCapture label="Arrière" mediaId={co.photoArriere} onUploaded={(id) => setCo({ ...co, photoArriere: id })} notify={notify} />
+              <CameraCapture label="Gauche" mediaId={co.photoGauche} onUploaded={(id) => setCo({ ...co, photoGauche: id })} notify={notify} />
+              <CameraCapture label="Droite" mediaId={co.photoDroite} onUploaded={(id) => setCo({ ...co, photoDroite: id })} notify={notify} />
             </div>
             <Btn onClick={doCheckout} disabled={!coComplet || saving} className="w-full">Terminer le shift</Btn>
           </Panel>
