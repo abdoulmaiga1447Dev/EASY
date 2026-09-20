@@ -30,12 +30,15 @@ export function checkinRouter(prisma: PrismaClient): express.Router {
       const day = normalizeDay(String(req.query.date || new Date().toISOString()));
       const assignment = await prisma.assignment.findFirst({
         where: { driverId: ctx.userId, date: day },
-        include: { vehicle: { select: { immatriculation: true, marque: true, modele: true, statut: true } }, site: { select: { nom: true } }, shiftRecord: true },
+        include: { vehicle: { select: { immatriculation: true, marque: true, modele: true, statut: true } }, site: { select: { nom: true } }, shiftRecord: { include: { reversement: true } } },
       });
       const profile = await prisma.driverProfile.findUnique({ where: { userId: ctx.userId } });
+      const exceptionCash = assignment ? await prisma.compensationCash.findUnique({ where: { assignmentId: assignment.id } }) : null;
       res.json({
         date: day.toISOString().slice(0, 10),
         assignment,
+        reversement: assignment?.shiftRecord?.reversement ?? null,
+        exceptionCash,
         permisExpiration: profile?.permisExpiration ?? null,
         permisValide: isPermisValide(profile?.permisExpiration ?? null),
       });

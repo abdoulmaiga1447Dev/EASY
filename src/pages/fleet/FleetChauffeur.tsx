@@ -59,7 +59,7 @@ const STATUT_REV: Record<string, { label: string; color: string }> = {
 };
 
 // Bloc de reversement (Flux 2) affiché après le check-out.
-const ReversementBloc: React.FC<{ assignmentId: string; notify: (t: ToastState) => void }> = ({ assignmentId, notify }) => {
+const ReversementBloc: React.FC<{ assignmentId: string; notify: (t: ToastState) => void; onDone?: () => void }> = ({ assignmentId, notify, onDone }) => {
   const [loading, setLoading] = useState(true);
   const [rev, setRev] = useState<any>(null);
   const [saving, setSaving] = useState(false);
@@ -80,7 +80,7 @@ const ReversementBloc: React.FC<{ assignmentId: string; notify: (t: ToastState) 
         depenses: depenses.filter((d) => d.montant !== "").map((d) => ({ montant: Number(d.montant), motif: d.motif, preuveMediaId: d.preuveMediaId || null })),
       });
       notify({ message: "Reversement enregistré", kind: "ok" });
-      load();
+      if (onDone) onDone(); else load();
     } catch (e) { notify({ message: errMsg(e), kind: "err" }); } finally { setSaving(false); }
   };
 
@@ -171,6 +171,35 @@ export const FleetChauffeur: React.FC = () => {
   const a = data?.assignment;
   const rec = a?.shiftRecord;
   const statut = rec?.statut ?? "EN_ATTENTE";
+  const reversementFait = !!data?.reversement;
+  const exceptionCash = !!data?.exceptionCash;
+  const journeeFinie = statut === "TERMINE" && (reversementFait || exceptionCash);
+
+  // Écran de clôture de journée (reversement effectué ou exception cash enregistrée).
+  if (journeeFinie) {
+    return (
+      <div className="max-w-2xl space-y-6">
+        <Reveal>
+          <Panel className="p-10 text-center min-h-[55vh] flex flex-col items-center justify-center">
+            <div className="w-16 h-16 rounded-full bg-[#0F2A1A] text-[#22C55E] flex items-center justify-center mb-4"><Check size={32} /></div>
+            <h1 className="text-2xl font-bold text-[#EDEDED]">Journée terminée 🎉</h1>
+            <p className="text-[#8A8A8A] mt-2">
+              {reversementFait ? "Votre reversement a bien été enregistré." : "Une exception cash a été enregistrée pour votre shift."}
+            </p>
+            <p className="text-[#22C55E] font-medium mt-4">À bientôt pour une nouvelle aventure 👋</p>
+            {a && <p className="text-xs text-[#8A8A8A] mt-6">{a.vehicle?.marque} {a.vehicle?.modele} — {a.vehicle?.immatriculation} · Shift {a.shift}{rec?.kmParcourus != null ? ` · ${rec.kmParcourus} km` : ""}</p>}
+          </Panel>
+        </Reveal>
+        <Reveal delay={0.1}>
+          <div>
+            <h2 className="font-semibold text-[#EDEDED] mb-2">Mes dettes</h2>
+            <FleetDettes scope="me" />
+          </div>
+        </Reveal>
+        {toast && <Toast message={toast.message} kind={toast.kind} />}
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -256,7 +285,7 @@ export const FleetChauffeur: React.FC = () => {
               </div>
             </Panel>
           </Reveal>
-          <Reveal delay={0.15}><ReversementBloc assignmentId={a.id} notify={notify} /></Reveal>
+          <Reveal delay={0.15}><ReversementBloc assignmentId={a.id} notify={notify} onDone={load} /></Reveal>
         </>
       )}
 
