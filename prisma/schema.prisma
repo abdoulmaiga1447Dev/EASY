@@ -799,6 +799,9 @@ model CompensationCash {
   id              String             @id @default(cuid())
   siteId          String
   driverId        String
+  assignmentId    String?            @unique // rattachée à un shift précis (une seule exception par shift)
+  date            DateTime?
+  shift           ShiftCode?
   montant         Int
   motif           String
   declareParId    String?

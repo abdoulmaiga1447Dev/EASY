@@ -70,6 +70,9 @@ export function reversementRouter(prisma: PrismaClient): express.Router {
       if (a.driverId !== ctx.userId) return res.status(403).json({ error: { fr: "Ce shift n'est pas le vôtre", en: "Not your shift" } });
       if (!a.shiftRecord || a.shiftRecord.statut !== "TERMINE") return res.status(400).json({ error: { fr: "Terminez d'abord votre shift (check-out)", en: "Finish your shift first (check-out)" } });
       if (a.shiftRecord.reversement) return res.status(409).json({ error: { fr: "Reversement déjà effectué", en: "Remittance already submitted" } });
+      // Exclusivité : pas de reversement si une exception cash a été déclarée pour ce shift.
+      const exceptionCash = await prisma.compensationCash.findUnique({ where: { assignmentId: a.id } });
+      if (exceptionCash) return res.status(409).json({ error: { fr: "Une exception cash a été déclarée pour ce shift : pas de reversement", en: "A cash exception exists for this shift" } });
 
       const b = req.body || {};
       const recetteYango = Number(b.recetteYango);

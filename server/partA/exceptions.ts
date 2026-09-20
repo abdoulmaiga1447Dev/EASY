@@ -35,26 +35,34 @@ export function exceptionsRouter(prisma: PrismaClient): express.Router {
   );
 
   // ------------------------------ Déclarer (Responsable terrain) ------------------------------
+  // Rattachée à un shift (attribution) : le chauffeur doit avoir été programmé, et pour ce
+  // shift on a SOIT un reversement SOIT une exception cash, jamais les deux.
   r.post(
     "/api/fleet/exceptions-cash",
     authorize("incident.gerer"),
     wrap(async (req, res) => {
       const ctx = actor(req);
-      const { driverId, montant, motif } = req.body || {};
-      if (!driverId || !montant || Number(montant) <= 0) return res.status(400).json({ error: { fr: "Chauffeur et montant obligatoires", en: "Driver and amount required" } });
+      const { assignmentId, montant, motif } = req.body || {};
+      if (!assignmentId) return res.status(400).json({ error: { fr: "Le shift (attribution) est obligatoire", en: "Assignment is required" } });
+      if (!montant || Number(montant) <= 0) return res.status(400).json({ error: { fr: "Le montant est obligatoire", en: "Amount required" } });
       if (!motif || !String(motif).trim()) return res.status(400).json({ error: { fr: "Le motif est obligatoire", en: "Reason is required" } });
 
-      const driver = await prisma.user.findUnique({ where: { id: driverId }, include: { driverProfile: true } });
-      if (!driver || driver.role !== "chauffeur") return res.status(400).json({ error: { fr: "Chauffeur invalide", en: "Invalid driver" } });
-      const siteId = driver.driverProfile?.siteId || ctx.siteIds[0];
-      if (!siteId || !canAccessSite(ctx, siteId)) return res.status(403).json({ error: { fr: "Chauffeur hors de votre périmètre", en: "Driver outside your scope" } });
+      // L'attribution prouve que le chauffeur a bien été programmé ce jour-là.
+      const a = await prisma.assignment.findUnique({ where: { id: assignmentId }, include: { shiftRecord: { include: { reversement: true } } } });
+      if (!a) return res.status(404).json({ error: { fr: "Attribution introuvable", en: "Assignment not found" } });
+      if (!canAccessSite(ctx, a.siteId)) return res.status(403).json({ error: { fr: "Hors de votre périmètre", en: "Outside your scope" } });
+
+      // Exclusivité : pas d'exception cash si un reversement existe déjà pour ce shift.
+      if (a.shiftRecord?.reversement) return res.status(409).json({ error: { fr: "Un reversement a déjà été déclaré pour ce shift", en: "A remittance already exists for this shift" } });
+      // Une seule exception cash par shift.
+      const existe = await prisma.compensationCash.findUnique({ where: { assignmentId } });
+      if (existe) return res.status(409).json({ error: { fr: "Une exception cash existe déjà pour ce shift", en: "A cash exception already exists for this shift" } });
 
       const comp = await prisma.compensationCash.create({
-        data: { siteId, driverId, montant: Number(montant), motif: String(motif).trim(), declareParId: ctx.userId, declareParNom: ctx.name },
+        data: { siteId: a.siteId, driverId: a.driverId, assignmentId, date: a.date, shift: a.shift, montant: Number(montant), motif: String(motif).trim(), declareParId: ctx.userId, declareParNom: ctx.name },
       });
-      await writeAudit(prisma, ctx, { action: "cash.exception.create", resourceType: "CompensationCash", resourceId: comp.id, siteId, after: { driverId, montant: Number(montant) } });
-      // Notifie le chauffeur (la compensation Wave est ici une écriture tracée).
-      await notify(prisma, { userId: driverId, canal: "IN_APP", type: "cash.compensation", titre: "Compensation cash", message: `Une compensation de ${Number(montant)} FCFA a été enregistrée (à régulariser).` });
+      await writeAudit(prisma, ctx, { action: "cash.exception.create", resourceType: "CompensationCash", resourceId: comp.id, siteId: a.siteId, after: { driverId: a.driverId, assignmentId, montant: Number(montant) } });
+      await notify(prisma, { userId: a.driverId, canal: "IN_APP", type: "cash.compensation", titre: "Compensation cash", message: `Une compensation de ${Number(montant)} FCFA a été enregistrée (à régulariser).` });
       res.status(201).json(comp);
     })
   );
