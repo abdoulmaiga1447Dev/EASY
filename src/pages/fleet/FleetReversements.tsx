@@ -7,6 +7,7 @@ import { useRbac } from "../../context/RbacContext";
 import { api, type ApiError } from "../../api/fleet";
 import { Btn, Field, Input, Select, Spinner, EmptyState, Modal, Toast, AuthImage } from "./ui";
 import { FleetExceptionsCash } from "./FleetExceptionsCash";
+import { FleetDettes } from "./FleetDettes";
 
 type ToastState = { message: string; kind: "ok" | "err" } | null;
 const errMsg = (e: unknown) => (e as ApiError)?.fr || "Erreur inattendue";
@@ -106,7 +107,7 @@ const ReversementsList: React.FC = () => {
 
 // Conteneur : onglets Reversements / Exceptions cash.
 export const FleetReversements: React.FC = () => {
-  const [tab, setTab] = useState<"rev" | "cash">("rev");
+  const [tab, setTab] = useState<"rev" | "cash" | "dettes">("rev");
   const tabCls = (active: boolean) => `px-4 py-2.5 text-sm border-b-2 transition ${active ? "border-[#22C55E] text-[#22C55E]" : "border-transparent text-[#8A8A8A] hover:text-[#EDEDED]"}`;
   return (
     <div>
@@ -114,8 +115,9 @@ export const FleetReversements: React.FC = () => {
       <div className="flex gap-1 border-b border-[#232327] mb-6">
         <button onClick={() => setTab("rev")} className={tabCls(tab === "rev")}>Reversements</button>
         <button onClick={() => setTab("cash")} className={tabCls(tab === "cash")}>Exceptions cash</button>
+        <button onClick={() => setTab("dettes")} className={tabCls(tab === "dettes")}>Dettes</button>
       </div>
-      {tab === "rev" ? <ReversementsList /> : <FleetExceptionsCash />}
+      {tab === "rev" ? <ReversementsList /> : tab === "cash" ? <FleetExceptionsCash /> : <FleetDettes scope="all" />}
     </div>
   );
 };

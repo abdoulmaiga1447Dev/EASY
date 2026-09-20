@@ -7,6 +7,7 @@ import { MapPin, Camera, Check, HelpCircle, Car } from "lucide-react";
 import { useRbac } from "../../context/RbacContext";
 import { api, uploadMedia, type ApiError } from "../../api/fleet";
 import { Btn, Panel, Reveal, Field, Input, Spinner, EmptyState, Toast } from "./ui";
+import { FleetDettes } from "./FleetDettes";
 
 type ToastState = { message: string; kind: "ok" | "err" } | null;
 const errMsg = (e: unknown) => (e as ApiError)?.fr || "Erreur inattendue";
@@ -258,6 +259,13 @@ export const FleetChauffeur: React.FC = () => {
           <Reveal delay={0.15}><ReversementBloc assignmentId={a.id} notify={notify} /></Reveal>
         </>
       )}
+
+      <Reveal delay={0.2}>
+        <div>
+          <h2 className="font-semibold text-[#EDEDED] mb-2">Mes dettes</h2>
+          <FleetDettes scope="me" />
+        </div>
+      </Reveal>
 
       {toast && <Toast message={toast.message} kind={toast.kind} />}
     </div>

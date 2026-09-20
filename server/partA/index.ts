@@ -19,6 +19,7 @@ import { assignmentsRouter } from "./assignments";
 import { checkinRouter } from "./checkin";
 import { reversementRouter } from "./reversement";
 import { exceptionsRouter } from "./exceptions";
+import { dettesRouter } from "./dettes";
 
 export function createPartARouter(prisma: PrismaClient): express.Router {
   const root = express.Router();
@@ -90,6 +91,7 @@ export function createPartARouter(prisma: PrismaClient): express.Router {
   root.use(checkinRouter(prisma));
   root.use(reversementRouter(prisma));
   root.use(exceptionsRouter(prisma));
+  root.use(dettesRouter(prisma));
   root.use(auditRouter);
 
   return root;
