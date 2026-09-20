@@ -7,7 +7,7 @@
  * animations rapides et discrètes.
  */
 import React, { useEffect, useState } from "react";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 
 // ---------------------------------------------------------------- Boutons
 type BtnVariant = "primary" | "secondary" | "ghost" | "danger";
@@ -123,9 +123,10 @@ export const Modal: React.FC<{ title: string; onClose: () => void; children: Rea
   </motion.div>
 );
 
-// ---------------------------------------------------------------- Image protégée
-export const AuthImage: React.FC<{ mediaId: string | null | undefined; alt?: string; className?: string }> = ({ mediaId, alt = "", className = "" }) => {
+// ---------------------------------------------------------------- Image protégée (agrandissable au clic)
+export const AuthImage: React.FC<{ mediaId: string | null | undefined; alt?: string; className?: string; zoomable?: boolean }> = ({ mediaId, alt = "", className = "", zoomable = true }) => {
   const [url, setUrl] = useState<string | null>(null);
+  const [zoom, setZoom] = useState(false);
   useEffect(() => {
     let revoked: string | null = null;
     let cancelled = false;
@@ -139,5 +140,17 @@ export const AuthImage: React.FC<{ mediaId: string | null | undefined; alt?: str
   }, [mediaId]);
   if (!mediaId) return <div className={`bg-[#0F0F11] flex items-center justify-center text-[#8A8A8A] text-xs ${className}`}>—</div>;
   if (!url) return <div className={`bg-[#0F0F11] animate-pulse ${className}`} />;
-  return <img src={url} alt={alt} className={className} style={{ objectFit: "cover" }} />;
+  return (
+    <>
+      <img src={url} alt={alt} className={`${className} ${zoomable ? "cursor-zoom-in" : ""}`} style={{ objectFit: "cover" }} onClick={zoomable ? () => setZoom(true) : undefined} />
+      <AnimatePresence>
+        {zoom && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 p-4 cursor-zoom-out" onClick={() => setZoom(false)}>
+            <motion.img initial={{ scale: 0.9 }} animate={{ scale: 1 }} src={url} alt={alt} className="max-w-[95vw] max-h-[95vh] object-contain rounded-lg" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
+  );
 };
