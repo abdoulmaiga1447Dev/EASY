@@ -81,21 +81,19 @@ const ReversementsList: React.FC = () => {
                 const estAujourdhui = jour === TODAY;
                 return (
                   <React.Fragment key={jour}>
-                    <tr className={estAujourdhui ? "bg-[#22C55E]/10" : "bg-[#0F0F11]"}>
-                      <td colSpan={7} className="px-4 py-2 text-xs font-medium">
-                        {estAujourdhui
-                          ? <span className="inline-flex items-center gap-2 text-[#22C55E]"><span className="w-1.5 h-1.5 rounded-full bg-[#22C55E]" />Aujourd'hui · {jourLabel(jour)} <span className="text-[#8A8A8A] font-normal">({rows.length})</span></span>
-                          : <span className="text-[#8A8A8A] capitalize">{jourLabel(jour)} <span className="font-normal">({rows.length})</span></span>}
+                    <tr>
+                      <td colSpan={7} className={`px-4 py-2 text-xs font-semibold uppercase tracking-wide bg-[#0F0F11] ${estAujourdhui ? "border-l-2 border-[#22C55E] text-[#22C55E]" : "text-[#8A8A8A]"}`}>
+                        {estAujourdhui ? "Aujourd'hui — " : ""}<span className="capitalize">{jourLabel(jour)}</span> <span className="text-[#8A8A8A] font-normal normal-case">({rows.length})</span>
                       </td>
                     </tr>
                     {rows.map((r) => (
-                      <tr key={r.id} className={`border-t border-[#232327] ${estAujourdhui ? "bg-[#22C55E]/[0.04]" : ""}`}>
+                      <tr key={r.id} className={`border-t border-[#232327] ${estAujourdhui ? "border-l-2 border-[#22C55E]" : ""}`}>
                         <td className="px-4 py-3 text-[#EDEDED]">{drv(r)}</td>
                         <td className="px-4 py-3 text-[#8A8A8A]">{veh(r)}</td>
                         <td className="px-4 py-3 text-[#8A8A8A]">{fcfa(r.recetteYango)}</td>
                         <td className="px-4 py-3 text-[#8A8A8A]">{fcfa(r.montantReverse)}</td>
                         <td className="px-4 py-3" style={{ color: r.ecart > 0 ? "#EF4444" : "#8A8A8A" }}>{fcfa(r.ecart)}</td>
-                        <td className="px-4 py-3"><span className="inline-flex items-center gap-1.5 text-xs" style={{ color: STATUT[r.statut]?.color }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: STATUT[r.statut]?.color }} />{STATUT[r.statut]?.label || r.statut}</span></td>
+                        <td className="px-4 py-3"><span className="text-xs font-medium" style={{ color: STATUT[r.statut]?.color }}>{STATUT[r.statut]?.label || r.statut}</span></td>
                         <td className="px-4 py-3 text-right"><button className="text-xs text-[#22C55E] hover:underline" onClick={() => openDetail(r.id)}>Détails</button></td>
                       </tr>
                     ))}
