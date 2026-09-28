@@ -78,7 +78,7 @@ const VehicleWizard: React.FC<{ onDone: () => void; onCancel: () => void; notify
   const [form, setForm] = useState<any>({
     immatriculation: "", vin: "", marque: "", modele: "", siteId: ctx?.sites[0]?.id || "",
     autonomieNominale: "", capaciteBatterieKwh: "", contractType: "INTERNE_SAVER", clientId: "",
-    dureeContratMois: "", montantRemboursement: "", serviceType: "VTC", classes: [] as string[], kmActuel: 0, gpsBoitierId: "",
+    dureeContratMois: "", montantRemboursement: "", serviceType: "VTC", classes: [] as string[], kmActuel: "", gpsBoitierId: "",
     photos: {} as Record<string, string>,
     documents: { carteGrise: { numero: "", proprietaire: "", date: "", mediaId: "" }, visiteTechnique: { dateExpiration: "", mediaId: "" }, assurance: { numero: "", dateDebut: "", dateFin: "", mediaId: "" } },
   });
@@ -101,7 +101,7 @@ const VehicleWizard: React.FC<{ onDone: () => void; onCancel: () => void; notify
   const submit = async (isDraft: boolean) => {
     setSaving(true);
     try {
-      await api.post("/api/fleet/vehicles", { ...form, isDraft, autonomieNominale: Number(form.autonomieNominale) || null, capaciteBatterieKwh: Number(form.capaciteBatterieKwh) || null });
+      await api.post("/api/fleet/vehicles", { ...form, isDraft, autonomieNominale: Number(form.autonomieNominale) || null, capaciteBatterieKwh: Number(form.capaciteBatterieKwh) || null, kmActuel: Number(form.kmActuel) || 0 });
       notify({ message: isDraft ? "Brouillon enregistré" : "Véhicule enregistré", kind: "ok" });
       onDone();
     } catch (e) { notify({ message: errMsg(e), kind: "err" }); } finally { setSaving(false); }
@@ -129,7 +129,7 @@ const VehicleWizard: React.FC<{ onDone: () => void; onCancel: () => void; notify
           <Field label="Site *"><Select value={form.siteId} onChange={(e) => set({ siteId: e.target.value })}>{(ctx?.sites || []).map((s) => <option key={s.id} value={s.id}>{s.nom}</option>)}</Select></Field>
           <Field label="Autonomie nominale (km) *"><Input type="number" value={form.autonomieNominale} onChange={(e) => set({ autonomieNominale: e.target.value })} /></Field>
           <Field label="Capacité batterie (kWh) *"><Input type="number" value={form.capaciteBatterieKwh} onChange={(e) => set({ capaciteBatterieKwh: e.target.value })} /></Field>
-          <Field label="Kilométrage actuel"><Input type="number" value={form.kmActuel} onChange={(e) => set({ kmActuel: Number(e.target.value) })} /></Field>
+          <Field label="Kilométrage actuel"><Input type="number" placeholder="0" value={form.kmActuel} onChange={(e) => set({ kmActuel: e.target.value })} /></Field>
         </div>
       )}
 
