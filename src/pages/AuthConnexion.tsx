@@ -58,9 +58,9 @@ export const AuthConnexion: React.FC<AuthConnexionProps> = ({
           setCurrentPage("corporate");
         } else if (role === "partenaire") {
           setCurrentPage("partenaire");
-        } else if (role === "chauffeur") {
-          setCurrentPage("chauffeur");
         } else {
+          // Les profils SAVER Fleet Ops (chauffeur, dispatcher…) sont aiguillés vers leur
+          // espace par le routage RBAC (FleetWorkspace) : on reste sur une page neutre.
           setCurrentPage("home");
         }
       }, 1500);

@@ -19,7 +19,6 @@ import { AuthInscription } from "./pages/AuthInscription";
 import { AuthForgot } from "./pages/AuthForgot";
 import { Reservation } from "./pages/Reservation";
 import { Devis } from "./pages/Devis";
-import { Chauffeur } from "./pages/Chauffeur";
 import { Suivi } from "./pages/Suivi";
 import { Partenaire } from "./pages/Partenaire";
 import { Corporate } from "./pages/Corporate";
@@ -33,7 +32,7 @@ import { motion, AnimatePresence } from "motion/react";
 // Liste unique des pages publiques autorisées dans l'URL (hash).
 // (Corrige l'incohérence #2 : l'état initial et le gestionnaire hashchange
 //  utilisaient deux listes divergentes, ce qui cassait la navigation vers #admin.)
-const ALLOWED_PAGES = ["home", "vehicules", "nos-chauffeurs", "tarifs", "contact", "connexion", "inscription", "forgot", "reservation", "devis", "chauffeur", "partenaire", "corporate", "admin", "rapport-ecologique", "commandes"];
+const ALLOWED_PAGES = ["home", "vehicules", "nos-chauffeurs", "tarifs", "contact", "connexion", "inscription", "forgot", "reservation", "devis", "partenaire", "corporate", "admin", "rapport-ecologique", "commandes"];
 
 function MainAppApplet() {
   const { setSegment } = useSegment();
@@ -97,8 +96,6 @@ function MainAppApplet() {
           handlePageChange("corporate");
         } else if (user.role === "partenaire") {
           handlePageChange("partenaire");
-        } else if (user.role === "chauffeur") {
-          handlePageChange("chauffeur");
         } else if (user.role === "admin") {
           handlePageChange("admin");
         }
@@ -136,8 +133,6 @@ function MainAppApplet() {
         return <Commandes setCurrentPage={handlePageChange} />;
       case "devis":
         return <Devis setCurrentPage={handlePageChange} id="page_devis_component" />;
-      case "chauffeur":
-        return <Chauffeur setCurrentPage={handlePageChange} id="page_chauffeur_component" />;
       case "partenaire":
         return <Partenaire setCurrentPage={handlePageChange} id="page_partenaire_component" />;
       case "corporate":
