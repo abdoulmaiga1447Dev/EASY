@@ -5,7 +5,7 @@
  */
 import React, { useEffect, useState, useMemo } from "react";
 import { api, type ApiError } from "../../api/fleet";
-import { Field, Select, Spinner, EmptyState, Modal, Toast, AuthImage } from "./ui";
+import { Field, Input, Select, Spinner, EmptyState, Modal, Toast, AuthImage } from "./ui";
 import { FleetExceptionsCash } from "./FleetExceptionsCash";
 import { FleetDettes } from "./FleetDettes";
 
@@ -19,6 +19,9 @@ const STATUT: Record<string, { label: string; color: string }> = {
   RAPPROCHE: { label: "Rapproché", color: "#3B82F6" },
 };
 const fcfa = (n: number) => (n ?? 0).toLocaleString("fr-FR") + " F";
+const TODAY = new Date().toISOString().slice(0, 10);
+const jourKey = (d: string) => new Date(d).toISOString().slice(0, 10);
+const jourLabel = (k: string) => new Date(k + "T00:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
 const ReversementsList: React.FC = () => {
   const [toast, setToast] = useState<ToastState>(null);
@@ -26,47 +29,81 @@ const ReversementsList: React.FC = () => {
   const [list, setList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtre, setFiltre] = useState("");
+  const [dateFiltre, setDateFiltre] = useState("");
   const [detail, setDetail] = useState<any | null>(null);
 
   const load = async () => {
     setLoading(true);
-    try { const q = filtre ? `?statut=${filtre}` : ""; setList((await api.get<{ reversements: any[] }>(`/api/fleet/reversements${q}`)).reversements); }
+    try {
+      const p = new URLSearchParams();
+      if (filtre) p.set("statut", filtre);
+      if (dateFiltre) p.set("date", dateFiltre);
+      const q = p.toString() ? `?${p}` : "";
+      setList((await api.get<{ reversements: any[] }>(`/api/fleet/reversements${q}`)).reversements);
+    }
     catch (e) { notify({ message: errMsg(e), kind: "err" }); } finally { setLoading(false); }
   };
-  useEffect(() => { load(); }, [filtre]);
+  useEffect(() => { load(); }, [filtre, dateFiltre]);
 
   const openDetail = async (id: string) => { try { setDetail(await api.get<any>(`/api/fleet/reversements/${id}`)); } catch (e) { notify({ message: errMsg(e), kind: "err" }); } };
 
   const drv = (r: any) => r.shiftRecord?.assignment?.driver?.name ?? "—";
   const veh = (r: any) => r.shiftRecord?.assignment?.vehicle?.immatriculation ?? "—";
 
+  // Regroupe par date (jour du reversement), le plus récent d'abord — celui du jour ressort en tête.
+  const groupes = useMemo(() => {
+    const map = new Map<string, any[]>();
+    for (const r of list) { const k = jourKey(r.date); (map.get(k) ?? map.set(k, []).get(k)!).push(r); }
+    return [...map.entries()].sort((a, b) => b[0].localeCompare(a[0]));
+  }, [list]);
+
   return (
     <div className="space-y-5">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-end justify-end gap-3">
+        <Field label="Date">
+          <div className="flex items-center gap-2">
+            <Input type="date" value={dateFiltre} onChange={(e) => setDateFiltre(e.target.value)} />
+            {dateFiltre !== TODAY && <button className="text-xs text-[#22C55E] hover:underline whitespace-nowrap" onClick={() => setDateFiltre(TODAY)}>Aujourd'hui</button>}
+            {dateFiltre && <button className="text-xs text-[#8A8A8A] hover:underline whitespace-nowrap" onClick={() => setDateFiltre("")}>Tout</button>}
+          </div>
+        </Field>
         <Field label="Statut"><Select value={filtre} onChange={(e) => setFiltre(e.target.value)}><option value="">Tous</option><option value="ECART_CONSTATE">Écart constaté</option><option value="ACCEPTE">Accepté</option></Select></Field>
       </div>
 
-      {loading ? <Spinner /> : (
+      {loading ? <Spinner /> : list.length === 0 ? <EmptyState>Aucun reversement.</EmptyState> : (
         <div className="overflow-x-auto border border-[#232327] rounded-2xl">
           <table className="w-full text-sm">
             <thead className="bg-[#0F0F11] text-[#8A8A8A]"><tr>
               <th className="text-left px-4 py-3">Chauffeur</th><th className="text-left px-4 py-3">Véhicule</th><th className="text-left px-4 py-3">Recette</th><th className="text-left px-4 py-3">Reversé</th><th className="text-left px-4 py-3">Écart</th><th className="text-left px-4 py-3">Statut</th><th className="px-4 py-3"></th>
             </tr></thead>
             <tbody>
-              {list.map((r) => (
-                <tr key={r.id} className="border-t border-[#232327]">
-                  <td className="px-4 py-3 text-[#EDEDED]">{drv(r)}</td>
-                  <td className="px-4 py-3 text-[#8A8A8A]">{veh(r)}</td>
-                  <td className="px-4 py-3 text-[#8A8A8A]">{fcfa(r.recetteYango)}</td>
-                  <td className="px-4 py-3 text-[#8A8A8A]">{fcfa(r.montantReverse)}</td>
-                  <td className="px-4 py-3" style={{ color: r.ecart > 0 ? "#EF4444" : "#8A8A8A" }}>{fcfa(r.ecart)}</td>
-                  <td className="px-4 py-3"><span className="inline-flex items-center gap-1.5 text-xs" style={{ color: STATUT[r.statut]?.color }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: STATUT[r.statut]?.color }} />{STATUT[r.statut]?.label || r.statut}</span></td>
-                  <td className="px-4 py-3 text-right"><button className="text-xs text-[#22C55E] hover:underline" onClick={() => openDetail(r.id)}>Détails</button></td>
-                </tr>
-              ))}
+              {groupes.map(([jour, rows]) => {
+                const estAujourdhui = jour === TODAY;
+                return (
+                  <React.Fragment key={jour}>
+                    <tr className={estAujourdhui ? "bg-[#22C55E]/10" : "bg-[#0F0F11]"}>
+                      <td colSpan={7} className="px-4 py-2 text-xs font-medium">
+                        {estAujourdhui
+                          ? <span className="inline-flex items-center gap-2 text-[#22C55E]"><span className="w-1.5 h-1.5 rounded-full bg-[#22C55E]" />Aujourd'hui · {jourLabel(jour)} <span className="text-[#8A8A8A] font-normal">({rows.length})</span></span>
+                          : <span className="text-[#8A8A8A] capitalize">{jourLabel(jour)} <span className="font-normal">({rows.length})</span></span>}
+                      </td>
+                    </tr>
+                    {rows.map((r) => (
+                      <tr key={r.id} className={`border-t border-[#232327] ${estAujourdhui ? "bg-[#22C55E]/[0.04]" : ""}`}>
+                        <td className="px-4 py-3 text-[#EDEDED]">{drv(r)}</td>
+                        <td className="px-4 py-3 text-[#8A8A8A]">{veh(r)}</td>
+                        <td className="px-4 py-3 text-[#8A8A8A]">{fcfa(r.recetteYango)}</td>
+                        <td className="px-4 py-3 text-[#8A8A8A]">{fcfa(r.montantReverse)}</td>
+                        <td className="px-4 py-3" style={{ color: r.ecart > 0 ? "#EF4444" : "#8A8A8A" }}>{fcfa(r.ecart)}</td>
+                        <td className="px-4 py-3"><span className="inline-flex items-center gap-1.5 text-xs" style={{ color: STATUT[r.statut]?.color }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: STATUT[r.statut]?.color }} />{STATUT[r.statut]?.label || r.statut}</span></td>
+                        <td className="px-4 py-3 text-right"><button className="text-xs text-[#22C55E] hover:underline" onClick={() => openDetail(r.id)}>Détails</button></td>
+                      </tr>
+                    ))}
+                  </React.Fragment>
+                );
+              })}
             </tbody>
           </table>
-          {list.length === 0 && <EmptyState>Aucun reversement.</EmptyState>}
         </div>
       )}
 
