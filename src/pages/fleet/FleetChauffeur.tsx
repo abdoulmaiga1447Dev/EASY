@@ -33,6 +33,8 @@ const FileField: React.FC<{ label: string; mediaId: string | null; onUploaded: (
 
 const STATUT_REV: Record<string, { label: string; color: string }> = {
   ACCEPTE: { label: "Reversement accepté", color: "#22C55E" },
+  ECART_CONSTATE: { label: "Écart constaté — dette enregistrée", color: "#EF4444" },
+  // Anciens statuts (double validation supprimée) — pour affichage d'historiques.
   ECART_A_VALIDER: { label: "Écart signalé — en attente de validation", color: "#F59E0B" },
   RAPPROCHE: { label: "Rapproché", color: "#3B82F6" },
 };

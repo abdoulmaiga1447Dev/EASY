@@ -698,9 +698,10 @@ model ShiftRecord {
 // =============================================================================
 
 enum ReversementStatut {
-  ACCEPTE // écart <= tolérance, accepté automatiquement
-  ECART_A_VALIDER // écart > tolérance, en attente de double validation
-  RAPPROCHE // double validation (Finance + Responsable terrain) effectuée
+  ACCEPTE // aucun manquant (montant reversé >= attendu)
+  ECART_CONSTATE // manquant constaté automatiquement → dette enregistrée
+  ECART_A_VALIDER // ancien : écart en attente de double validation (workflow supprimé)
+  RAPPROCHE // ancien : double validation effectuée (workflow supprimé)
 }
 
 enum DetteStatut {

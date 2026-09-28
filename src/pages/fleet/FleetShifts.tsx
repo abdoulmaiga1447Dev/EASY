@@ -48,7 +48,7 @@ export const FleetShifts: React.FC = () => {
         <div className="overflow-x-auto border border-[#232327] rounded-2xl">
           <table className="w-full text-sm">
             <thead className="bg-[#0F0F11] text-[#8A8A8A]">
-              <tr><th className="text-left px-4 py-3">Shift</th><th className="text-left px-4 py-3">Chauffeur</th><th className="text-left px-4 py-3">Véhicule</th><th className="text-left px-4 py-3">Statut</th><th className="text-left px-4 py-3">Check-in</th><th className="text-left px-4 py-3">Check-out</th><th className="px-4 py-3"></th></tr>
+              <tr><th className="text-left px-4 py-3">Shift</th><th className="text-left px-4 py-3">Chauffeur</th><th className="text-left px-4 py-3">Véhicule</th><th className="text-left px-4 py-3">Statut</th><th className="text-left px-4 py-3">Check-in</th><th className="text-left px-4 py-3">Check-out</th><th className="text-left px-4 py-3">Écart reversement</th><th className="px-4 py-3"></th></tr>
             </thead>
             <tbody>
               {shifts.map((s) => (
@@ -59,6 +59,11 @@ export const FleetShifts: React.FC = () => {
                   <td className="px-4 py-3"><span className="inline-flex items-center gap-1.5 text-xs"><span className="w-1.5 h-1.5 rounded-full" style={{ background: STATUT_COLOR[s.statut] }} />{STATUT_LABEL[s.statut] || s.statut}</span></td>
                   <td className="px-4 py-3 text-[#8A8A8A]">{s.checkinAt ? new Date(s.checkinAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : "—"}</td>
                   <td className="px-4 py-3 text-[#8A8A8A]">{s.checkoutAt ? new Date(s.checkoutAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : "—"}</td>
+                  <td className="px-4 py-3">
+                    {s.ecart == null ? <span className="text-[#8A8A8A]">—</span>
+                      : s.ecart > 0 ? <span className="text-xs text-[#EF4444]">Dette {s.ecart.toLocaleString("fr-FR")} FCFA</span>
+                      : <span className="text-xs text-[#22C55E]">OK</span>}
+                  </td>
                   <td className="px-4 py-3 text-right">{s.recordId && s.statut !== "EN_ATTENTE" && <button className="text-xs text-[#22C55E] hover:underline" onClick={() => openDetail(s.recordId)}>Voir les preuves</button>}</td>
                 </tr>
               ))}
@@ -92,6 +97,15 @@ export const FleetShifts: React.FC = () => {
                     <div key={l as string}><AuthImage mediaId={m as string} className="w-full h-20 rounded-lg" /><div className="text-[10px] text-[#8A8A8A] mt-1">{l as string}</div></div>
                   ))}
                 </div>
+              </div>
+            )}
+            {detail.reversement && (
+              <div className="rounded-xl border border-[#232327] bg-[#0F0F11] p-3 text-sm">
+                <div className="text-xs uppercase tracking-wide text-[#8A8A8A] mb-2">Reversement</div>
+                <div className="flex justify-between"><span className="text-[#8A8A8A]">Recette Yango</span><span className="text-[#EDEDED]">{detail.reversement.recetteYango.toLocaleString("fr-FR")} FCFA</span></div>
+                <div className="flex justify-between"><span className="text-[#8A8A8A]">Reversé</span><span className="text-[#EDEDED]">{detail.reversement.montantReverse.toLocaleString("fr-FR")} FCFA</span></div>
+                <div className="flex justify-between"><span className="text-[#8A8A8A]">Écart</span><span style={{ color: detail.reversement.ecart > 0 ? "#EF4444" : "#22C55E" }}>{detail.reversement.ecart.toLocaleString("fr-FR")} FCFA</span></div>
+                {detail.reversement.ecart > 0 && <div className="text-xs text-[#EF4444] mt-1">Dette constatée automatiquement.</div>}
               </div>
             )}
           </div>

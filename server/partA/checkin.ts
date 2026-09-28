@@ -143,7 +143,7 @@ export function checkinRouter(prisma: PrismaClient): express.Router {
       const day = normalizeDay(String(req.query.date || new Date().toISOString()));
       const assignments = await prisma.assignment.findMany({
         where: { siteId, date: day },
-        include: { vehicle: { select: { immatriculation: true } }, driver: { select: { name: true } }, shiftRecord: true },
+        include: { vehicle: { select: { immatriculation: true } }, driver: { select: { name: true } }, shiftRecord: { include: { reversement: true } } },
         orderBy: { shift: "asc" },
       });
       res.json({
@@ -152,6 +152,10 @@ export function checkinRouter(prisma: PrismaClient): express.Router {
           assignmentId: a.id, shift: a.shift, vehicule: a.vehicle?.immatriculation, chauffeur: a.driver?.name,
           statut: a.shiftRecord?.statut ?? "EN_ATTENTE", checkinAt: a.shiftRecord?.checkinAt ?? null, checkoutAt: a.shiftRecord?.checkoutAt ?? null,
           recordId: a.shiftRecord?.id ?? null,
+          // Écart de reversement constaté (visible directement sur la page de supervision).
+          reversementStatut: a.shiftRecord?.reversement?.statut ?? null,
+          ecart: a.shiftRecord?.reversement?.ecart ?? null,
+          detteId: a.shiftRecord?.reversement?.detteId ?? null,
         })),
       });
     })
@@ -162,7 +166,7 @@ export function checkinRouter(prisma: PrismaClient): express.Router {
     authorize("shift.superviser"),
     wrap(async (req, res) => {
       const ctx = actor(req);
-      const rec = await prisma.shiftRecord.findUnique({ where: { id: req.params.id }, include: { assignment: { include: { vehicle: { select: { immatriculation: true } }, driver: { select: { name: true } } } } } });
+      const rec = await prisma.shiftRecord.findUnique({ where: { id: req.params.id }, include: { reversement: { include: { depenses: true } }, assignment: { include: { vehicle: { select: { immatriculation: true } }, driver: { select: { name: true } } } } } });
       if (!rec) return res.status(404).json({ error: notFound });
       if (!canAccessSite(ctx, rec.siteId)) return res.status(403).json({ error: { fr: "Site hors de votre périmètre", en: "Site outside your scope" } });
       res.json(rec);

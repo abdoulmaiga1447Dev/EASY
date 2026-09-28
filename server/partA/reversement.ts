@@ -1,8 +1,9 @@
 /**
  * Routes reversement (Flux 2, Bloc B2) — recettes Yango.
  * Le chauffeur déclare sa recette Yango + preuve, son montant reversé + preuve, et ses
- * dépenses. Le système calcule l'écart : dans la tolérance → accepté ; au-delà → alerte
- * Finance + Responsable terrain, double validation, puis création d'une dette chauffeur.
+ * dépenses. Le système calcule l'écart. Tout manquant (écart > 0) crée une dette chauffeur :
+ * sous le seuil → dette enregistrée automatiquement ; au-delà → alerte Finance + Responsable
+ * terrain et double validation avant création de la dette.
  */
 import express from "express";
 import type { PrismaClient } from "@prisma/client";
@@ -32,6 +33,18 @@ async function recipients(prisma: PrismaClient, siteId: string, code: string) {
   });
 }
 
+/** Enregistre une dette chauffeur pour l'écart manquant d'un reversement et notifie le chauffeur. */
+async function creerDetteEcart(
+  prisma: PrismaClient,
+  rev: { id: string; driverId: string; siteId: string; ecart: number; date: Date }
+): Promise<string> {
+  const dette = await prisma.detteChauffeur.create({
+    data: { driverId: rev.driverId, siteId: rev.siteId, montant: rev.ecart, motif: `Écart de reversement du ${rev.date.toISOString().slice(0, 10)}`, sourceType: "reversement", sourceId: rev.id },
+  });
+  await notify(prisma, { userId: rev.driverId, canal: "IN_APP", type: "dette.creee", titre: "Dette enregistrée", message: `Une dette de ${rev.ecart} FCFA a été enregistrée suite à un écart de reversement.` });
+  return dette.id;
+}
+
 export function reversementRouter(prisma: PrismaClient): express.Router {
   const r = express.Router();
   r.use(authenticate(prisma));
@@ -48,13 +61,11 @@ export function reversementRouter(prisma: PrismaClient): express.Router {
         where: { driverId: ctx.userId, date: day },
         include: { vehicle: { select: { immatriculation: true } }, shiftRecord: { include: { reversement: { include: { depenses: true } } } } },
       });
-      const settings = assignment ? await prisma.siteSettings.findFirst({ where: { siteId: assignment.siteId }, orderBy: { version: "desc" } }) : null;
       res.json({
         date: day.toISOString().slice(0, 10),
         assignment,
         checkoutFait: assignment?.shiftRecord?.statut === "TERMINE",
         reversement: assignment?.shiftRecord?.reversement ?? null,
-        tolerance: settings?.toleranceEcartReversement ?? 5000,
       });
     })
   );
@@ -89,12 +100,10 @@ export function reversementRouter(prisma: PrismaClient): express.Router {
         return res.status(400).json({ error: { fr: "Chaque dépense doit avoir une preuve de paiement", en: "Each expense requires a payment proof" } });
       }
 
-      const settings = await prisma.siteSettings.findFirst({ where: { siteId: a.siteId }, orderBy: { version: "desc" } });
-      const tolerance = settings?.toleranceEcartReversement ?? 5000;
-      const calc = computeReversement(recetteYango, depensesInput.map((d) => Number(d.montant) || 0), montantReverse, tolerance);
+      const calc = computeReversement(recetteYango, depensesInput.map((d) => Number(d.montant) || 0), montantReverse);
       const retard = retardReversement(a.shiftRecord.checkoutAt, new Date());
 
-      const rev = await prisma.reversement.create({
+      let rev = await prisma.reversement.create({
         data: {
           shiftRecordId: a.shiftRecord.id, driverId: a.driverId, vehicleId: a.vehicleId, siteId: a.siteId, date: a.date, shift: a.shift,
           recetteYango, preuveYangoMediaId: b.preuveYangoMediaId || null, montantReverse, preuveReversementMediaId: b.preuveReversementMediaId || null,
@@ -111,12 +120,15 @@ export function reversementRouter(prisma: PrismaClient): express.Router {
 
       await writeAudit(prisma, ctx, { action: "reversement.create", resourceType: "Reversement", resourceId: rev.id, siteId: a.siteId, after: { recetteYango, montantReverse, ecart: calc.ecart, statut: calc.statut } });
 
-      // Écart au-delà de la tolérance → alerte Finance + Responsable terrain.
-      if (calc.statut === "ECART_A_VALIDER") {
+      // Tout manquant (quel que soit le montant) est constaté automatiquement : dette enregistrée
+      // sans double validation, et Finance + Responsable terrain sont notifiés.
+      if (calc.ecart > 0) {
+        const detteId = await creerDetteEcart(prisma, rev);
+        rev = await prisma.reversement.update({ where: { id: rev.id }, data: { detteId }, include: { depenses: true } });
         const dest = new Set<string>();
         for (const u of await recipients(prisma, a.siteId, "reversement.rapprocher")) dest.add(u.id);
-        const msg = `Écart de ${Math.abs(calc.ecart)} FCFA détecté sur le reversement de ${ctx.name}.`;
-        for (const uid of dest) await notify(prisma, { userId: uid, canal: "IN_APP", type: "reversement.ecart", titre: "Écart de reversement", message: msg });
+        const msg = `Écart de ${calc.ecart} FCFA constaté sur le reversement de ${ctx.name} : dette enregistrée.`;
+        for (const uid of dest) await notify(prisma, { userId: uid, canal: "IN_APP", type: "reversement.ecart", titre: "Écart de reversement constaté", message: msg });
       }
 
       res.status(201).json(rev);
@@ -151,51 +163,6 @@ export function reversementRouter(prisma: PrismaClient): express.Router {
       if (!rev) return res.status(404).json({ error: notFound });
       if (!canAccessSite(ctx, rev.siteId)) return res.status(403).json({ error: { fr: "Site hors de votre périmètre", en: "Site outside your scope" } });
       res.json(rev);
-    })
-  );
-
-  // ------------------------------ Double validation du rapprochement ------------------------------
-  r.post(
-    "/api/fleet/reversements/:id/valider",
-    authorize("reversement.rapprocher"),
-    wrap(async (req, res) => {
-      const ctx = actor(req);
-      const rev = await prisma.reversement.findUnique({ where: { id: req.params.id } });
-      if (!rev) return res.status(404).json({ error: notFound });
-      if (!canAccessSite(ctx, rev.siteId)) return res.status(403).json({ error: { fr: "Site hors de votre périmètre", en: "Site outside your scope" } });
-      if (rev.statut !== "ECART_A_VALIDER") return res.status(400).json({ error: { fr: "Ce reversement n'attend pas de validation", en: "No validation pending" } });
-
-      // Détermine le côté : par le rôle, ou par le côté encore manquant (admin).
-      let cote: "finance" | "terrain" = req.body?.cote === "terrain" ? "terrain" : req.body?.cote === "finance" ? "finance" : (ctx.roleCode === "responsable_terrain" ? "terrain" : ctx.roleCode === "finance" ? "finance" : (rev.valideFinanceById ? "terrain" : "finance"));
-
-      // Un même utilisateur ne peut pas valider les deux côtés (double validation = 2 personnes).
-      const dejaAutreCote = cote === "finance" ? rev.valideTerrainById : rev.valideFinanceById;
-      if (dejaAutreCote === ctx.userId) return res.status(400).json({ error: { fr: "La double validation doit être faite par deux personnes différentes", en: "Two different validators required" } });
-      if ((cote === "finance" && rev.valideFinanceById) || (cote === "terrain" && rev.valideTerrainById)) {
-        return res.status(409).json({ error: { fr: "Ce côté est déjà validé", en: "This side is already validated" } });
-      }
-
-      const data: any = cote === "finance"
-        ? { valideFinanceById: ctx.userId, valideFinanceAt: new Date() }
-        : { valideTerrainById: ctx.userId, valideTerrainAt: new Date() };
-
-      let updated = await prisma.reversement.update({ where: { id: rev.id }, data });
-
-      // Les deux côtés validés → rapproché ; création de la dette si manquant.
-      if (updated.valideFinanceById && updated.valideTerrainById) {
-        let detteId: string | null = null;
-        if (updated.ecart > 0) {
-          const dette = await prisma.detteChauffeur.create({
-            data: { driverId: updated.driverId, siteId: updated.siteId, montant: updated.ecart, motif: `Écart de reversement du ${updated.date.toISOString().slice(0, 10)}`, sourceType: "reversement", sourceId: updated.id },
-          });
-          detteId = dette.id;
-          await notify(prisma, { userId: updated.driverId, canal: "IN_APP", type: "dette.creee", titre: "Dette enregistrée", message: `Une dette de ${updated.ecart} FCFA a été enregistrée suite à un écart de reversement.` });
-        }
-        updated = await prisma.reversement.update({ where: { id: rev.id }, data: { statut: "RAPPROCHE", detteId } });
-      }
-
-      await writeAudit(prisma, ctx, { action: "reversement.valider", resourceType: "Reversement", resourceId: rev.id, siteId: rev.siteId, after: { cote, statut: updated.statut } });
-      res.json(updated);
     })
   );
 

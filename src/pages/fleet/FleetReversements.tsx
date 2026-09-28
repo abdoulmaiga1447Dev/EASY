@@ -1,11 +1,11 @@
 /**
  * Supervision des reversements (Flux 2) — Finance / Responsable terrain.
- * Liste filtrable, consultation des preuves, double validation du rapprochement.
+ * Liste filtrable et consultation des preuves. Tout écart est constaté automatiquement
+ * (dette enregistrée) : plus de double validation.
  */
 import React, { useEffect, useState, useMemo } from "react";
-import { useRbac } from "../../context/RbacContext";
 import { api, type ApiError } from "../../api/fleet";
-import { Btn, Field, Input, Select, Spinner, EmptyState, Modal, Toast, AuthImage } from "./ui";
+import { Field, Select, Spinner, EmptyState, Modal, Toast, AuthImage } from "./ui";
 import { FleetExceptionsCash } from "./FleetExceptionsCash";
 import { FleetDettes } from "./FleetDettes";
 
@@ -13,13 +13,14 @@ type ToastState = { message: string; kind: "ok" | "err" } | null;
 const errMsg = (e: unknown) => (e as ApiError)?.fr || "Erreur inattendue";
 const STATUT: Record<string, { label: string; color: string }> = {
   ACCEPTE: { label: "Accepté", color: "#22C55E" },
+  ECART_CONSTATE: { label: "Écart constaté", color: "#EF4444" },
+  // Anciens statuts (double validation supprimée) — conservés pour l'affichage d'historiques.
   ECART_A_VALIDER: { label: "Écart à valider", color: "#F59E0B" },
   RAPPROCHE: { label: "Rapproché", color: "#3B82F6" },
 };
 const fcfa = (n: number) => (n ?? 0).toLocaleString("fr-FR") + " F";
 
 const ReversementsList: React.FC = () => {
-  const { can } = useRbac();
   const [toast, setToast] = useState<ToastState>(null);
   const notify = useMemo(() => (t: ToastState) => { setToast(t); if (t) setTimeout(() => setToast(null), 3500); }, []);
   const [list, setList] = useState<any[]>([]);
@@ -36,18 +37,13 @@ const ReversementsList: React.FC = () => {
 
   const openDetail = async (id: string) => { try { setDetail(await api.get<any>(`/api/fleet/reversements/${id}`)); } catch (e) { notify({ message: errMsg(e), kind: "err" }); } };
 
-  const valider = async (id: string) => {
-    try { await api.post(`/api/fleet/reversements/${id}/valider`, {}); notify({ message: "Validation enregistrée", kind: "ok" }); setDetail(null); load(); }
-    catch (e) { notify({ message: errMsg(e), kind: "err" }); }
-  };
-
   const drv = (r: any) => r.shiftRecord?.assignment?.driver?.name ?? "—";
   const veh = (r: any) => r.shiftRecord?.assignment?.vehicle?.immatriculation ?? "—";
 
   return (
     <div className="space-y-5">
       <div className="flex justify-end">
-        <Field label="Statut"><Select value={filtre} onChange={(e) => setFiltre(e.target.value)}><option value="">Tous</option><option value="ECART_A_VALIDER">Écart à valider</option><option value="ACCEPTE">Accepté</option><option value="RAPPROCHE">Rapproché</option></Select></Field>
+        <Field label="Statut"><Select value={filtre} onChange={(e) => setFiltre(e.target.value)}><option value="">Tous</option><option value="ECART_CONSTATE">Écart constaté</option><option value="ACCEPTE">Accepté</option></Select></Field>
       </div>
 
       {loading ? <Spinner /> : (
@@ -90,10 +86,9 @@ const ReversementsList: React.FC = () => {
               {detail.preuveReversementMediaId && <div><AuthImage mediaId={detail.preuveReversementMediaId} className="w-24 h-24 rounded-lg" /><div className="text-[10px] text-[#8A8A8A] mt-1">Virement</div></div>}
               {detail.preuveYangoMediaId && <div><AuthImage mediaId={detail.preuveYangoMediaId} className="w-24 h-24 rounded-lg" /><div className="text-[10px] text-[#8A8A8A] mt-1">Relevé Yango</div></div>}
             </div>
-            {detail.statut === "ECART_A_VALIDER" && (
-              <div className="border-t border-[#232327] pt-3">
-                <div className="text-xs text-[#8A8A8A] mb-2">Double validation : Finance {detail.valideFinanceById ? "✓" : "—"} · Terrain {detail.valideTerrainById ? "✓" : "—"}</div>
-                {can("reversement.rapprocher") && <Btn onClick={() => valider(detail.id)} className="w-full">Valider le rapprochement</Btn>}
+            {detail.ecart > 0 && (
+              <div className="border-t border-[#232327] pt-3 text-xs text-[#EF4444]">
+                Écart constaté automatiquement — une dette de {fcfa(detail.ecart)} a été enregistrée pour le chauffeur.
               </div>
             )}
           </div>
