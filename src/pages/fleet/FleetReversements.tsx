@@ -90,7 +90,7 @@ const ReversementsList: React.FC = () => {
                       <tr key={r.id} className={`border-t border-[#232327] ${estAujourdhui ? "border-l-2 border-[#22C55E]" : ""}`}>
                         <td className="px-4 py-3 text-[#EDEDED]">{drv(r)}</td>
                         <td className="px-4 py-3 text-[#8A8A8A]">{veh(r)}</td>
-                        <td className="px-4 py-3 text-[#8A8A8A]">{fcfa(r.recetteYango)}</td>
+                        <td className="px-4 py-3 text-[#8A8A8A]">{fcfa(r.recette)}</td>
                         <td className="px-4 py-3 text-[#8A8A8A]">{fcfa(r.montantReverse)}</td>
                         <td className="px-4 py-3" style={{ color: r.ecart > 0 ? "#EF4444" : "#8A8A8A" }}>{fcfa(r.ecart)}</td>
                         <td className="px-4 py-3"><span className="text-xs font-medium" style={{ color: STATUT[r.statut]?.color }}>{STATUT[r.statut]?.label || r.statut}</span></td>
@@ -110,7 +110,7 @@ const ReversementsList: React.FC = () => {
           <div className="space-y-4 text-sm">
             <div className="text-[#8A8A8A]">{drv(detail)} · {veh(detail)} · {new Date(detail.date).toLocaleDateString("fr-FR")} · Shift {detail.shift}</div>
             <div className="grid grid-cols-2 gap-y-1 gap-x-4">
-              <span className="text-[#8A8A8A]">Recette Yango</span><span className="text-[#EDEDED] text-right">{fcfa(detail.recetteYango)}</span>
+              <span className="text-[#8A8A8A]">Recette</span><span className="text-[#EDEDED] text-right">{fcfa(detail.recette)}</span>
               <span className="text-[#8A8A8A]">Dépenses</span><span className="text-[#EDEDED] text-right">{fcfa(detail.totalDepenses)}</span>
               <span className="text-[#8A8A8A]">Frais (~1 %)</span><span className="text-[#EDEDED] text-right">{fcfa(detail.frais)}</span>
               <span className="text-[#8A8A8A]">Montant attendu</span><span className="text-[#EDEDED] text-right">{fcfa(detail.montantAttendu)}</span>
@@ -119,7 +119,7 @@ const ReversementsList: React.FC = () => {
             </div>
             <div className="flex gap-3">
               {detail.preuveReversementMediaId && <div><AuthImage mediaId={detail.preuveReversementMediaId} className="w-24 h-24 rounded-lg" /><div className="text-[10px] text-[#8A8A8A] mt-1">Virement</div></div>}
-              {detail.preuveYangoMediaId && <div><AuthImage mediaId={detail.preuveYangoMediaId} className="w-24 h-24 rounded-lg" /><div className="text-[10px] text-[#8A8A8A] mt-1">Relevé Yango</div></div>}
+              {detail.preuveRecetteMediaId && <div><AuthImage mediaId={detail.preuveRecetteMediaId} className="w-24 h-24 rounded-lg" /><div className="text-[10px] text-[#8A8A8A] mt-1">Relevé de recette</div></div>}
             </div>
             {detail.ecart > 0 && (
               <div className="border-t border-[#232327] pt-3 text-xs text-[#EF4444]">

@@ -1,6 +1,6 @@
 /**
  * Logique du reversement (Flux 2, Bloc B2) — fonctions pures, testables.
- * Concerne les recettes Yango (schéma 2) : le chauffeur déclare sa recette et reverse ;
+ * Concerne les recettes des courses (schéma 2) : le chauffeur déclare sa recette et reverse ;
  * le système compare au montant attendu (recette − dépenses − frais Wave) à la tolérance près.
  */
 // ACCEPTE = pas de manquant ; ECART_CONSTATE = manquant constaté automatiquement (dette).
@@ -24,14 +24,14 @@ export interface ReversementCalc {
  * une dette chauffeur enregistrée automatiquement.
  */
 export function computeReversement(
-  recetteYango: number,
+  recette: number,
   depenses: number[],
   montantReverse: number,
   fraisPct: number = FRAIS_WAVE_PCT
 ): ReversementCalc {
   const totalDepenses = depenses.reduce((s, d) => s + (Number(d) || 0), 0);
-  const frais = Math.round((recetteYango * fraisPct) / 100);
-  const montantAttendu = Math.max(0, recetteYango - totalDepenses - frais);
+  const frais = Math.round((recette * fraisPct) / 100);
+  const montantAttendu = Math.max(0, recette - totalDepenses - frais);
   const ecart = montantAttendu - montantReverse;
   const statut: ReversementStatut = ecart > 0 ? "ECART_CONSTATE" : "ACCEPTE";
   return { totalDepenses, frais, montantAttendu, ecart, statut };

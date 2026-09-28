@@ -102,7 +102,7 @@ export const FleetShifts: React.FC = () => {
             {detail.reversement && (
               <div className="rounded-xl border border-[#232327] bg-[#0F0F11] p-3 text-sm">
                 <div className="text-xs uppercase tracking-wide text-[#8A8A8A] mb-2">Reversement</div>
-                <div className="flex justify-between"><span className="text-[#8A8A8A]">Recette Yango</span><span className="text-[#EDEDED]">{detail.reversement.recetteYango.toLocaleString("fr-FR")} FCFA</span></div>
+                <div className="flex justify-between"><span className="text-[#8A8A8A]">Recette</span><span className="text-[#EDEDED]">{detail.reversement.recette.toLocaleString("fr-FR")} FCFA</span></div>
                 <div className="flex justify-between"><span className="text-[#8A8A8A]">Reversé</span><span className="text-[#EDEDED]">{detail.reversement.montantReverse.toLocaleString("fr-FR")} FCFA</span></div>
                 <div className="flex justify-between"><span className="text-[#8A8A8A]">Écart</span><span style={{ color: detail.reversement.ecart > 0 ? "#EF4444" : "#22C55E" }}>{detail.reversement.ecart.toLocaleString("fr-FR")} FCFA</span></div>
                 {detail.reversement.ecart > 0 && <div className="text-xs text-[#EF4444] mt-1">Dette constatée automatiquement.</div>}

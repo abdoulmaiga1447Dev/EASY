@@ -1,6 +1,6 @@
 /**
- * Routes reversement (Flux 2, Bloc B2) — recettes Yango.
- * Le chauffeur déclare sa recette Yango + preuve, son montant reversé + preuve, et ses
+ * Routes reversement (Flux 2, Bloc B2) — recettes des courses.
+ * Le chauffeur déclare sa recette des courses + preuve, son montant reversé + preuve, et ses
  * dépenses. Le système calcule l'écart. Tout manquant (écart > 0) crée une dette chauffeur :
  * sous le seuil → dette enregistrée automatiquement ; au-delà → alerte Finance + Responsable
  * terrain et double validation avant création de la dette.
@@ -86,13 +86,13 @@ export function reversementRouter(prisma: PrismaClient): express.Router {
       if (exceptionCash) return res.status(409).json({ error: { fr: "Une exception cash a été déclarée pour ce shift : pas de reversement", en: "A cash exception exists for this shift" } });
 
       const b = req.body || {};
-      const recetteYango = Number(b.recetteYango);
+      const recette = Number(b.recette);
       const montantReverse = Number(b.montantReverse);
-      if (!Number.isFinite(recetteYango) || recetteYango < 0 || !Number.isFinite(montantReverse) || montantReverse < 0) {
+      if (!Number.isFinite(recette) || recette < 0 || !Number.isFinite(montantReverse) || montantReverse < 0) {
         return res.status(400).json({ error: { fr: "Recette et montant reversé obligatoires", en: "Revenue and remitted amount required" } });
       }
-      // Preuves obligatoires : relevé Yango + preuve du virement.
-      if (!b.preuveYangoMediaId) return res.status(400).json({ error: { fr: "Le relevé Yango est obligatoire", en: "Yango statement is required" } });
+      // Preuves obligatoires : relevé de recette + preuve du virement.
+      if (!b.preuveRecetteMediaId) return res.status(400).json({ error: { fr: "Le relevé de recette est obligatoire", en: "Revenue statement is required" } });
       if (!b.preuveReversementMediaId) return res.status(400).json({ error: { fr: "La preuve du virement est obligatoire", en: "Transfer proof is required" } });
       const depensesInput: { montant: number; motif?: string; preuveMediaId?: string }[] = Array.isArray(b.depenses) ? b.depenses : [];
       // Chaque dépense déclarée doit avoir une preuve.
@@ -100,13 +100,13 @@ export function reversementRouter(prisma: PrismaClient): express.Router {
         return res.status(400).json({ error: { fr: "Chaque dépense doit avoir une preuve de paiement", en: "Each expense requires a payment proof" } });
       }
 
-      const calc = computeReversement(recetteYango, depensesInput.map((d) => Number(d.montant) || 0), montantReverse);
+      const calc = computeReversement(recette, depensesInput.map((d) => Number(d.montant) || 0), montantReverse);
       const retard = retardReversement(a.shiftRecord.checkoutAt, new Date());
 
       let rev = await prisma.reversement.create({
         data: {
           shiftRecordId: a.shiftRecord.id, driverId: a.driverId, vehicleId: a.vehicleId, siteId: a.siteId, date: a.date, shift: a.shift,
-          recetteYango, preuveYangoMediaId: b.preuveYangoMediaId || null, montantReverse, preuveReversementMediaId: b.preuveReversementMediaId || null,
+          recette, preuveRecetteMediaId: b.preuveRecetteMediaId || null, montantReverse, preuveReversementMediaId: b.preuveReversementMediaId || null,
           totalDepenses: calc.totalDepenses, frais: calc.frais, montantAttendu: calc.montantAttendu, ecart: calc.ecart,
           statut: calc.statut as any, retardMinutes: retard,
           depenses: { create: depensesInput.map((d) => ({ montant: Number(d.montant) || 0, motif: d.motif || null, preuveMediaId: d.preuveMediaId || null })) },
@@ -115,10 +115,10 @@ export function reversementRouter(prisma: PrismaClient): express.Router {
       });
 
       // Rattache les médias (preuves) pour le contrôle d'accès en lecture.
-      const mediaIds = [b.preuveYangoMediaId, b.preuveReversementMediaId, ...depensesInput.map((d) => d.preuveMediaId)].filter(Boolean);
+      const mediaIds = [b.preuveRecetteMediaId, b.preuveReversementMediaId, ...depensesInput.map((d) => d.preuveMediaId)].filter(Boolean);
       if (mediaIds.length) await prisma.mediaAsset.updateMany({ where: { id: { in: mediaIds } }, data: { resourceType: "Reversement", resourceId: rev.id } });
 
-      await writeAudit(prisma, ctx, { action: "reversement.create", resourceType: "Reversement", resourceId: rev.id, siteId: a.siteId, after: { recetteYango, montantReverse, ecart: calc.ecart, statut: calc.statut } });
+      await writeAudit(prisma, ctx, { action: "reversement.create", resourceType: "Reversement", resourceId: rev.id, siteId: a.siteId, after: { recette, montantReverse, ecart: calc.ecart, statut: calc.statut } });
 
       // Tout manquant (quel que soit le montant) est constaté automatiquement : dette enregistrée
       // sans double validation, et Finance + Responsable terrain sont notifiés.

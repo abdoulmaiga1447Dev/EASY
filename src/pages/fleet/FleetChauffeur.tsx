@@ -44,20 +44,20 @@ const ReversementBloc: React.FC<{ assignmentId: string; notify: (t: ToastState) 
   const [loading, setLoading] = useState(true);
   const [rev, setRev] = useState<any>(null);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState<any>({ recetteYango: "", preuveYangoMediaId: "", montantReverse: "", preuveReversementMediaId: "" });
+  const [form, setForm] = useState<any>({ recette: "", preuveRecetteMediaId: "", montantReverse: "", preuveReversementMediaId: "" });
   const [depenses, setDepenses] = useState<{ montant: string; motif: string; preuveMediaId: string }[]>([]);
 
   const load = async () => { setLoading(true); try { const d = await api.get<any>("/api/fleet/me/reversement"); setRev(d.reversement); } catch (e) { notify({ message: errMsg(e), kind: "err" }); } finally { setLoading(false); } };
   useEffect(() => { load(); }, []);
 
   const depensesOk = depenses.every((d) => d.montant === "" || d.preuveMediaId);
-  const complet = form.recetteYango !== "" && form.montantReverse !== "" && form.preuveYangoMediaId && form.preuveReversementMediaId && depensesOk;
+  const complet = form.recette !== "" && form.montantReverse !== "" && form.preuveRecetteMediaId && form.preuveReversementMediaId && depensesOk;
   const submit = async () => {
     setSaving(true);
     try {
       await api.post(`/api/fleet/shifts/${assignmentId}/reversement`, {
-        recetteYango: Number(form.recetteYango), montantReverse: Number(form.montantReverse),
-        preuveYangoMediaId: form.preuveYangoMediaId || null, preuveReversementMediaId: form.preuveReversementMediaId || null,
+        recette: Number(form.recette), montantReverse: Number(form.montantReverse),
+        preuveRecetteMediaId: form.preuveRecetteMediaId || null, preuveReversementMediaId: form.preuveReversementMediaId || null,
         depenses: depenses.filter((d) => d.montant !== "").map((d) => ({ montant: Number(d.montant), motif: d.motif, preuveMediaId: d.preuveMediaId || null })),
       });
       notify({ message: "Reversement enregistré", kind: "ok" });
@@ -72,7 +72,7 @@ const ReversementBloc: React.FC<{ assignmentId: string; notify: (t: ToastState) 
     return (
       <Panel className="p-5 space-y-2">
         <div className="flex items-center gap-2 text-sm font-medium" style={{ color: s.color }}><span className="w-2 h-2 rounded-full" style={{ background: s.color }} /> {s.label}</div>
-        <div className="text-sm text-[#8A8A8A]">Recette déclarée : <span className="text-[#EDEDED]">{rev.recetteYango.toLocaleString("fr-FR")} FCFA</span> · Reversé : <span className="text-[#EDEDED]">{rev.montantReverse.toLocaleString("fr-FR")} FCFA</span></div>
+        <div className="text-sm text-[#8A8A8A]">Recette déclarée : <span className="text-[#EDEDED]">{rev.recette.toLocaleString("fr-FR")} FCFA</span> · Reversé : <span className="text-[#EDEDED]">{rev.montantReverse.toLocaleString("fr-FR")} FCFA</span></div>
         {rev.ecart !== 0 && <div className="text-sm text-[#8A8A8A]">Écart : <span style={{ color: s.color }}>{rev.ecart.toLocaleString("fr-FR")} FCFA</span></div>}
       </Panel>
     );
@@ -80,14 +80,14 @@ const ReversementBloc: React.FC<{ assignmentId: string; notify: (t: ToastState) 
 
   return (
     <Panel className="p-5 space-y-4">
-      <h2 className="font-semibold text-[#EDEDED]">Reverser mes recettes (Yango)</h2>
+      <h2 className="font-semibold text-[#EDEDED]">Reverser mes recettes</h2>
       <p className="text-xs text-[#8A8A8A]">Effectuez le virement sur Wave / Orange Money, puis renseignez les montants et joignez les preuves.</p>
       <div className="grid sm:grid-cols-2 gap-3">
-        <Field label="Recette Yango du shift (FCFA)"><Input type="number" value={form.recetteYango} onChange={(e) => setForm({ ...form, recetteYango: e.target.value })} /></Field>
+        <Field label="Recette du shift (FCFA)"><Input type="number" value={form.recette} onChange={(e) => setForm({ ...form, recette: e.target.value })} /></Field>
         <Field label="Montant reversé (FCFA)"><Input type="number" value={form.montantReverse} onChange={(e) => setForm({ ...form, montantReverse: e.target.value })} /></Field>
       </div>
       <div className="flex flex-wrap gap-4">
-        <FileField label="relevé Yango *" mediaId={form.preuveYangoMediaId} onUploaded={(id) => setForm({ ...form, preuveYangoMediaId: id })} notify={notify} />
+        <FileField label="relevé de recette *" mediaId={form.preuveRecetteMediaId} onUploaded={(id) => setForm({ ...form, preuveRecetteMediaId: id })} notify={notify} />
         <FileField label="preuve du virement *" mediaId={form.preuveReversementMediaId} onUploaded={(id) => setForm({ ...form, preuveReversementMediaId: id })} notify={notify} />
       </div>
       <div>
@@ -105,7 +105,7 @@ const ReversementBloc: React.FC<{ assignmentId: string; notify: (t: ToastState) 
         ))}
       </div>
       <Btn onClick={submit} disabled={!complet || saving} className="w-full">Valider le reversement</Btn>
-      {!complet && <p className="text-xs text-[#8A8A8A] text-center">Renseignez la recette et le montant reversé, joignez le relevé Yango et la preuve du virement, et une preuve pour chaque dépense.</p>}
+      {!complet && <p className="text-xs text-[#8A8A8A] text-center">Renseignez la recette et le montant reversé, joignez le relevé de recette et la preuve du virement, et une preuve pour chaque dépense.</p>}
     </Panel>
   );
 };

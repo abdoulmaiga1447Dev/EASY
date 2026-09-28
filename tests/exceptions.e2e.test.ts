@@ -35,7 +35,7 @@ beforeAll(async () => {
   aRev = await makeTerminatedShift("v_f2", "B");
   // Un reversement existe déjà sur aRev.
   const sr = await prisma.shiftRecord.findUnique({ where: { assignmentId: aRev } });
-  await prisma.reversement.create({ data: { shiftRecordId: sr!.id, driverId: DEMO.chauffeur, vehicleId: "v_f2", siteId: "site_abidjan", date: d0, shift: "B", recetteYango: 10000, montantReverse: 10000, montantAttendu: 9900, ecart: -100, statut: "ACCEPTE" } });
+  await prisma.reversement.create({ data: { shiftRecordId: sr!.id, driverId: DEMO.chauffeur, vehicleId: "v_f2", siteId: "site_abidjan", date: d0, shift: "B", recette: 10000, montantReverse: 10000, montantAttendu: 9900, ecart: -100, statut: "ACCEPTE" } });
 });
 afterAll(async () => { await cleanup(); await prisma.$disconnect(); });
 
@@ -64,7 +64,7 @@ describe("Exception cash rattachée à un shift", () => {
 
   it("refuse un reversement si une exception cash existe pour ce shift (409)", async () => {
     const res = await request(app).post(`/api/fleet/shifts/${aExc}/reversement`).set(auth(DEMO.chauffeur))
-      .send({ recetteYango: 10000, montantReverse: 10000, preuveYangoMediaId: "m1", preuveReversementMediaId: "m2", depenses: [] });
+      .send({ recette: 10000, montantReverse: 10000, preuveRecetteMediaId: "m1", preuveReversementMediaId: "m2", depenses: [] });
     expect(res.status).toBe(409);
   });
 

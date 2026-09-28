@@ -60,7 +60,7 @@ export function dettesRouter(prisma: PrismaClient): express.Router {
           where: { id: dette.sourceId },
           include: { shiftRecord: { include: { assignment: { include: { vehicle: { select: { immatriculation: true } } } } } } },
         });
-        if (rev) source = { type: "reversement", id: rev.id, date: rev.date, shift: rev.shift, recetteYango: rev.recetteYango, montantReverse: rev.montantReverse, montantAttendu: rev.montantAttendu, ecart: rev.ecart, vehicule: rev.shiftRecord?.assignment?.vehicle?.immatriculation ?? null };
+        if (rev) source = { type: "reversement", id: rev.id, date: rev.date, shift: rev.shift, recette: rev.recette, montantReverse: rev.montantReverse, montantAttendu: rev.montantAttendu, ecart: rev.ecart, vehicule: rev.shiftRecord?.assignment?.vehicle?.immatriculation ?? null };
       }
       const driver = await prisma.user.findUnique({ where: { id: dette.driverId }, select: { name: true } });
       res.json({ ...dette, driverNom: driver?.name ?? null, source });

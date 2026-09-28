@@ -694,7 +694,7 @@ model ShiftRecord {
 }
 
 // =============================================================================
-// SAVER Fleet Ops — Partie B (Bloc B2 : Flux 2 — Reversement des recettes Yango)
+// SAVER Fleet Ops — Partie B (Bloc B2 : Flux 2 — Reversement des recettes des courses)
 // =============================================================================
 
 enum ReversementStatut {
@@ -709,7 +709,7 @@ enum DetteStatut {
   REMBOURSEE
 }
 
-// --- Reversement d'un shift (recettes Yango) : 1-1 avec ShiftRecord ---
+// --- Reversement d'un shift (recettes des courses) : 1-1 avec ShiftRecord ---
 model Reversement {
   id            String            @id @default(cuid())
   shiftRecordId String            @unique
@@ -721,8 +721,8 @@ model Reversement {
   shift         ShiftCode
 
   // Déclaration du chauffeur
-  recetteYango             Int // recette Yango déclarée
-  preuveYangoMediaId       String? // capture / relevé Yango
+  recette             Int // recette des courses déclarée
+  preuveRecetteMediaId       String? // capture / relevé de recette
   montantReverse           Int // montant effectivement viré (Wave/OM)
   preuveReversementMediaId String? // capture du virement
 

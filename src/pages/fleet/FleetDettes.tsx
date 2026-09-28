@@ -82,7 +82,7 @@ export const FleetDettes: React.FC<{ scope: "me" | "all" }> = ({ scope }) => {
                 <div className="grid grid-cols-2 gap-y-1 gap-x-4">
                   <span className="text-[#8A8A8A]">Date · shift</span><span className="text-[#EDEDED] text-right">{new Date(detail.source.date).toLocaleDateString("fr-FR")} · {detail.source.shift}</span>
                   <span className="text-[#8A8A8A]">Véhicule</span><span className="text-[#EDEDED] text-right">{detail.source.vehicule || "—"}</span>
-                  <span className="text-[#8A8A8A]">Recette Yango</span><span className="text-[#EDEDED] text-right">{fcfa(detail.source.recetteYango)}</span>
+                  <span className="text-[#8A8A8A]">Recette</span><span className="text-[#EDEDED] text-right">{fcfa(detail.source.recette)}</span>
                   <span className="text-[#8A8A8A]">Montant attendu</span><span className="text-[#EDEDED] text-right">{fcfa(detail.source.montantAttendu)}</span>
                   <span className="text-[#8A8A8A]">Montant reversé</span><span className="text-[#EDEDED] text-right">{fcfa(detail.source.montantReverse)}</span>
                   <span className="text-[#8A8A8A]">Écart (= dette)</span><span className="text-right text-[#EF4444]">{fcfa(detail.source.ecart)}</span>

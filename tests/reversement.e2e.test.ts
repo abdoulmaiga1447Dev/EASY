@@ -32,7 +32,7 @@ describe("Reversement accepté", () => {
   it("un écart dans la tolérance est accepté automatiquement", async () => {
     const aid = await makeTerminatedShift("v_f1", "A");
     const res = await request(app).post(`/api/fleet/shifts/${aid}/reversement`).set(auth(DEMO.chauffeur))
-      .send({ recetteYango: 50000, montantReverse: 49500, preuveYangoMediaId: "m1", preuveReversementMediaId: "m2", depenses: [] });
+      .send({ recette: 50000, montantReverse: 49500, preuveRecetteMediaId: "m1", preuveReversementMediaId: "m2", depenses: [] });
     expect(res.status).toBe(201);
     expect(res.body.statut).toBe("ACCEPTE");
     expect(res.body.montantAttendu).toBe(49500);
@@ -41,7 +41,7 @@ describe("Reversement accepté", () => {
   it("un petit manquant est constaté et crée une dette, sans validation", async () => {
     const aid = await makeTerminatedShift("v_f5", "A");
     const res = await request(app).post(`/api/fleet/shifts/${aid}/reversement`).set(auth(DEMO.chauffeur))
-      .send({ recetteYango: 50000, montantReverse: 47000, preuveYangoMediaId: "m1", preuveReversementMediaId: "m2", depenses: [] });
+      .send({ recette: 50000, montantReverse: 47000, preuveRecetteMediaId: "m1", preuveReversementMediaId: "m2", depenses: [] });
     expect(res.status).toBe(201);
     expect(res.body.statut).toBe("ECART_CONSTATE"); // constaté automatiquement, pas de double validation
     expect(res.body.ecart).toBe(2500); // 49500 attendu - 47000 reversé
@@ -51,16 +51,16 @@ describe("Reversement accepté", () => {
     expect(dette!.montant).toBe(2500);
   });
 
-  it("refuse un reversement sans preuve (relevé Yango / virement obligatoires)", async () => {
+  it("refuse un reversement sans preuve (relevé de recette / virement obligatoires)", async () => {
     const aid = await makeTerminatedShift("v_f4", "A");
     const res = await request(app).post(`/api/fleet/shifts/${aid}/reversement`).set(auth(DEMO.chauffeur))
-      .send({ recetteYango: 10000, montantReverse: 10000, depenses: [] });
+      .send({ recette: 10000, montantReverse: 10000, depenses: [] });
     expect(res.status).toBe(400);
   });
 
   it("check-out requis avant reversement", async () => {
     const a = await prisma.assignment.create({ data: { siteId: "site_abidjan", date: d0, shift: "B", driverId: DEMO.chauffeur, vehicleId: "v_f3", createdById: DEMO.admin } });
-    const res = await request(app).post(`/api/fleet/shifts/${a.id}/reversement`).set(auth(DEMO.chauffeur)).send({ recetteYango: 1000, montantReverse: 1000 });
+    const res = await request(app).post(`/api/fleet/shifts/${a.id}/reversement`).set(auth(DEMO.chauffeur)).send({ recette: 1000, montantReverse: 1000 });
     expect(res.status).toBe(400);
   });
 });
@@ -69,7 +69,7 @@ describe("Écart constaté et dette (sans double validation)", () => {
   it("un écart, quel que soit le montant, est constaté et crée la dette dès la déclaration", async () => {
     const aid = await makeTerminatedShift("v_f2", "A");
     const res = await request(app).post(`/api/fleet/shifts/${aid}/reversement`).set(auth(DEMO.chauffeur))
-      .send({ recetteYango: 50000, montantReverse: 40000, preuveYangoMediaId: "m1", preuveReversementMediaId: "m2", depenses: [] });
+      .send({ recette: 50000, montantReverse: 40000, preuveRecetteMediaId: "m1", preuveReversementMediaId: "m2", depenses: [] });
     expect(res.status).toBe(201);
     expect(res.body.statut).toBe("ECART_CONSTATE");
     expect(res.body.ecart).toBe(9500);
