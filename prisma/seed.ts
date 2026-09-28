@@ -92,12 +92,6 @@ async function main() {
       });
       zoneIdByKey.set(`${s.id}:${zn}`, zone.id);
     }
-    // Paramètres globaux version 1 (valeurs par défaut du schéma).
-    await prisma.siteSettings.upsert({
-      where: { siteId_version: { siteId: s.id, version: 1 } },
-      update: {},
-      create: { siteId: s.id, version: 1, createdById: "usr_admin" },
-    });
   }
 
   // ---------------------------------------------------------------------------
@@ -168,6 +162,15 @@ async function main() {
         skipDuplicates: true,
       });
     }
+  }
+
+  // Paramètres globaux version 1 par site (après les utilisateurs : createdById → usr_admin).
+  for (const s of sitesData) {
+    await prisma.siteSettings.upsert({
+      where: { siteId_version: { siteId: s.id, version: 1 } },
+      update: {},
+      create: { siteId: s.id, version: 1, createdById: "usr_admin" },
+    });
   }
 
   // Profil chauffeur pour le compte de démonstration.
