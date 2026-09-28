@@ -120,15 +120,28 @@ export const FleetChauffeur: React.FC = () => {
 
   const [ci, setCi] = useState<any>({ gpsLat: null, gpsLng: null, kmDebut: "", photoCompteur: "", photoVehicule: "", photoPermis: "", selfieKyc: "" });
   const [co, setCo] = useState<any>({ kmFin: "", photoAvant: "", photoArriere: "", photoGauche: "", photoDroite: "" });
+  const [gpsBusy, setGpsBusy] = useState(false);
 
   const load = async () => { setLoading(true); try { setData(await api.get<any>("/api/fleet/me/shift")); } catch (e) { notify({ message: errMsg(e), kind: "err" }); } finally { setLoading(false); } };
   useEffect(() => { load(); }, []);
 
   const activerGps = () => {
     if (!navigator.geolocation) return notify({ message: "GPS non disponible sur cet appareil", kind: "err" });
+    setGpsBusy(true);
     navigator.geolocation.getCurrentPosition(
-      (pos) => { setCi((c: any) => ({ ...c, gpsLat: pos.coords.latitude, gpsLng: pos.coords.longitude })); notify({ message: "Position GPS enregistrée", kind: "ok" }); },
-      () => notify({ message: "Autorisez la localisation pour continuer", kind: "err" })
+      (pos) => {
+        setCi((c: any) => ({ ...c, gpsLat: pos.coords.latitude, gpsLng: pos.coords.longitude }));
+        notify({ message: "Position GPS enregistrée", kind: "ok" });
+        setGpsBusy(false);
+      },
+      (err) => {
+        const msg = err.code === err.PERMISSION_DENIED ? "Localisation refusée — autorisez l'accès à la position dans les réglages du navigateur"
+          : err.code === err.TIMEOUT ? "Localisation trop longue — placez-vous à découvert et réessayez"
+          : "Position indisponible — réessayez";
+        notify({ message: msg, kind: "err" });
+        setGpsBusy(false);
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
     );
   };
 
@@ -220,7 +233,7 @@ export const FleetChauffeur: React.FC = () => {
           <Panel className="p-5 space-y-4">
             <h2 className="font-semibold text-[#EDEDED]">Prise de poste (check-in)</h2>
             <div className="flex items-center gap-3">
-              <Btn variant={ci.gpsLat != null ? "secondary" : "primary"} onClick={activerGps}><MapPin size={16} /> {ci.gpsLat != null ? "Position enregistrée" : "Activer le GPS"}</Btn>
+              <Btn variant={ci.gpsLat != null ? "secondary" : "primary"} onClick={activerGps} disabled={gpsBusy}><MapPin size={16} /> {gpsBusy ? "Localisation…" : ci.gpsLat != null ? "Position enregistrée" : "Activer le GPS"}</Btn>
               {ci.gpsLat != null && <Check size={18} className="text-[#22C55E]" />}
             </div>
             <Field label="Kilométrage au compteur"><Input type="number" value={ci.kmDebut} onChange={(e) => setCi({ ...ci, kmDebut: e.target.value })} placeholder="ex. 12000" /></Field>
