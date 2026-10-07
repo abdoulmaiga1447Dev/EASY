@@ -72,6 +72,14 @@ describe("Check-out", () => {
     expect(res.status).toBe(400);
   });
 
+  it("refuse un km de fin inférieur au km de début (400)", async () => {
+    // Check-in à 12000 : un km de fin à 11000 est impossible (compteur ne recule pas).
+    const [a, b, c, d] = [await upload(DEMO.chauffeur), await upload(DEMO.chauffeur), await upload(DEMO.chauffeur), await upload(DEMO.chauffeur)];
+    const res = await request(app).post(`/api/fleet/shifts/${assignmentId}/checkout`).set(auth(DEMO.chauffeur))
+      .send({ kmFin: 11000, photoAvant: a, photoArriere: b, photoGauche: c, photoDroite: d });
+    expect(res.status).toBe(400);
+  });
+
   it("check-out complet réussit, calcule km/durée et passe TERMINE", async () => {
     const [a, b, c, d] = [await upload(DEMO.chauffeur), await upload(DEMO.chauffeur), await upload(DEMO.chauffeur), await upload(DEMO.chauffeur)];
     const res = await request(app).post(`/api/fleet/shifts/${assignmentId}/checkout`).set(auth(DEMO.chauffeur))

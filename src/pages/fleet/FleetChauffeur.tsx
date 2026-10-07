@@ -166,6 +166,8 @@ export const FleetChauffeur: React.FC = () => {
   const rec = a?.shiftRecord;
   const statut = rec?.statut ?? "EN_ATTENTE";
   const reversementFait = !!data?.reversement;
+  // Le compteur ne peut que monter : km de fin < km de début = saisie impossible.
+  const kmFinInvalide = co.kmFin !== "" && rec?.kmDebut != null && Number(co.kmFin) < rec.kmDebut;
   const exceptionCash = !!data?.exceptionCash;
   const journeeFinie = statut === "TERMINE" && (reversementFait || exceptionCash);
 
@@ -255,14 +257,17 @@ export const FleetChauffeur: React.FC = () => {
           <Panel className="p-5 space-y-4">
             <div className="flex items-center gap-2 text-[#22C55E] text-sm font-medium"><span className="w-2 h-2 rounded-full bg-[#22C55E] animate-pulse" /> Service en cours depuis {rec.checkinAt ? new Date(rec.checkinAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : "—"}</div>
             <h2 className="font-semibold text-[#EDEDED]">Fin de poste (check-out)</h2>
-            <Field label="Kilométrage au compteur (fin)"><Input type="number" value={co.kmFin} onChange={(e) => setCo({ ...co, kmFin: e.target.value })} /></Field>
+            <Field label="Kilométrage au compteur (fin)">
+              <Input type="number" value={co.kmFin} onChange={(e) => setCo({ ...co, kmFin: e.target.value })} placeholder={rec?.kmDebut != null ? `≥ ${rec.kmDebut}` : undefined} />
+            </Field>
+            {kmFinInvalide && <p className="text-xs text-[#EF4444] -mt-2">Le kilométrage de fin ne peut pas être inférieur à celui du début ({rec.kmDebut} km).</p>}
             <div className="grid grid-cols-2 gap-3">
               <CameraCapture label="Avant" mediaId={co.photoAvant} onUploaded={(id) => setCo({ ...co, photoAvant: id })} notify={notify} />
               <CameraCapture label="Arrière" mediaId={co.photoArriere} onUploaded={(id) => setCo({ ...co, photoArriere: id })} notify={notify} />
               <CameraCapture label="Gauche" mediaId={co.photoGauche} onUploaded={(id) => setCo({ ...co, photoGauche: id })} notify={notify} />
               <CameraCapture label="Droite" mediaId={co.photoDroite} onUploaded={(id) => setCo({ ...co, photoDroite: id })} notify={notify} />
             </div>
-            <Btn onClick={doCheckout} disabled={!coComplet || saving} className="w-full">Terminer le shift</Btn>
+            <Btn onClick={doCheckout} disabled={!coComplet || kmFinInvalide || saving} className="w-full">Terminer le shift</Btn>
           </Panel>
         </Reveal>
       )}

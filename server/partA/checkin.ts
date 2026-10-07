@@ -105,6 +105,11 @@ export function checkinRouter(prisma: PrismaClient): express.Router {
       const b = req.body;
       const checkoutAt = new Date();
       const kmFin = Number(b.kmFin);
+      // Le compteur ne peut que monter : un km de fin inférieur au km de début est
+      // impossible (faute de frappe ou fraude) → on refuse au lieu d'afficher 0 km.
+      if (a.shiftRecord.kmDebut != null && Number.isFinite(kmFin) && kmFin < a.shiftRecord.kmDebut) {
+        return res.status(400).json({ error: { fr: `Le kilométrage de fin (${kmFin}) ne peut pas être inférieur à celui du début (${a.shiftRecord.kmDebut}). Vérifiez la valeur.`, en: "End odometer cannot be lower than start odometer" } });
+      }
       const { kmParcourus, dureeMinutes } = computeShiftData(a.shiftRecord.kmDebut, kmFin, a.shiftRecord.checkinAt, checkoutAt);
 
       const record = await prisma.shiftRecord.update({
