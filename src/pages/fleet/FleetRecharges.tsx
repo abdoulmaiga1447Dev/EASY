@@ -7,7 +7,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { BatteryCharging, AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
 import { useRbac } from "../../context/RbacContext";
 import { api, uploadMedia, type ApiError } from "../../api/fleet";
-import { Btn, Panel, Reveal, Field, Input, Select, Spinner, EmptyState, Toast, Modal } from "./ui";
+import { Btn, Reveal, Field, Input, Select, Spinner, EmptyState, Toast, Modal } from "./ui";
 import rechargeHero from "../../assets/recharge-hero.jpg";
 
 type ToastState = { message: string; kind: "ok" | "err" } | null;
@@ -59,6 +59,12 @@ const Justificatif: React.FC<{ mediaId: string; onUploaded: (id: string) => void
   );
 };
 
+// Surface « verre dépoli » : translucide + flou, laisse voir le fond image.
+const GLASS = "bg-white/[0.06] backdrop-blur-2xl border border-white/10 rounded-2xl";
+const Glass: React.FC<{ className?: string; children: React.ReactNode }> = ({ className = "", children }) => (
+  <div className={`${GLASS} ${className}`}>{children}</div>
+);
+
 // ------------------------------ Formulaire d'enregistrement (chauffeur / équipe) ------------------------------
 const RechargeForm: React.FC<{ notify: (t: ToastState) => void; onDone: () => void }> = ({ notify, onDone }) => {
   const [shift, setShift] = useState<any>(null);
@@ -102,7 +108,7 @@ const RechargeForm: React.FC<{ notify: (t: ToastState) => void; onDone: () => vo
   if (!vehicleId) return <EmptyState>Aucun véhicule attribué aujourd'hui : impossible d'enregistrer une recharge.</EmptyState>;
 
   return (
-    <Panel className="p-5 space-y-4">
+    <Glass className="p-5 space-y-4">
       <button type="button" onClick={() => setOpen((o) => !o)} className="w-full flex items-center justify-between text-[#EDEDED]">
         <span className="flex items-center gap-2"><BatteryCharging size={18} className="text-[#22C55E]" /><h2 className="font-semibold">Enregistrer une recharge</h2></span>
         {open ? <ChevronUp size={18} className="text-[#8A8A8A]" /> : <ChevronDown size={18} className="text-[#8A8A8A]" />}
@@ -123,7 +129,7 @@ const RechargeForm: React.FC<{ notify: (t: ToastState) => void; onDone: () => vo
           <p className="text-xs text-[#8A8A8A]">La borne est obligatoire et doit faire partie de la liste autorisée. Les kWh doivent rester cohérents : toute incohérence est signalée au Superviseur Logistique.</p>
         </>
       )}
-    </Panel>
+    </Glass>
   );
 };
 
@@ -135,7 +141,7 @@ const MesRecharges: React.FC<{ refresh: number }> = ({ refresh }) => {
   if (loading) return <Spinner />;
   if (!list.length) return null;
   return (
-    <Panel className="p-5">
+    <Glass className="p-5">
       <h3 className="font-semibold text-[#EDEDED] mb-3">Mes dernières recharges</h3>
       <div className="space-y-2">
         {list.map((r) => (
@@ -146,7 +152,7 @@ const MesRecharges: React.FC<{ refresh: number }> = ({ refresh }) => {
           </div>
         ))}
       </div>
-    </Panel>
+    </Glass>
   );
 };
 
@@ -187,17 +193,17 @@ const RechargesDashboard: React.FC<{ notify: (t: ToastState) => void }> = ({ not
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {cards.map((c) => (
-          <Panel key={c.label} className="p-4">
+          <Glass key={c.label} className="p-4">
             <div className="text-xs text-[#8A8A8A]">{c.label}</div>
             <div className={`text-xl font-bold mt-1 ${c.alerte ? "text-[#EF4444]" : "text-[#EDEDED]"}`}>{c.value}</div>
-          </Panel>
+          </Glass>
         ))}
       </div>
 
       {loading ? <Spinner /> : !data?.recharges?.length ? <EmptyState>Aucune recharge pour ce filtre.</EmptyState> : (
-        <div className="overflow-x-auto border border-[#232327] rounded-2xl">
+        <div className="overflow-x-auto bg-white/[0.05] backdrop-blur-2xl border border-white/10 rounded-2xl">
           <table className="w-full text-sm">
-            <thead className="bg-[#0F0F11] text-[#8A8A8A]"><tr>
+            <thead className="bg-white/[0.06] text-[#8A8A8A]"><tr>
               <th className="text-left px-4 py-3">Date</th><th className="text-left px-4 py-3">Véhicule</th><th className="text-left px-4 py-3">Type</th><th className="text-left px-4 py-3">kWh</th><th className="text-left px-4 py-3">Coût</th><th className="text-left px-4 py-3">Batterie</th><th className="text-left px-4 py-3">Contrôle</th>
             </tr></thead>
             <tbody>
@@ -273,9 +279,9 @@ const BornesManager: React.FC<{ notify: (t: ToastState) => void }> = ({ notify }
     <div className="space-y-4">
       <div className="flex justify-end"><Btn onClick={ouvrirNouveau}>Ajouter une borne</Btn></div>
       {loading ? <Spinner /> : !list.length ? <EmptyState>Aucune borne enregistrée. Ajoutez-en une pour alimenter la liste autorisée.</EmptyState> : (
-        <div className="overflow-x-auto border border-[#232327] rounded-2xl">
+        <div className="overflow-x-auto bg-white/[0.05] backdrop-blur-2xl border border-white/10 rounded-2xl">
           <table className="w-full text-sm">
-            <thead className="bg-[#0F0F11] text-[#8A8A8A]"><tr>
+            <thead className="bg-white/[0.06] text-[#8A8A8A]"><tr>
               <th className="text-left px-4 py-3">Nom</th><th className="text-left px-4 py-3">Type</th><th className="text-left px-4 py-3">Opérateur</th><th className="text-left px-4 py-3">Site</th><th className="text-left px-4 py-3">Statut</th><th className="px-4 py-3"></th>
             </tr></thead>
             <tbody>
@@ -331,7 +337,11 @@ export const FleetRecharges: React.FC = () => {
   const tabCls = (active: boolean) => `px-4 py-2.5 text-sm border-b-2 transition ${active ? "border-[#22C55E] text-[#22C55E]" : "border-transparent text-[#8A8A8A] hover:text-[#EDEDED]"}`;
 
   return (
-    <div>
+    <div className="relative">
+      {/* Fond image sur toute la page : flouté + voile pour garder le contenu lisible */}
+      <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${rechargeHero})`, filter: "blur(22px) brightness(0.5)", transform: "scale(1.12)" }} />
+      <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, rgba(10,10,11,0.5), rgba(10,10,11,0.82))" }} />
+      <div className="relative z-10">
       <RechargeHero />
       {estSuperviseur ? (
         <>
@@ -352,6 +362,7 @@ export const FleetRecharges: React.FC = () => {
         </Reveal>
       ) : <EmptyState>Accès non autorisé.</EmptyState>}
       {toast && <Toast message={toast.message} kind={toast.kind} />}
+      </div>
     </div>
   );
 };
