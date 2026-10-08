@@ -40,7 +40,7 @@ const RechargeForm: React.FC<{ notify: (t: ToastState) => void; onDone: () => vo
   const [bornes, setBornes] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<any>({ typeCharge: "DOMESTIQUE", borneId: "", kwh: "", cout: "", socDebut: "", socFin: "", justificatifMediaId: "" });
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false); // formulaire replié par défaut
   const set = (p: any) => setForm((f: any) => ({ ...f, ...p }));
 
   useEffect(() => {
