@@ -48,16 +48,21 @@ describe("Enregistrement d'une recharge", () => {
     const res = await request(app).post("/api/fleet/recharges").set(auth(DEMO.superviseur))
       .send({ vehicleId: "v_f1", typeCharge: "DOMESTIQUE", borneId: "borne_saver_abidjan", kwh: 24, cout: 2400, socDebut: 30, socFin: 70, justificatifMediaId: m });
     expect(res.status).toBe(201);
-    expect(res.body.anomalieBorne).toBe(false);
     expect(res.body.anomalieCoherence).toBe(false);
   });
 
-  it("borne hors whitelist → anomalie signalée", async () => {
+  it("refuse une recharge sans borne (borne obligatoire et whitelistée)", async () => {
     const m = await upload(DEMO.superviseur);
     const res = await request(app).post("/api/fleet/recharges").set(auth(DEMO.superviseur))
       .send({ vehicleId: "v_f5", typeCharge: "PARTENAIRE", lieu: "Borne inconnue", kwh: 12, cout: 1500, socDebut: 40, socFin: 60, justificatifMediaId: m });
-    expect(res.status).toBe(201);
-    expect(res.body.anomalieBorne).toBe(true);
+    expect(res.status).toBe(400);
+  });
+
+  it("refuse une borne inexistante / hors whitelist (400)", async () => {
+    const m = await upload(DEMO.superviseur);
+    const res = await request(app).post("/api/fleet/recharges").set(auth(DEMO.superviseur))
+      .send({ vehicleId: "v_f5", typeCharge: "DOMESTIQUE", borneId: "borne_inconnue", kwh: 12, cout: 1500, socDebut: 40, socFin: 60, justificatifMediaId: m });
+    expect(res.status).toBe(400);
   });
 
   it("le chauffeur enregistre une recharge pour SON véhicule du jour", async () => {

@@ -866,7 +866,6 @@ model RechargeRecord {
 
   justificatifMediaId String? // reçu / capture / photo de la borne
 
-  anomalieBorne     Boolean @default(false) // borne hors whitelist → alerte Superviseur
   anomalieCoherence Boolean @default(false) // kWh incohérents (SOC/km) → alerte Superviseur
 
   createdAt DateTime @default(now())

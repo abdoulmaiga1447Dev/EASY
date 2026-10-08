@@ -86,11 +86,13 @@ export function rechargeRouter(prisma: PrismaClient): express.Router {
         return res.status(400).json({ error: { fr: "Valeurs de recharge invalides (kWh, coût, % batterie)", en: "Invalid charge values" } });
       }
 
-      // Borne : whitelistée si elle existe et est active.
-      let borneWhitelistee = false;
-      if (b.borneId) {
-        const borne = await prisma.borneRecharge.findUnique({ where: { id: String(b.borneId) } });
-        borneWhitelistee = !!(borne && borne.active);
+      // Borne OBLIGATOIRE et strictement dans la whitelist : sinon la recharge est refusée.
+      const borne = await prisma.borneRecharge.findUnique({ where: { id: String(b.borneId) } });
+      if (!borne || !borne.active) {
+        return res.status(400).json({ error: { fr: "Borne non autorisée : choisissez une borne de la liste", en: "Charging station not whitelisted" } });
+      }
+      if (borne.type !== b.typeCharge) {
+        return res.status(400).json({ error: { fr: "La borne choisie ne correspond pas au type de charge", en: "Station does not match charge type" } });
       }
 
       // Cohérence kWh ↔ km depuis la dernière recharge.
@@ -99,7 +101,7 @@ export function rechargeRouter(prisma: PrismaClient): express.Router {
       const kmParcourusDepuisDerniere = last?.kmAuMoment != null && kmAuMoment != null ? Math.max(0, kmAuMoment - last.kmAuMoment) : null;
 
       const anomalies = computeRechargeAnomalies({
-        borneWhitelistee, kwh, socDebut, socFin,
+        kwh, socDebut, socFin,
         capaciteBatterieKwh: vehicle.capaciteBatterieKwh ?? null,
         kmParcourusDepuisDerniere,
       });
@@ -108,10 +110,10 @@ export function rechargeRouter(prisma: PrismaClient): express.Router {
         data: {
           vehicleId: vehicle.id, driverId, enregistreParId: ctx.userId, siteId: vehicle.siteId,
           shift: b.shift === "A" || b.shift === "B" ? b.shift : null,
-          typeCharge: b.typeCharge, borneId: b.borneId ? String(b.borneId) : null, lieu: b.lieu ? String(b.lieu) : null,
+          typeCharge: b.typeCharge, borneId: borne.id, lieu: b.lieu ? String(b.lieu) : borne.nom,
           kwh, cout, socDebut, socFin, kmAuMoment: Number.isFinite(kmAuMoment) ? kmAuMoment : null,
           justificatifMediaId: b.justificatifMediaId || null,
-          anomalieBorne: anomalies.anomalieBorne, anomalieCoherence: anomalies.anomalieCoherence,
+          anomalieCoherence: anomalies.anomalieCoherence,
         },
       });
 
@@ -122,10 +124,10 @@ export function rechargeRouter(prisma: PrismaClient): express.Router {
       // Met à jour le dernier SOC connu du véhicule.
       await prisma.fleetVehicle.update({ where: { id: vehicle.id }, data: { socDernierConnu: socFin } });
 
-      await writeAudit(prisma, ctx, { action: "recharge.create", resourceType: "RechargeRecord", resourceId: rec.id, siteId: vehicle.siteId, after: { kwh, cout, anomalieBorne: anomalies.anomalieBorne, anomalieCoherence: anomalies.anomalieCoherence } });
+      await writeAudit(prisma, ctx, { action: "recharge.create", resourceType: "RechargeRecord", resourceId: rec.id, siteId: vehicle.siteId, after: { kwh, cout, anomalieCoherence: anomalies.anomalieCoherence } });
 
-      // Anomalie → alerte au Superviseur Logistique du site.
-      if (anomalies.anomalieBorne || anomalies.anomalieCoherence) {
+      // Anomalie de cohérence → alerte au Superviseur Logistique du site.
+      if (anomalies.anomalieCoherence) {
         const msg = `Anomalie recharge — ${vehicle.immatriculation} : ${anomalies.raisons.join(" ; ")}.`;
         for (const u of await recipients(prisma, vehicle.siteId, "recharge.superviser")) {
           await notify(prisma, { userId: u.id, canal: "IN_APP", type: "recharge.anomalie", titre: "Anomalie recharge", message: msg });
@@ -161,7 +163,7 @@ export function rechargeRouter(prisma: PrismaClient): express.Router {
       else if (req.query.siteId) where.siteId = String(req.query.siteId);
       if (req.query.vehicleId) where.vehicleId = String(req.query.vehicleId);
       if (req.query.date) where.date = { gte: normalizeDay(String(req.query.date)), lt: new Date(normalizeDay(String(req.query.date)).getTime() + 86400000) };
-      if (req.query.anomalies === "1") where.OR = [{ anomalieBorne: true }, { anomalieCoherence: true }];
+      if (req.query.anomalies === "1") where.anomalieCoherence = true;
 
       const recharges = await prisma.rechargeRecord.findMany({ where, orderBy: { date: "desc" }, take: 300 });
       const vehIds = [...new Set(recharges.map((x) => x.vehicleId))];
@@ -172,7 +174,7 @@ export function rechargeRouter(prisma: PrismaClient): express.Router {
         total: recharges.length,
         totalKwh: recharges.reduce((s, x) => s + x.kwh, 0),
         totalCout: recharges.reduce((s, x) => s + x.cout, 0),
-        anomalies: recharges.filter((x) => x.anomalieBorne || x.anomalieCoherence).length,
+        anomalies: recharges.filter((x) => x.anomalieCoherence).length,
       };
       res.json({ recharges: recharges.map((x) => ({ ...x, vehicule: immatById.get(x.vehicleId) ?? null })), resume });
     })

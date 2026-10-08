@@ -55,13 +55,13 @@ const RechargeForm: React.FC<{ notify: (t: ToastState) => void; onDone: () => vo
   const vehicule = shift?.assignment?.vehicle;
   const vehicleId = shift?.assignment?.vehicleId;
   const bornesFiltrees = bornes.filter((b) => b.type === form.typeCharge);
-  const complet = vehicleId && form.kwh !== "" && form.cout !== "" && form.socDebut !== "" && form.socFin !== "" && form.justificatifMediaId;
+  const complet = vehicleId && form.borneId && form.kwh !== "" && form.cout !== "" && form.socDebut !== "" && form.socFin !== "" && form.justificatifMediaId;
 
   const submit = async () => {
     setSaving(true);
     try {
       await api.post("/api/fleet/recharges", {
-        vehicleId, typeCharge: form.typeCharge, borneId: form.borneId || null, shift: shift?.assignment?.shift,
+        vehicleId, typeCharge: form.typeCharge, borneId: form.borneId, shift: shift?.assignment?.shift,
         kwh: Number(form.kwh), cout: Number(form.cout), socDebut: Number(form.socDebut), socFin: Number(form.socFin),
         justificatifMediaId: form.justificatifMediaId,
       });
@@ -80,7 +80,7 @@ const RechargeForm: React.FC<{ notify: (t: ToastState) => void; onDone: () => vo
       <div className="text-sm text-[#8A8A8A]">Véhicule : <span className="text-[#EDEDED]">{vehicule?.immatriculation ?? vehicleId}</span></div>
       <div className="grid sm:grid-cols-2 gap-3">
         <Field label="Type de charge"><Select value={form.typeCharge} onChange={(e) => set({ typeCharge: e.target.value, borneId: "" })}><option value="DOMESTIQUE">Réseau SAVER</option><option value="PARTENAIRE">Partenaire</option></Select></Field>
-        <Field label="Borne"><Select value={form.borneId} onChange={(e) => set({ borneId: e.target.value })}><option value="">—</option>{bornesFiltrees.map((b) => <option key={b.id} value={b.id}>{b.nom}</option>)}</Select></Field>
+        <Field label="Borne *"><Select value={form.borneId} onChange={(e) => set({ borneId: e.target.value })}><option value="">— choisir une borne —</option>{bornesFiltrees.map((b) => <option key={b.id} value={b.id}>{b.nom}</option>)}</Select></Field>
         <Field label="Électricité (kWh)"><Input type="number" value={form.kwh} onChange={(e) => set({ kwh: e.target.value })} placeholder="ex. 24" /></Field>
         <Field label="Coût (FCFA)"><Input type="number" value={form.cout} onChange={(e) => set({ cout: e.target.value })} placeholder="ex. 2400" /></Field>
         <Field label="% batterie début"><Input type="number" value={form.socDebut} onChange={(e) => set({ socDebut: e.target.value })} placeholder="0–100" /></Field>
@@ -88,7 +88,7 @@ const RechargeForm: React.FC<{ notify: (t: ToastState) => void; onDone: () => vo
       </div>
       <Justificatif mediaId={form.justificatifMediaId} onUploaded={(id) => set({ justificatifMediaId: id })} notify={notify} />
       <Btn onClick={submit} disabled={!complet || saving} className="w-full">Valider la recharge</Btn>
-      <p className="text-xs text-[#8A8A8A]">La borne doit faire partie de la liste autorisée, et les kWh doivent être cohérents : toute anomalie est signalée au Superviseur Logistique.</p>
+      <p className="text-xs text-[#8A8A8A]">La borne est obligatoire et doit faire partie de la liste autorisée. Les kWh doivent rester cohérents : toute incohérence est signalée au Superviseur Logistique.</p>
     </Panel>
   );
 };
@@ -108,7 +108,7 @@ const MesRecharges: React.FC<{ refresh: number }> = ({ refresh }) => {
           <div key={r.id} className="flex items-center justify-between text-sm border-t border-[#232327] pt-2 first:border-0 first:pt-0">
             <span className="text-[#8A8A8A]">{new Date(r.date).toLocaleDateString("fr-FR")} · {TYPE_LABEL[r.typeCharge]}</span>
             <span className="text-[#EDEDED]">{r.kwh} kWh · {fcfa(r.cout)}</span>
-            {(r.anomalieBorne || r.anomalieCoherence) ? <span className="text-xs text-[#EF4444]">Anomalie</span> : <span className="text-xs text-[#22C55E]">OK</span>}
+            {r.anomalieCoherence ? <span className="text-xs text-[#EF4444]">Anomalie</span> : <span className="text-xs text-[#22C55E]">OK</span>}
           </div>
         ))}
       </div>
@@ -168,7 +168,7 @@ const RechargesDashboard: React.FC<{ notify: (t: ToastState) => void }> = ({ not
             </tr></thead>
             <tbody>
               {data.recharges.map((r: any) => {
-                const anomalie = r.anomalieBorne || r.anomalieCoherence;
+                const anomalie = r.anomalieCoherence;
                 return (
                   <tr key={r.id} className={`border-t border-[#232327] ${anomalie ? "border-l-2 border-[#EF4444]" : ""}`}>
                     <td className="px-4 py-3 text-[#8A8A8A]">{new Date(r.date).toLocaleDateString("fr-FR")}</td>
@@ -179,7 +179,7 @@ const RechargesDashboard: React.FC<{ notify: (t: ToastState) => void }> = ({ not
                     <td className="px-4 py-3 text-[#8A8A8A]">{r.socDebut}% → {r.socFin}%</td>
                     <td className="px-4 py-3">
                       {anomalie
-                        ? <span className="inline-flex items-center gap-1 text-xs text-[#EF4444]"><AlertTriangle size={13} />{r.anomalieBorne ? "Borne" : ""}{r.anomalieBorne && r.anomalieCoherence ? " + " : ""}{r.anomalieCoherence ? "kWh" : ""}</span>
+                        ? <span className="inline-flex items-center gap-1 text-xs text-[#EF4444]"><AlertTriangle size={13} />kWh incohérents</span>
                         : <span className="text-xs text-[#22C55E]">OK</span>}
                     </td>
                   </tr>

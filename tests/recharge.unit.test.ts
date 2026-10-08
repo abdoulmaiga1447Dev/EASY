@@ -5,26 +5,20 @@ import { describe, it, expect } from "vitest";
 import { rechargeMissing, computeRechargeAnomalies } from "../lib/recharge";
 
 describe("rechargeMissing", () => {
-  it("liste les champs obligatoires manquants", () => {
-    expect(rechargeMissing({})).toEqual(expect.arrayContaining(["typeCharge", "kwh", "cout", "socDebut", "socFin", "justificatifMediaId"]));
+  it("liste les champs obligatoires manquants (borne comprise)", () => {
+    expect(rechargeMissing({})).toEqual(expect.arrayContaining(["typeCharge", "borneId", "kwh", "cout", "socDebut", "socFin", "justificatifMediaId"]));
   });
   it("accepte une saisie complète", () => {
-    expect(rechargeMissing({ typeCharge: "DOMESTIQUE", kwh: 20, cout: 2000, socDebut: 30, socFin: 70, justificatifMediaId: "m1" })).toEqual([]);
+    expect(rechargeMissing({ typeCharge: "DOMESTIQUE", borneId: "b1", kwh: 20, cout: 2000, socDebut: 30, socFin: 70, justificatifMediaId: "m1" })).toEqual([]);
   });
 });
 
 describe("computeRechargeAnomalies", () => {
-  const base = { borneWhitelistee: true, kwh: 24, socDebut: 30, socFin: 70, capaciteBatterieKwh: 60, kmParcourusDepuisDerniere: 120 };
+  const base = { kwh: 24, socDebut: 30, socFin: 70, capaciteBatterieKwh: 60, kmParcourusDepuisDerniere: 120 };
 
   it("recharge cohérente : aucune anomalie", () => {
     const r = computeRechargeAnomalies(base);
-    expect(r.anomalieBorne).toBe(false);
     expect(r.anomalieCoherence).toBe(false);
-  });
-
-  it("borne hors whitelist", () => {
-    const r = computeRechargeAnomalies({ ...base, borneWhitelistee: false });
-    expect(r.anomalieBorne).toBe(true);
   });
 
   it("batterie qui ne monte pas → incohérent", () => {

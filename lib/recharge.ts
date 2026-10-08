@@ -7,10 +7,11 @@
 /** Conso moyenne estimée d'un VE (kWh par km) — repère, paramétrable. */
 export const RENDEMENT_KWH_PAR_KM = 0.2;
 
-/** Champs obligatoires à la saisie d'une recharge. */
+/** Champs obligatoires à la saisie d'une recharge (la borne est obligatoire et whitelistée). */
 export function rechargeMissing(body: any): string[] {
   const miss: string[] = [];
   if (!body?.typeCharge || !["DOMESTIQUE", "PARTENAIRE"].includes(String(body.typeCharge))) miss.push("typeCharge");
+  if (!body?.borneId) miss.push("borneId");
   for (const f of ["kwh", "cout", "socDebut", "socFin"] as const) {
     if (body?.[f] == null || Number.isNaN(Number(body[f]))) miss.push(f);
   }
@@ -19,19 +20,17 @@ export function rechargeMissing(body: any): string[] {
 }
 
 export interface RechargeAnomalies {
-  anomalieBorne: boolean;
   anomalieCoherence: boolean;
   raisons: string[];
 }
 
 /**
- * Détecte les anomalies d'une recharge (sans lever d'erreur : on enregistre + on alerte).
- * - anomalieBorne : la borne n'est pas dans la liste autorisée (whitelist).
- * - anomalieCoherence : les kWh déclarés sont incohérents avec la variation de batterie
- *   (SOC × capacité) et/ou avec les km parcourus depuis la dernière recharge.
+ * Détecte les anomalies de cohérence d'une recharge (sans lever d'erreur : on enregistre + on alerte).
+ * La borne, elle, est obligatoire et validée en amont (refus si hors whitelist) — ce n'est donc
+ * plus une anomalie mais un blocage. Ici on vérifie que les kWh déclarés sont cohérents avec la
+ * variation de batterie (SOC × capacité) et avec les km parcourus depuis la dernière recharge.
  */
 export function computeRechargeAnomalies(p: {
-  borneWhitelistee: boolean;
   kwh: number;
   socDebut: number;
   socFin: number;
@@ -39,10 +38,6 @@ export function computeRechargeAnomalies(p: {
   kmParcourusDepuisDerniere: number | null;
 }): RechargeAnomalies {
   const raisons: string[] = [];
-
-  const anomalieBorne = !p.borneWhitelistee;
-  if (anomalieBorne) raisons.push("Borne hors liste autorisée");
-
   let anomalieCoherence = false;
 
   // 1) SOC : la batterie doit monter.
@@ -76,5 +71,5 @@ export function computeRechargeAnomalies(p: {
     }
   }
 
-  return { anomalieBorne, anomalieCoherence, raisons };
+  return { anomalieCoherence, raisons };
 }
