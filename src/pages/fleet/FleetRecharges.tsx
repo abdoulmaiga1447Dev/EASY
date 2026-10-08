@@ -9,6 +9,7 @@ import { useRbac } from "../../context/RbacContext";
 import { api, uploadMedia, type ApiError } from "../../api/fleet";
 import { Btn, Reveal, Field, Input, Select, Spinner, EmptyState, Toast, Modal } from "./ui";
 import rechargeHero from "../../assets/recharge-hero.jpg";
+import easyLogo from "../../assets/images/easy-logo-green.png";
 
 type ToastState = { message: string; kind: "ok" | "err" } | null;
 const errMsg = (e: unknown) => (e as ApiError)?.fr || "Erreur inattendue";
@@ -337,10 +338,10 @@ export const FleetRecharges: React.FC = () => {
   const tabCls = (active: boolean) => `px-4 py-2.5 text-sm border-b-2 transition ${active ? "border-[#22C55E] text-[#22C55E]" : "border-transparent text-[#8A8A8A] hover:text-[#EDEDED]"}`;
 
   return (
-    <div className="relative">
-      {/* Fond image sur toute la page : net et visible, avec un léger voile pour le contraste */}
-      <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${rechargeHero})`, filter: "brightness(0.78)", transform: "scale(1.02)" }} />
-      <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, rgba(10,10,11,0.28), rgba(10,10,11,0.58))" }} />
+    <div className="relative min-h-[80vh]">
+      {/* Fond : base sombre (se fond avec l'app) + logo de l'entreprise en grand (filigrane) */}
+      <div className="absolute inset-0 bg-[#0A0A0B]" />
+      <div className="absolute inset-0 bg-no-repeat bg-center" style={{ backgroundImage: `url(${easyLogo})`, backgroundSize: "min(70%, 700px)", opacity: 0.16 }} />
       <div className="relative z-10">
       <RechargeHero />
       {estSuperviseur ? (
