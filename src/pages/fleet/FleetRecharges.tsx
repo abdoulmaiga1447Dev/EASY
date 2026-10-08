@@ -4,7 +4,7 @@
  * - Superviseur Logistique (recharge.superviser) : dashboard consommation / coûts / anomalies.
  */
 import React, { useEffect, useMemo, useState } from "react";
-import { BatteryCharging, AlertTriangle } from "lucide-react";
+import { BatteryCharging, AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
 import { useRbac } from "../../context/RbacContext";
 import { api, uploadMedia, type ApiError } from "../../api/fleet";
 import { Btn, Panel, Reveal, Field, Input, Select, Spinner, EmptyState, Toast, Modal } from "./ui";
@@ -40,6 +40,7 @@ const RechargeForm: React.FC<{ notify: (t: ToastState) => void; onDone: () => vo
   const [bornes, setBornes] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<any>({ typeCharge: "DOMESTIQUE", borneId: "", kwh: "", cout: "", socDebut: "", socFin: "", justificatifMediaId: "" });
+  const [open, setOpen] = useState(true);
   const set = (p: any) => setForm((f: any) => ({ ...f, ...p }));
 
   useEffect(() => {
@@ -76,19 +77,26 @@ const RechargeForm: React.FC<{ notify: (t: ToastState) => void; onDone: () => vo
 
   return (
     <Panel className="p-5 space-y-4">
-      <div className="flex items-center gap-2 text-[#EDEDED]"><BatteryCharging size={18} className="text-[#22C55E]" /><h2 className="font-semibold">Enregistrer une recharge</h2></div>
-      <div className="text-sm text-[#8A8A8A]">Véhicule : <span className="text-[#EDEDED]">{vehicule?.immatriculation ?? vehicleId}</span></div>
-      <div className="grid sm:grid-cols-2 gap-3">
-        <Field label="Type de charge"><Select value={form.typeCharge} onChange={(e) => set({ typeCharge: e.target.value, borneId: "" })}><option value="DOMESTIQUE">Réseau SAVER</option><option value="PARTENAIRE">Partenaire</option></Select></Field>
-        <Field label="Borne *"><Select value={form.borneId} onChange={(e) => set({ borneId: e.target.value })}><option value="">— choisir une borne —</option>{bornesFiltrees.map((b) => <option key={b.id} value={b.id}>{b.nom}</option>)}</Select></Field>
-        <Field label="Électricité (kWh)"><Input type="number" value={form.kwh} onChange={(e) => set({ kwh: e.target.value })} placeholder="ex. 24" /></Field>
-        <Field label="Coût (FCFA)"><Input type="number" value={form.cout} onChange={(e) => set({ cout: e.target.value })} placeholder="ex. 2400" /></Field>
-        <Field label="% batterie début"><Input type="number" value={form.socDebut} onChange={(e) => set({ socDebut: e.target.value })} placeholder="0–100" /></Field>
-        <Field label="% batterie fin"><Input type="number" value={form.socFin} onChange={(e) => set({ socFin: e.target.value })} placeholder="0–100" /></Field>
-      </div>
-      <Justificatif mediaId={form.justificatifMediaId} onUploaded={(id) => set({ justificatifMediaId: id })} notify={notify} />
-      <Btn onClick={submit} disabled={!complet || saving} className="w-full">Valider la recharge</Btn>
-      <p className="text-xs text-[#8A8A8A]">La borne est obligatoire et doit faire partie de la liste autorisée. Les kWh doivent rester cohérents : toute incohérence est signalée au Superviseur Logistique.</p>
+      <button type="button" onClick={() => setOpen((o) => !o)} className="w-full flex items-center justify-between text-[#EDEDED]">
+        <span className="flex items-center gap-2"><BatteryCharging size={18} className="text-[#22C55E]" /><h2 className="font-semibold">Enregistrer une recharge</h2></span>
+        {open ? <ChevronUp size={18} className="text-[#8A8A8A]" /> : <ChevronDown size={18} className="text-[#8A8A8A]" />}
+      </button>
+      {open && (
+        <>
+          <div className="text-sm text-[#8A8A8A]">Véhicule : <span className="text-[#EDEDED]">{vehicule?.immatriculation ?? vehicleId}</span></div>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <Field label="Type de charge"><Select value={form.typeCharge} onChange={(e) => set({ typeCharge: e.target.value, borneId: "" })}><option value="DOMESTIQUE">Réseau SAVER</option><option value="PARTENAIRE">Partenaire</option></Select></Field>
+            <Field label="Borne *"><Select value={form.borneId} onChange={(e) => set({ borneId: e.target.value })}><option value="">— choisir une borne —</option>{bornesFiltrees.map((b) => <option key={b.id} value={b.id}>{b.nom}</option>)}</Select></Field>
+            <Field label="Électricité (kWh)"><Input type="number" value={form.kwh} onChange={(e) => set({ kwh: e.target.value })} placeholder="ex. 24" /></Field>
+            <Field label="Coût (FCFA)"><Input type="number" value={form.cout} onChange={(e) => set({ cout: e.target.value })} placeholder="ex. 2400" /></Field>
+            <Field label="% batterie début"><Input type="number" value={form.socDebut} onChange={(e) => set({ socDebut: e.target.value })} placeholder="0–100" /></Field>
+            <Field label="% batterie fin"><Input type="number" value={form.socFin} onChange={(e) => set({ socFin: e.target.value })} placeholder="0–100" /></Field>
+          </div>
+          <Justificatif mediaId={form.justificatifMediaId} onUploaded={(id) => set({ justificatifMediaId: id })} notify={notify} />
+          <Btn onClick={submit} disabled={!complet || saving} className="w-full">Valider la recharge</Btn>
+          <p className="text-xs text-[#8A8A8A]">La borne est obligatoire et doit faire partie de la liste autorisée. Les kWh doivent rester cohérents : toute incohérence est signalée au Superviseur Logistique.</p>
+        </>
+      )}
     </Panel>
   );
 };
