@@ -60,7 +60,7 @@ const Justificatif: React.FC<{ mediaId: string; onUploaded: (id: string) => void
 };
 
 // Surface « verre dépoli » : translucide + flou, laisse voir le fond image.
-const GLASS = "bg-white/[0.06] backdrop-blur-2xl border border-white/10 rounded-2xl";
+const GLASS = "bg-[#0B0B0D]/65 border border-white/10 rounded-2xl";
 const Glass: React.FC<{ className?: string; children: React.ReactNode }> = ({ className = "", children }) => (
   <div className={`${GLASS} ${className}`}>{children}</div>
 );
@@ -201,9 +201,9 @@ const RechargesDashboard: React.FC<{ notify: (t: ToastState) => void }> = ({ not
       </div>
 
       {loading ? <Spinner /> : !data?.recharges?.length ? <EmptyState>Aucune recharge pour ce filtre.</EmptyState> : (
-        <div className="overflow-x-auto bg-white/[0.05] backdrop-blur-2xl border border-white/10 rounded-2xl">
+        <div className="overflow-x-auto bg-[#0B0B0D]/65 border border-white/10 rounded-2xl">
           <table className="w-full text-sm">
-            <thead className="bg-white/[0.06] text-[#8A8A8A]"><tr>
+            <thead className="bg-white/[0.04] text-[#8A8A8A]"><tr>
               <th className="text-left px-4 py-3">Date</th><th className="text-left px-4 py-3">Véhicule</th><th className="text-left px-4 py-3">Type</th><th className="text-left px-4 py-3">kWh</th><th className="text-left px-4 py-3">Coût</th><th className="text-left px-4 py-3">Batterie</th><th className="text-left px-4 py-3">Contrôle</th>
             </tr></thead>
             <tbody>
@@ -279,9 +279,9 @@ const BornesManager: React.FC<{ notify: (t: ToastState) => void }> = ({ notify }
     <div className="space-y-4">
       <div className="flex justify-end"><Btn onClick={ouvrirNouveau}>Ajouter une borne</Btn></div>
       {loading ? <Spinner /> : !list.length ? <EmptyState>Aucune borne enregistrée. Ajoutez-en une pour alimenter la liste autorisée.</EmptyState> : (
-        <div className="overflow-x-auto bg-white/[0.05] backdrop-blur-2xl border border-white/10 rounded-2xl">
+        <div className="overflow-x-auto bg-[#0B0B0D]/65 border border-white/10 rounded-2xl">
           <table className="w-full text-sm">
-            <thead className="bg-white/[0.06] text-[#8A8A8A]"><tr>
+            <thead className="bg-white/[0.04] text-[#8A8A8A]"><tr>
               <th className="text-left px-4 py-3">Nom</th><th className="text-left px-4 py-3">Type</th><th className="text-left px-4 py-3">Opérateur</th><th className="text-left px-4 py-3">Site</th><th className="text-left px-4 py-3">Statut</th><th className="px-4 py-3"></th>
             </tr></thead>
             <tbody>
@@ -338,9 +338,9 @@ export const FleetRecharges: React.FC = () => {
 
   return (
     <div className="relative">
-      {/* Fond image sur toute la page : flouté + voile pour garder le contenu lisible */}
-      <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${rechargeHero})`, filter: "blur(22px) brightness(0.5)", transform: "scale(1.12)" }} />
-      <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, rgba(10,10,11,0.5), rgba(10,10,11,0.82))" }} />
+      {/* Fond image sur toute la page : net et visible, avec un léger voile pour le contraste */}
+      <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${rechargeHero})`, filter: "brightness(0.78)", transform: "scale(1.02)" }} />
+      <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, rgba(10,10,11,0.28), rgba(10,10,11,0.58))" }} />
       <div className="relative z-10">
       <RechargeHero />
       {estSuperviseur ? (
