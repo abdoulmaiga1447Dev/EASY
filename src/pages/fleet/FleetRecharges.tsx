@@ -14,6 +14,55 @@ const errMsg = (e: unknown) => (e as ApiError)?.fr || "Erreur inattendue";
 const fcfa = (n: number) => (n ?? 0).toLocaleString("fr-FR") + " F";
 const TYPE_LABEL: Record<string, string> = { DOMESTIQUE: "Réseau SAVER", PARTENAIRE: "Partenaire" };
 
+// Fond animé (line-art) : une voiture électrique en charge — l'énergie circule dans le
+// câble et la batterie se remplit. Décoratif, non interactif, dans la palette sombre.
+const RechargeScene: React.FC = () => (
+  <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+    <svg viewBox="0 0 460 200" className="absolute -top-2 right-0 w-[min(560px,95%)] opacity-[0.55]" fill="none">
+      <defs>
+        <filter id="eglow" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur stdDeviation="2.2" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
+      </defs>
+
+      {/* Borne de recharge */}
+      <rect x="40" y="66" width="26" height="100" rx="7" fill="#141416" stroke="#3A3A40" strokeWidth="2" />
+      <rect x="46" y="78" width="14" height="16" rx="2" fill="none" stroke="#22C55E" strokeWidth="1.5">
+        <animate attributeName="opacity" values="1;0.35;1" dur="1.8s" repeatCount="indefinite" />
+      </rect>
+
+      {/* Câble : l'énergie circule (tirets animés) */}
+      <path id="cable" d="M66,120 C120,172 150,172 210,134" stroke="#22C55E" strokeWidth="3" strokeLinecap="round" strokeDasharray="2 11">
+        <animate attributeName="stroke-dashoffset" from="0" to="-52" dur="1.1s" repeatCount="indefinite" />
+      </path>
+      {[0, 0.8, 1.6].map((d, i) => (
+        <circle key={i} r="3" fill="#22C55E" filter="url(#eglow)">
+          <animateMotion dur="2.4s" begin={`${d}s`} repeatCount="indefinite"><mpath href="#cable" /></animateMotion>
+        </circle>
+      ))}
+
+      {/* Voiture (profil) */}
+      <path d="M232,122 Q250,92 292,90 Q334,88 348,122 Z" fill="#17171A" stroke="#2E2E33" strokeWidth="2" />
+      <rect x="206" y="120" width="186" height="40" rx="13" fill="#17171A" stroke="#2E2E33" strokeWidth="2" />
+      <circle cx="212" cy="134" r="5" fill="none" stroke="#22C55E" strokeWidth="1.6" />
+      <circle cx="212" cy="134" r="4" fill="#22C55E" filter="url(#eglow)">
+        <animate attributeName="opacity" values="0.6;0.1;0.6" dur="2s" repeatCount="indefinite" />
+      </circle>
+      <g stroke="#2E2E33" strokeWidth="3" fill="#0A0A0B">
+        <circle cx="252" cy="162" r="16" /><circle cx="348" cy="162" r="16" />
+      </g>
+      <g stroke="#3A3A40" strokeWidth="2" fill="none"><circle cx="252" cy="162" r="5" /><circle cx="348" cy="162" r="5" /></g>
+
+      {/* Batterie qui se remplit */}
+      <rect x="288" y="58" width="42" height="18" rx="3" fill="none" stroke="#3A3A40" strokeWidth="2" />
+      <rect x="330" y="63" width="4" height="8" rx="1" fill="#3A3A40" />
+      <rect x="291" y="61" height="12" rx="1.5" fill="#22C55E">
+        <animate attributeName="width" values="0;36;36" keyTimes="0;0.85;1" dur="3.2s" repeatCount="indefinite" />
+      </rect>
+    </svg>
+  </div>
+);
+
 // Upload d'un justificatif (reçu / capture / photo de la borne).
 const Justificatif: React.FC<{ mediaId: string; onUploaded: (id: string) => void; notify: (t: ToastState) => void }> = ({ mediaId, onUploaded, notify }) => {
   const [busy, setBusy] = useState(false);
@@ -305,7 +354,9 @@ export const FleetRecharges: React.FC = () => {
   const tabCls = (active: boolean) => `px-4 py-2.5 text-sm border-b-2 transition ${active ? "border-[#22C55E] text-[#22C55E]" : "border-transparent text-[#8A8A8A] hover:text-[#EDEDED]"}`;
 
   return (
-    <div>
+    <div className="relative">
+      <RechargeScene />
+      <div className="relative z-10">
       <h1 className="text-2xl font-bold text-[#EDEDED] mb-4">Recharge EV</h1>
       {estSuperviseur ? (
         <>
@@ -326,6 +377,7 @@ export const FleetRecharges: React.FC = () => {
         </Reveal>
       ) : <EmptyState>Accès non autorisé.</EmptyState>}
       {toast && <Toast message={toast.message} kind={toast.kind} />}
+      </div>
     </div>
   );
 };
