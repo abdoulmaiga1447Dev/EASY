@@ -818,3 +818,59 @@ model CompensationCash {
   @@index([driverId])
   @@index([statut])
 }
+
+// =============================================================================
+// SAVER Fleet Ops — Partie C (Bloc C1 : Flux 3 — Recharge EV)
+// =============================================================================
+
+enum TypeCharge {
+  DOMESTIQUE // réseau de bornes SAVER
+  PARTENAIRE // opérateur partenaire (Arnio / Neo / Illigo)
+}
+
+// --- Borne de recharge whitelistée (réseau SAVER ou partenaire) ---
+model BorneRecharge {
+  id        String     @id @default(cuid())
+  nom       String
+  type      TypeCharge
+  operateur String? // "SAVER" (domestique) ou "Arnio"/"Neo"/"Illigo" (partenaire)
+  siteId    String? // rattachement site pour les bornes domestiques
+  gpsLat    Float?
+  gpsLng    Float?
+  active    Boolean    @default(true)
+  createdAt DateTime   @default(now())
+
+  @@index([type])
+  @@index([active])
+}
+
+// --- Enregistrement d'une recharge d'un véhicule ---
+model RechargeRecord {
+  id            String     @id @default(cuid())
+  vehicleId     String
+  driverId      String? // chauffeur (null si saisie par l'équipe recharge le soir)
+  enregistreParId String // utilisateur ayant saisi la recharge
+  siteId        String
+  date          DateTime   @default(now())
+  shift         ShiftCode?
+
+  typeCharge TypeCharge
+  borneId    String? // borne whitelistée sélectionnée
+  lieu       String? // libellé lieu / opérateur (saisie libre)
+
+  kwh        Float // quantité d'électricité
+  cout       Int // FCFA
+  socDebut   Int // % batterie au début
+  socFin     Int // % batterie à la fin
+  kmAuMoment Int? // km du véhicule au moment (cohérence kWh ↔ km)
+
+  justificatifMediaId String? // reçu / capture / photo de la borne
+
+  anomalieBorne     Boolean @default(false) // borne hors whitelist → alerte Superviseur
+  anomalieCoherence Boolean @default(false) // kWh incohérents (SOC/km) → alerte Superviseur
+
+  createdAt DateTime @default(now())
+
+  @@index([vehicleId, date])
+  @@index([siteId, date])
+}

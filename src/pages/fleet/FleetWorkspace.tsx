@@ -8,7 +8,7 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   LayoutDashboard, Shield, Car, CalendarClock, LogOut, User, Building2, Wallet, Menu, X,
-  AlertTriangle, Users, ChevronRight, TrendingUp, ClipboardCheck, Banknote,
+  AlertTriangle, Users, ChevronRight, TrendingUp, ClipboardCheck, Banknote, BatteryCharging,
 } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { useAuth } from "../../context/AuthContext";
@@ -20,9 +20,10 @@ import { FleetAssignments } from "./FleetAssignments";
 import { FleetChauffeur } from "./FleetChauffeur";
 import { FleetShifts } from "./FleetShifts";
 import { FleetReversements } from "./FleetReversements";
+import { FleetRecharges } from "./FleetRecharges";
 import { Spinner, EmptyState, StatCard, Panel, Reveal } from "./ui";
 
-type Section = "dashboard" | "admin" | "vehicules" | "attribution" | "terrain" | "reversements" | "moi";
+type Section = "dashboard" | "admin" | "vehicules" | "attribution" | "terrain" | "reversements" | "recharges" | "moi";
 
 const ROLE_LABELS: Record<string, string> = {
   admin_direction: "Admin / Direction",
@@ -282,6 +283,7 @@ export const FleetWorkspace: React.FC = () => {
     { key: "attribution", label: "Attribution", icon: <CalendarClock size={18} />, show: ctx.permissions.includes("attribution.voir") },
     { key: "terrain", label: "Terrain", icon: <ClipboardCheck size={18} />, show: ctx.permissions.includes("shift.superviser") },
     { key: "reversements", label: "Reversements", icon: <Banknote size={18} />, show: ctx.permissions.includes("reversement.voir") },
+    { key: "recharges", label: "Recharges", icon: <BatteryCharging size={18} />, show: ctx.permissions.includes("recharge.superviser") || ctx.permissions.includes("recharge.enregistrer") },
     { key: "moi", label: "Mon espace", icon: <User size={18} />, show: ctx.roleCode === "chauffeur" },
   ];
   const nav = navItems.filter((n) => n.show);
@@ -350,6 +352,7 @@ export const FleetWorkspace: React.FC = () => {
               {section === "attribution" && <FleetAssignments />}
               {section === "terrain" && <FleetShifts />}
               {section === "reversements" && <FleetReversements />}
+              {section === "recharges" && <FleetRecharges />}
               {section === "moi" && <FleetChauffeur />}
             </motion.div>
           </AnimatePresence>

@@ -282,6 +282,26 @@ async function main() {
   const created = await runVehicleAlerts(prisma);
   console.log(`Seed : ${fleet.length} véhicules, ${phones.length} téléphones, ${created} alerte(s) générée(s).`);
 
+  // ---------------------------------------------------------------------------
+  // Bornes de recharge de démonstration (Flux 3, Partie C) — whitelist
+  // ---------------------------------------------------------------------------
+  console.log("Seed : bornes de recharge...");
+  const bornes = [
+    { id: "borne_saver_abidjan", nom: "Hub SAVER Abidjan (Cocody)", type: "DOMESTIQUE" as const, operateur: "SAVER", siteId: "site_abidjan", gpsLat: 5.359, gpsLng: -3.998 },
+    { id: "borne_saver_yamoussoukro", nom: "Hub SAVER Yamoussoukro", type: "DOMESTIQUE" as const, operateur: "SAVER", siteId: "site_yamoussoukro", gpsLat: 6.827, gpsLng: -5.289 },
+    { id: "borne_arnio_plateau", nom: "Arnio — Plateau", type: "PARTENAIRE" as const, operateur: "Arnio", siteId: null, gpsLat: 5.325, gpsLng: -4.021 },
+    { id: "borne_neo_marcory", nom: "Neo — Marcory", type: "PARTENAIRE" as const, operateur: "Neo", siteId: null, gpsLat: 5.284, gpsLng: -3.993 },
+    { id: "borne_illigo_riviera", nom: "Illigo — Riviera", type: "PARTENAIRE" as const, operateur: "Illigo", siteId: null, gpsLat: 5.366, gpsLng: -3.961 },
+  ];
+  for (const bo of bornes) {
+    await prisma.borneRecharge.upsert({
+      where: { id: bo.id },
+      update: { nom: bo.nom, type: bo.type, operateur: bo.operateur, siteId: bo.siteId, gpsLat: bo.gpsLat, gpsLng: bo.gpsLng, active: true },
+      create: { ...bo, active: true },
+    });
+  }
+  console.log(`Seed : ${bornes.length} bornes de recharge.`);
+
   console.log(`\nSeed terminé. Mot de passe de démonstration : ${DEMO_PASSWORD}`);
   console.log("Comptes : admin@easy.ci, superviseur@easy.ci, terrain@easy.ci, dispatcher@easy.ci,");
   console.log("          finance@easy.ci, maintenance@easy.ci, chauffeur@easy.ci, banque@easy.ci, client@easy.ci");

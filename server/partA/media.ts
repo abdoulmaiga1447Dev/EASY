@@ -11,6 +11,7 @@ import { uploadMiddleware, processAndStore, UPLOAD_DIR } from "../../lib/upload"
 import { canAccessVehicle } from "./vehicleAccess";
 import { canReadShiftMedia } from "./checkin";
 import { canReadReversementMedia } from "./reversement";
+import { canReadRechargeMedia } from "./recharge";
 import { wrap, serverError, notFound } from "./helpers";
 
 export function mediaRouter(prisma: PrismaClient): express.Router {
@@ -56,6 +57,9 @@ export function mediaRouter(prisma: PrismaClient): express.Router {
       } else if (media.resourceType === "Reversement" && media.resourceId) {
         // Preuve de reversement : le chauffeur concerné ou Finance/Responsable terrain du site.
         if (!(await canReadReversementMedia(prisma, ctx, media.resourceId))) return res.status(403).json({ error: { fr: "Accès refusé à ce fichier", en: "Access denied" } });
+      } else if (media.resourceType === "RechargeRecord" && media.resourceId) {
+        // Justificatif de recharge : l'auteur/chauffeur ou le Superviseur Logistique du site.
+        if (!(await canReadRechargeMedia(prisma, ctx, media.resourceId))) return res.status(403).json({ error: { fr: "Accès refusé à ce fichier", en: "Access denied" } });
       } else {
         // Média non encore rattaché : seul l'auteur de l'upload peut le lire.
         if (media.uploadedById !== ctx.userId) return res.status(403).json({ error: { fr: "Accès refusé à ce fichier", en: "Access denied" } });
