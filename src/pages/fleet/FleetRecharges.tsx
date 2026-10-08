@@ -7,7 +7,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { BatteryCharging, AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
 import { useRbac } from "../../context/RbacContext";
 import { api, uploadMedia, type ApiError } from "../../api/fleet";
-import { Btn, Reveal, Field, Input, Select, Spinner, EmptyState, Toast, Modal } from "./ui";
+import { Btn, Reveal, Field, Input, Select, Spinner, EmptyState, Toast, Modal, AuthImage } from "./ui";
 import rechargeHero from "../../assets/recharge-hero.jpg";
 import easyLogo from "../../assets/images/easy-logo-green.png";
 
@@ -163,6 +163,7 @@ const RechargesDashboard: React.FC<{ notify: (t: ToastState) => void }> = ({ not
   const [loading, setLoading] = useState(true);
   const [date, setDate] = useState("");
   const [anomaliesOnly, setAnomaliesOnly] = useState(false);
+  const [detail, setDetail] = useState<any>(null);
 
   const load = async () => {
     setLoading(true);
@@ -211,7 +212,7 @@ const RechargesDashboard: React.FC<{ notify: (t: ToastState) => void }> = ({ not
               {data.recharges.map((r: any) => {
                 const anomalie = r.anomalieCoherence;
                 return (
-                  <tr key={r.id} className={`border-t border-[#232327] ${anomalie ? "border-l-2 border-[#EF4444]" : ""}`}>
+                  <tr key={r.id} onClick={() => setDetail(r)} className={`border-t border-[#232327] cursor-pointer hover:bg-white/[0.04] ${anomalie ? "border-l-2 border-[#EF4444]" : ""}`}>
                     <td className="px-4 py-3 text-[#8A8A8A]">{new Date(r.date).toLocaleDateString("fr-FR")}</td>
                     <td className="px-4 py-3 text-[#EDEDED]">{r.vehicule ?? "—"}</td>
                     <td className="px-4 py-3 text-[#8A8A8A]">{TYPE_LABEL[r.typeCharge]}</td>
@@ -229,6 +230,29 @@ const RechargesDashboard: React.FC<{ notify: (t: ToastState) => void }> = ({ not
             </tbody>
           </table>
         </div>
+      )}
+
+      {detail && (
+        <Modal title="Détail de la recharge" onClose={() => setDetail(null)}>
+          <div className="space-y-4 text-sm">
+            <div className="text-[#8A8A8A]">{detail.vehicule ?? "—"} · {new Date(detail.date).toLocaleString("fr-FR")}</div>
+            <div className="grid grid-cols-2 gap-y-1.5 gap-x-4">
+              <span className="text-[#8A8A8A]">Type de charge</span><span className="text-[#EDEDED] text-right">{TYPE_LABEL[detail.typeCharge]}</span>
+              <span className="text-[#8A8A8A]">Borne</span><span className="text-[#EDEDED] text-right">{detail.lieu ?? "—"}</span>
+              <span className="text-[#8A8A8A]">Électricité</span><span className="text-[#EDEDED] text-right">{detail.kwh} kWh</span>
+              <span className="text-[#8A8A8A]">Coût</span><span className="text-[#EDEDED] text-right">{fcfa(detail.cout)}</span>
+              <span className="text-[#8A8A8A]">Batterie</span><span className="text-[#EDEDED] text-right">{detail.socDebut}% → {detail.socFin}%</span>
+              {detail.kmAuMoment != null && <><span className="text-[#8A8A8A]">Km au moment</span><span className="text-[#EDEDED] text-right">{detail.kmAuMoment.toLocaleString("fr-FR")} km</span></>}
+              <span className="text-[#8A8A8A]">Contrôle</span><span className="text-right" style={{ color: detail.anomalieCoherence ? "#EF4444" : "#22C55E" }}>{detail.anomalieCoherence ? "kWh incohérents" : "OK"}</span>
+            </div>
+            <div>
+              <div className="text-xs uppercase tracking-wide text-[#8A8A8A] mb-2">Justificatif du chauffeur</div>
+              {detail.justificatifMediaId
+                ? <AuthImage mediaId={detail.justificatifMediaId} className="w-full max-h-80 rounded-xl" zoomable />
+                : <div className="text-sm text-[#8A8A8A]">Aucun justificatif.</div>}
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   );
