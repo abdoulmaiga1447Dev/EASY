@@ -24,6 +24,7 @@ async function upload(userId: string): Promise<string> {
 async function cleanup() {
   await prisma.rechargeRecord.deleteMany({ where: { vehicleId: { in: ["v_f1", "v_f2", "v_f5"] } } });
   await prisma.assignment.deleteMany({ where: { driverId: DEMO.chauffeur, vehicleId: "v_f2", date: jour, shift: "B" } });
+  await prisma.borneRecharge.deleteMany({ where: { nom: { startsWith: "TEST-" } } });
 }
 
 beforeAll(async () => {
@@ -97,6 +98,40 @@ describe("Supervision & RBAC", () => {
   it("un rôle sans permission recharge ne peut pas enregistrer (403)", async () => {
     const res = await request(app).post("/api/fleet/recharges").set(auth(DEMO.dispatcher))
       .send({ vehicleId: "v_f1", typeCharge: "DOMESTIQUE", borneId: "borne_saver_abidjan", kwh: 24, cout: 2400, socDebut: 30, socFin: 70, justificatifMediaId: "x" });
+    expect(res.status).toBe(403);
+  });
+});
+
+describe("Gestion des bornes (Superviseur Logistique)", () => {
+  let borneId: string;
+
+  it("le Superviseur Logistique crée une borne", async () => {
+    const res = await request(app).post("/api/fleet/bornes").set(auth(DEMO.superviseur))
+      .send({ nom: "TEST-Borne Cocody", type: "DOMESTIQUE", operateur: "SAVER", siteId: "site_abidjan" });
+    expect(res.status).toBe(201);
+    expect(res.body.active).toBe(true);
+    borneId = res.body.id;
+  });
+
+  it("refuse une borne sans nom (400)", async () => {
+    const res = await request(app).post("/api/fleet/bornes").set(auth(DEMO.superviseur)).send({ type: "DOMESTIQUE" });
+    expect(res.status).toBe(400);
+  });
+
+  it("désactive une borne (elle sort de la liste de saisie mais reste en gestion)", async () => {
+    const off = await request(app).patch(`/api/fleet/bornes/${borneId}`).set(auth(DEMO.superviseur)).send({ active: false });
+    expect(off.status).toBe(200);
+    expect(off.body.active).toBe(false);
+    // Liste de saisie (actives) : la borne désactivée n'y est pas.
+    const active = await request(app).get("/api/fleet/bornes").set(auth(DEMO.superviseur));
+    expect(active.body.bornes.find((b: any) => b.id === borneId)).toBeUndefined();
+    // Liste de gestion (?all=1) : elle y est.
+    const all = await request(app).get("/api/fleet/bornes?all=1").set(auth(DEMO.superviseur));
+    expect(all.body.bornes.find((b: any) => b.id === borneId)).toBeDefined();
+  });
+
+  it("un chauffeur ne peut pas gérer les bornes (403)", async () => {
+    const res = await request(app).post("/api/fleet/bornes").set(auth(DEMO.chauffeur)).send({ nom: "TEST-X", type: "DOMESTIQUE" });
     expect(res.status).toBe(403);
   });
 });

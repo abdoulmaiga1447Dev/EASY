@@ -36,6 +36,8 @@ export const api = {
     fetch(path, { method: "POST", headers: { "Content-Type": "application/json", ...authHeaders() }, body: JSON.stringify(body ?? {}) }).then((r) => handle<T>(r)),
   put: <T>(path: string, body?: unknown) =>
     fetch(path, { method: "PUT", headers: { "Content-Type": "application/json", ...authHeaders() }, body: JSON.stringify(body ?? {}) }).then((r) => handle<T>(r)),
+  patch: <T>(path: string, body?: unknown) =>
+    fetch(path, { method: "PATCH", headers: { "Content-Type": "application/json", ...authHeaders() }, body: JSON.stringify(body ?? {}) }).then((r) => handle<T>(r)),
   del: <T>(path: string) => fetch(path, { method: "DELETE", headers: { ...authHeaders() } }).then((r) => handle<T>(r)),
 };
 

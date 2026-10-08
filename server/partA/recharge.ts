@@ -38,15 +38,71 @@ export function rechargeRouter(prisma: PrismaClient): express.Router {
   r.use(authenticate(prisma));
   const actor = (req: express.Request) => (req as any).auth as AuthContext;
 
-  // ------------------------------ Bornes whitelistées (pour la saisie) ------------------------------
+  // ------------------------------ Bornes whitelistées ------------------------------
+  // Liste : par défaut les bornes actives (pour la saisie d'une recharge) ; avec ?all=1 et
+  // la permission borne.gerer, inclut les bornes inactives (écran de gestion).
   r.get(
     "/api/fleet/bornes",
     authorize("recharge.enregistrer", "recharge.superviser", "borne.gerer"),
     wrap(async (req, res) => {
-      const where: any = { active: true };
+      const ctx = actor(req);
+      const where: any = {};
+      const tout = req.query.all === "1" && hasPermission(ctx, "borne.gerer");
+      if (!tout) where.active = true;
       if (req.query.type) where.type = String(req.query.type);
       const bornes = await prisma.borneRecharge.findMany({ where, orderBy: [{ type: "asc" }, { nom: "asc" }] });
       res.json({ bornes });
+    })
+  );
+
+  // --- Créer une borne (Superviseur Logistique) ---
+  r.post(
+    "/api/fleet/bornes",
+    authorize("borne.gerer"),
+    wrap(async (req, res) => {
+      const ctx = actor(req);
+      const b = req.body || {};
+      const nom = String(b.nom || "").trim();
+      if (!nom) return res.status(400).json({ error: { fr: "Le nom de la borne est obligatoire", en: "Station name required" } });
+      if (!["DOMESTIQUE", "PARTENAIRE"].includes(String(b.type))) return res.status(400).json({ error: { fr: "Type de borne invalide", en: "Invalid station type" } });
+      if (b.siteId && !canAccessSite(ctx, String(b.siteId))) return res.status(403).json({ error: { fr: "Site hors de votre périmètre", en: "Site outside your scope" } });
+      const borne = await prisma.borneRecharge.create({
+        data: {
+          nom, type: b.type, operateur: b.operateur ? String(b.operateur) : null,
+          siteId: b.siteId ? String(b.siteId) : null,
+          gpsLat: Number.isFinite(Number(b.gpsLat)) ? Number(b.gpsLat) : null,
+          gpsLng: Number.isFinite(Number(b.gpsLng)) ? Number(b.gpsLng) : null,
+          active: b.active === false ? false : true,
+        },
+      });
+      await writeAudit(prisma, ctx, { action: "borne.create", resourceType: "BorneRecharge", resourceId: borne.id, siteId: borne.siteId, after: { nom, type: borne.type } });
+      res.status(201).json(borne);
+    })
+  );
+
+  // --- Modifier / activer-désactiver une borne (Superviseur Logistique) ---
+  r.patch(
+    "/api/fleet/bornes/:id",
+    authorize("borne.gerer"),
+    wrap(async (req, res) => {
+      const ctx = actor(req);
+      const existing = await prisma.borneRecharge.findUnique({ where: { id: req.params.id } });
+      if (!existing) return res.status(404).json({ error: notFound });
+      const b = req.body || {};
+      const data: any = {};
+      if (b.nom != null) { const n = String(b.nom).trim(); if (!n) return res.status(400).json({ error: { fr: "Nom invalide", en: "Invalid name" } }); data.nom = n; }
+      if (b.type != null) { if (!["DOMESTIQUE", "PARTENAIRE"].includes(String(b.type))) return res.status(400).json({ error: { fr: "Type invalide", en: "Invalid type" } }); data.type = b.type; }
+      if (b.operateur !== undefined) data.operateur = b.operateur ? String(b.operateur) : null;
+      if (b.siteId !== undefined) {
+        if (b.siteId && !canAccessSite(ctx, String(b.siteId))) return res.status(403).json({ error: { fr: "Site hors de votre périmètre", en: "Site outside your scope" } });
+        data.siteId = b.siteId ? String(b.siteId) : null;
+      }
+      if (b.gpsLat !== undefined) data.gpsLat = Number.isFinite(Number(b.gpsLat)) ? Number(b.gpsLat) : null;
+      if (b.gpsLng !== undefined) data.gpsLng = Number.isFinite(Number(b.gpsLng)) ? Number(b.gpsLng) : null;
+      if (b.active !== undefined) data.active = !!b.active;
+      const borne = await prisma.borneRecharge.update({ where: { id: existing.id }, data });
+      await writeAudit(prisma, ctx, { action: "borne.update", resourceType: "BorneRecharge", resourceId: borne.id, siteId: borne.siteId, after: data });
+      res.json(borne);
     })
   );
 
