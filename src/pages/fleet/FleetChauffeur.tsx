@@ -114,17 +114,19 @@ const ReversementBloc: React.FC<{ assignmentId: string; notify: (t: ToastState) 
 const PanneDeclaration: React.FC<{ notify: (t: ToastState) => void }> = ({ notify }) => {
   const [open, setOpen] = useState(false);
   const [desc, setDesc] = useState("");
-  const [photos, setPhotos] = useState<string[]>(["", "", ""]);
+  const [photos, setPhotos] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
-  const setPhoto = (i: number, id: string) => setPhotos((p) => p.map((x, idx) => (idx === i ? id : x)));
-  const photoIds = photos.filter(Boolean);
+  const MAX_PHOTOS = 4;
+  const addPhoto = (id: string) => setPhotos((p) => (p.length < MAX_PHOTOS ? [...p, id] : p));
+  const replacePhoto = (i: number, id: string) => setPhotos((p) => p.map((x, idx) => (idx === i ? id : x)));
+  const removePhoto = (i: number) => setPhotos((p) => p.filter((_, idx) => idx !== i));
 
   const submit = async () => {
     setSaving(true);
     try {
-      await api.post("/api/fleet/pannes", { description: desc.trim(), photos: photoIds });
+      await api.post("/api/fleet/pannes", { description: desc.trim(), photos });
       notify({ message: "Panne déclarée — le Responsable terrain est prévenu", kind: "ok" });
-      setOpen(false); setDesc(""); setPhotos(["", "", ""]);
+      setOpen(false); setDesc(""); setPhotos([]);
     } catch (e) { notify({ message: errMsg(e), kind: "err" }); } finally { setSaving(false); }
   };
 
@@ -140,12 +142,20 @@ const PanneDeclaration: React.FC<{ notify: (t: ToastState) => void }> = ({ notif
                 className="rounded-xl border border-[#33363F] bg-[#0F0F11] text-[#EDEDED] text-sm p-3 outline-none focus:border-[#22C55E]" />
             </label>
             <div>
-              <span className="text-xs text-[#8A8A8A]">Photos * (au moins une, prise en direct)</span>
+              <span className="text-xs text-[#8A8A8A]">Photos * (au moins une, {MAX_PHOTOS} maximum — {photos.length}/{MAX_PHOTOS})</span>
               <div className="grid grid-cols-3 gap-2 mt-1">
-                {photos.map((m, i) => <CameraCapture key={i} label={`Photo ${i + 1}`} mediaId={m || null} onUploaded={(id) => setPhoto(i, id)} notify={notify} />)}
+                {photos.map((m, i) => (
+                  <div key={i} className="relative">
+                    <CameraCapture label={`Photo ${i + 1}`} mediaId={m} onUploaded={(id) => replacePhoto(i, id)} notify={notify} />
+                    <button type="button" onClick={() => removePhoto(i)} aria-label="Retirer" className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-[#141416] border border-[#33363F] text-[#EDEDED] text-xs flex items-center justify-center">×</button>
+                  </div>
+                ))}
+                {photos.length < MAX_PHOTOS && (
+                  <CameraCapture key={`add-${photos.length}`} label="Ajouter" mediaId={null} onUploaded={addPhoto} notify={notify} />
+                )}
               </div>
             </div>
-            <Btn onClick={submit} disabled={!desc.trim() || photoIds.length === 0 || saving} className="w-full">Envoyer la déclaration</Btn>
+            <Btn onClick={submit} disabled={!desc.trim() || photos.length === 0 || saving} className="w-full">Envoyer la déclaration</Btn>
           </div>
         </Modal>
       )}
