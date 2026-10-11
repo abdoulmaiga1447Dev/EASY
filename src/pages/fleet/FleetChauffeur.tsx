@@ -130,7 +130,7 @@ const PanneDeclaration: React.FC<{ notify: (t: ToastState) => void }> = ({ notif
 
   return (
     <>
-      <Btn variant="secondary" onClick={() => setOpen(true)} className="w-full"><AlertTriangle size={16} /> Déclarer une panne</Btn>
+      <Btn onClick={() => setOpen(true)} className="w-full !bg-[#EF4444] !text-white hover:!bg-[#DC2626] !border-transparent"><AlertTriangle size={16} /> Déclarer une panne</Btn>
       {open && (
         <Modal title="Déclarer une panne" onClose={() => setOpen(false)}>
           <div className="space-y-3">
@@ -316,7 +316,7 @@ export const FleetChauffeur: React.FC = () => {
       )}
 
       {a && (statut === "EN_ATTENTE" || statut === "EN_COURS") && (
-        <Reveal delay={0.15}><Panel className="p-5"><PanneDeclaration notify={notify} /></Panel></Reveal>
+        <Reveal delay={0.15}><PanneDeclaration notify={notify} /></Reveal>
       )}
 
       {/* Terminé → récap + reversement */}
