@@ -226,13 +226,28 @@ export function rechargeRouter(prisma: PrismaClient): express.Router {
       const vehs = await prisma.fleetVehicle.findMany({ where: { id: { in: vehIds } }, select: { id: true, immatriculation: true } });
       const immatById = new Map(vehs.map((v) => [v.id, v.immatriculation]));
 
+      // Résout les noms (qui a saisi la recharge, et le chauffeur concerné le cas échéant).
+      const userIds = [...new Set(recharges.flatMap((x) => [x.enregistreParId, x.driverId]).filter(Boolean) as string[])];
+      const users = await prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, name: true } });
+      const nameById = new Map(users.map((u) => [u.id, u.name]));
+
       const resume = {
         total: recharges.length,
         totalKwh: recharges.reduce((s, x) => s + x.kwh, 0),
         totalCout: recharges.reduce((s, x) => s + x.cout, 0),
         anomalies: recharges.filter((x) => x.anomalieCoherence).length,
       };
-      res.json({ recharges: recharges.map((x) => ({ ...x, vehicule: immatById.get(x.vehicleId) ?? null })), resume });
+      res.json({
+        recharges: recharges.map((x) => ({
+          ...x,
+          vehicule: immatById.get(x.vehicleId) ?? null,
+          enregistreParNom: nameById.get(x.enregistreParId) ?? null,
+          chauffeurNom: x.driverId ? nameById.get(x.driverId) ?? null : null,
+          // Le chauffeur saisit pour son propre véhicule (driverId renseigné) ; sinon c'est l'équipe/Superviseur.
+          parChauffeur: !!x.driverId,
+        })),
+        resume,
+      });
     })
   );
 

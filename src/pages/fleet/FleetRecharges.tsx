@@ -291,12 +291,15 @@ const RechargesDashboard: React.FC<{ notify: (t: ToastState) => void }> = ({ not
           <div className="space-y-4 text-sm">
             <div className="text-[#8A8A8A]">{detail.vehicule ?? "—"} · {new Date(detail.date).toLocaleString("fr-FR")}</div>
             <div className="grid grid-cols-2 gap-y-1.5 gap-x-4">
+              <span className="text-[#8A8A8A]">Enregistré par</span>
+              <span className="text-[#EDEDED] text-right">{detail.enregistreParNom ?? "—"} <span className="text-[#8A8A8A]">({detail.parChauffeur ? "Chauffeur" : "Équipe"})</span></span>
+              {detail.parChauffeur && <><span className="text-[#8A8A8A]">Chauffeur</span><span className="text-[#EDEDED] text-right">{detail.chauffeurNom ?? "—"}</span></>}
               <span className="text-[#8A8A8A]">Type de charge</span><span className="text-[#EDEDED] text-right">{TYPE_LABEL[detail.typeCharge]}</span>
               <span className="text-[#8A8A8A]">Borne</span><span className="text-[#EDEDED] text-right">{detail.lieu ?? "—"}</span>
               <span className="text-[#8A8A8A]">Électricité</span><span className="text-[#EDEDED] text-right">{detail.kwh} kWh</span>
               <span className="text-[#8A8A8A]">Coût</span><span className="text-[#EDEDED] text-right">{fcfa(detail.cout)}</span>
               <span className="text-[#8A8A8A]">Batterie</span><span className="text-[#EDEDED] text-right">{detail.socDebut}% → {detail.socFin}%</span>
-              {detail.kmAuMoment != null && <><span className="text-[#8A8A8A]">Km au moment</span><span className="text-[#EDEDED] text-right">{detail.kmAuMoment.toLocaleString("fr-FR")} km</span></>}
+              {detail.kmAuMoment != null && <><span className="text-[#8A8A8A]">Km du véhicule</span><span className="text-[#EDEDED] text-right">{detail.kmAuMoment.toLocaleString("fr-FR")} km</span></>}
               <span className="text-[#8A8A8A]">Contrôle</span><span className="text-right" style={{ color: detail.anomalieCoherence ? "#EF4444" : "#22C55E" }}>{detail.anomalieCoherence ? "kWh incohérents" : "OK"}</span>
             </div>
             <div>
