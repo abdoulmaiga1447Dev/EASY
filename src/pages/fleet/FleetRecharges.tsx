@@ -134,6 +134,60 @@ const RechargeForm: React.FC<{ notify: (t: ToastState) => void; onDone: () => vo
   );
 };
 
+// ------------------------------ Enregistrement par le Superviseur / équipe (choix du véhicule) ------------------------------
+const SupervisorRechargeForm: React.FC<{ notify: (t: ToastState) => void }> = ({ notify }) => {
+  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [bornes, setBornes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState<any>({ vehicleId: "", typeCharge: "DOMESTIQUE", borneId: "", kwh: "", cout: "", socDebut: "", socFin: "", justificatifMediaId: "" });
+  const set = (p: any) => setForm((f: any) => ({ ...f, ...p }));
+
+  useEffect(() => {
+    (async () => {
+      try {
+        setVehicles((await api.get<{ vehicles: any[] }>("/api/fleet/vehicles?pageSize=100")).vehicles);
+        setBornes((await api.get<{ bornes: any[] }>("/api/fleet/bornes")).bornes);
+      } catch (e) { notify({ message: errMsg(e), kind: "err" }); } finally { setLoading(false); }
+    })();
+  }, []);
+
+  const bornesFiltrees = bornes.filter((b) => b.type === form.typeCharge);
+  const complet = form.vehicleId && form.borneId && form.kwh !== "" && form.cout !== "" && form.socDebut !== "" && form.socFin !== "" && form.justificatifMediaId;
+
+  const submit = async () => {
+    setSaving(true);
+    try {
+      await api.post("/api/fleet/recharges", {
+        vehicleId: form.vehicleId, typeCharge: form.typeCharge, borneId: form.borneId,
+        kwh: Number(form.kwh), cout: Number(form.cout), socDebut: Number(form.socDebut), socFin: Number(form.socFin),
+        justificatifMediaId: form.justificatifMediaId,
+      });
+      notify({ message: "Recharge enregistrée", kind: "ok" });
+      setForm({ vehicleId: "", typeCharge: "DOMESTIQUE", borneId: "", kwh: "", cout: "", socDebut: "", socFin: "", justificatifMediaId: "" });
+    } catch (e) { notify({ message: errMsg(e), kind: "err" }); } finally { setSaving(false); }
+  };
+
+  if (loading) return <Spinner />;
+
+  return (
+    <Glass className="p-5 space-y-4 max-w-2xl">
+      <div className="flex items-center gap-2 text-[#EDEDED]"><BatteryCharging size={18} className="text-[#22C55E]" /><h2 className="font-semibold">Enregistrer une recharge (équipe)</h2></div>
+      <Field label="Véhicule *"><Select value={form.vehicleId} onChange={(e) => set({ vehicleId: e.target.value })}><option value="">— choisir un véhicule —</option>{vehicles.map((v) => <option key={v.id} value={v.id}>{v.immatriculation} · {v.marque} {v.modele}</option>)}</Select></Field>
+      <div className="grid sm:grid-cols-2 gap-3">
+        <Field label="Type de charge"><Select value={form.typeCharge} onChange={(e) => set({ typeCharge: e.target.value, borneId: "" })}><option value="DOMESTIQUE">Réseau SAVER</option><option value="PARTENAIRE">Partenaire</option></Select></Field>
+        <Field label="Borne *"><Select value={form.borneId} onChange={(e) => set({ borneId: e.target.value })}><option value="">— choisir une borne —</option>{bornesFiltrees.map((b) => <option key={b.id} value={b.id}>{b.nom}</option>)}</Select></Field>
+        <Field label="Électricité (kWh)"><Input type="number" value={form.kwh} onChange={(e) => set({ kwh: e.target.value })} placeholder="ex. 24" /></Field>
+        <Field label="Coût (FCFA)"><Input type="number" value={form.cout} onChange={(e) => set({ cout: e.target.value })} placeholder="ex. 2400" /></Field>
+        <Field label="% batterie début"><Input type="number" value={form.socDebut} onChange={(e) => set({ socDebut: e.target.value })} placeholder="0–100" /></Field>
+        <Field label="% batterie fin"><Input type="number" value={form.socFin} onChange={(e) => set({ socFin: e.target.value })} placeholder="0–100" /></Field>
+      </div>
+      <Justificatif mediaId={form.justificatifMediaId} onUploaded={(id) => set({ justificatifMediaId: id })} notify={notify} />
+      <Btn onClick={submit} disabled={!complet || saving} className="w-full">Valider la recharge</Btn>
+    </Glass>
+  );
+};
+
 // ------------------------------ Mes recharges (chauffeur / équipe) ------------------------------
 const MesRecharges: React.FC<{ refresh: number }> = ({ refresh }) => {
   const [list, setList] = useState<any[]>([]);
@@ -354,7 +408,7 @@ export const FleetRecharges: React.FC = () => {
   const [toast, setToast] = useState<ToastState>(null);
   const notify = useMemo(() => (t: ToastState) => { setToast(t); if (t) setTimeout(() => setToast(null), 3500); }, []);
   const [refresh, setRefresh] = useState(0);
-  const [tab, setTab] = useState<"suivi" | "bornes">("suivi");
+  const [tab, setTab] = useState<"suivi" | "enregistrer" | "bornes">("suivi");
 
   const estSuperviseur = can("recharge.superviser");
   const peutEnregistrer = can("recharge.enregistrer");
@@ -370,13 +424,16 @@ export const FleetRecharges: React.FC = () => {
       <RechargeHero />
       {estSuperviseur ? (
         <>
-          {peutGererBornes && (
-            <div className="flex gap-1 border-b border-[#232327] mb-6">
-              <button onClick={() => setTab("suivi")} className={tabCls(tab === "suivi")}>Suivi</button>
-              <button onClick={() => setTab("bornes")} className={tabCls(tab === "bornes")}>Bornes</button>
-            </div>
-          )}
-          <Reveal>{tab === "bornes" && peutGererBornes ? <BornesManager notify={notify} /> : <RechargesDashboard notify={notify} />}</Reveal>
+          <div className="flex gap-1 border-b border-[#232327] mb-6">
+            <button onClick={() => setTab("suivi")} className={tabCls(tab === "suivi")}>Suivi</button>
+            <button onClick={() => setTab("enregistrer")} className={tabCls(tab === "enregistrer")}>Enregistrer</button>
+            {peutGererBornes && <button onClick={() => setTab("bornes")} className={tabCls(tab === "bornes")}>Bornes</button>}
+          </div>
+          <Reveal>
+            {tab === "enregistrer" ? <SupervisorRechargeForm notify={notify} />
+              : tab === "bornes" && peutGererBornes ? <BornesManager notify={notify} />
+              : <RechargesDashboard notify={notify} />}
+          </Reveal>
         </>
       ) : peutEnregistrer ? (
         <Reveal>
