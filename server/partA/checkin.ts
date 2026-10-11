@@ -56,6 +56,12 @@ export function checkinRouter(prisma: PrismaClient): express.Router {
       if (a.driverId !== ctx.userId) return res.status(403).json({ error: { fr: "Ce shift n'est pas le vôtre", en: "Not your shift" } });
       if (a.shiftRecord && a.shiftRecord.statut !== "EN_ATTENTE") return res.status(409).json({ error: { fr: "Check-in déjà effectué", en: "Check-in already done" } });
 
+      // Véhicule immobilisé (ex. suite à une panne critique) → check-in impossible.
+      const veh = await prisma.fleetVehicle.findUnique({ where: { id: a.vehicleId }, select: { statut: true } });
+      if (veh?.statut === "Immobilise") {
+        return res.status(409).json({ error: { fr: "Véhicule immobilisé : check-in impossible. Contactez votre Responsable terrain.", en: "Vehicle immobilised: check-in not possible" } });
+      }
+
       // Permis valide obligatoire.
       const profile = await prisma.driverProfile.findUnique({ where: { userId: ctx.userId } });
       if (!isPermisValide(profile?.permisExpiration ?? null)) {

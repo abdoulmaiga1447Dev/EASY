@@ -21,9 +21,10 @@ import { FleetChauffeur } from "./FleetChauffeur";
 import { FleetShifts } from "./FleetShifts";
 import { FleetReversements } from "./FleetReversements";
 import { FleetRecharges } from "./FleetRecharges";
+import { FleetPannes } from "./FleetPannes";
 import { Spinner, EmptyState, StatCard, Panel, Reveal } from "./ui";
 
-type Section = "dashboard" | "admin" | "vehicules" | "attribution" | "terrain" | "reversements" | "recharges" | "moi";
+type Section = "dashboard" | "admin" | "vehicules" | "attribution" | "terrain" | "reversements" | "recharges" | "pannes" | "moi";
 
 const ROLE_LABELS: Record<string, string> = {
   admin_direction: "Admin / Direction",
@@ -284,6 +285,7 @@ export const FleetWorkspace: React.FC = () => {
     { key: "terrain", label: "Terrain", icon: <ClipboardCheck size={18} />, show: ctx.permissions.includes("shift.superviser") },
     { key: "reversements", label: "Reversements", icon: <Banknote size={18} />, show: ctx.permissions.includes("reversement.voir") },
     { key: "recharges", label: "Recharges", icon: <BatteryCharging size={18} />, show: ctx.permissions.includes("recharge.superviser") || ctx.permissions.includes("recharge.enregistrer") },
+    { key: "pannes", label: "Pannes", icon: <AlertTriangle size={18} />, show: ctx.permissions.includes("panne.qualifier") || ctx.permissions.includes("maintenance.gerer") },
     { key: "moi", label: "Mon espace", icon: <User size={18} />, show: ctx.roleCode === "chauffeur" },
   ];
   const nav = navItems.filter((n) => n.show);
@@ -353,6 +355,7 @@ export const FleetWorkspace: React.FC = () => {
               {section === "terrain" && <FleetShifts />}
               {section === "reversements" && <FleetReversements />}
               {section === "recharges" && <FleetRecharges />}
+              {section === "pannes" && <FleetPannes />}
               {section === "moi" && <FleetChauffeur />}
             </motion.div>
           </AnimatePresence>

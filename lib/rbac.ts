@@ -148,6 +148,7 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
     "vehicule.voir",
     "attribution.voir",
     "shift.superviser", "incident.gerer",
+    "panne.qualifier", // le Responsable terrain qualifie les pannes (Critique / Non critique)
     "operation.annuler", // EXCLUSIF
     "reversement.voir", "reversement.rapprocher",
     "parametre.voir",
@@ -176,7 +177,7 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
   maintenance: [
     "site.voir",
     "vehicule.voir",
-    "maintenance.gerer", "panne.qualifier",
+    "maintenance.gerer", // prise en charge des réparations (la qualification est faite par le terrain)
     "parametre.voir",
   ],
 

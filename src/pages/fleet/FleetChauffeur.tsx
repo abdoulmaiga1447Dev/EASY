@@ -3,10 +3,10 @@
  * avec 5 preuves), service en cours, fin de poste (check-out avec 4 photos).
  */
 import React, { useEffect, useState, useMemo } from "react";
-import { MapPin, Check, HelpCircle, Car } from "lucide-react";
+import { MapPin, Check, HelpCircle, Car, AlertTriangle } from "lucide-react";
 import { useRbac } from "../../context/RbacContext";
 import { api, uploadMedia, type ApiError } from "../../api/fleet";
-import { Btn, Panel, Reveal, Field, Input, Spinner, EmptyState, Toast } from "./ui";
+import { Btn, Panel, Reveal, Field, Input, Spinner, EmptyState, Toast, Modal } from "./ui";
 import { FleetDettes } from "./FleetDettes";
 import { CameraCapture } from "./CameraCapture";
 
@@ -107,6 +107,49 @@ const ReversementBloc: React.FC<{ assignmentId: string; notify: (t: ToastState) 
       <Btn onClick={submit} disabled={!complet || saving} className="w-full">Valider le reversement</Btn>
       {!complet && <p className="text-xs text-[#8A8A8A] text-center">Renseignez la recette et le montant reversé, joignez le relevé de recette et la preuve du virement, et une preuve pour chaque dépense.</p>}
     </Panel>
+  );
+};
+
+// Déclaration de panne (Flux 4) — description + photos prises en direct.
+const PanneDeclaration: React.FC<{ notify: (t: ToastState) => void }> = ({ notify }) => {
+  const [open, setOpen] = useState(false);
+  const [desc, setDesc] = useState("");
+  const [photos, setPhotos] = useState<string[]>(["", "", ""]);
+  const [saving, setSaving] = useState(false);
+  const setPhoto = (i: number, id: string) => setPhotos((p) => p.map((x, idx) => (idx === i ? id : x)));
+  const photoIds = photos.filter(Boolean);
+
+  const submit = async () => {
+    setSaving(true);
+    try {
+      await api.post("/api/fleet/pannes", { description: desc.trim(), photos: photoIds });
+      notify({ message: "Panne déclarée — le Responsable terrain est prévenu", kind: "ok" });
+      setOpen(false); setDesc(""); setPhotos(["", "", ""]);
+    } catch (e) { notify({ message: errMsg(e), kind: "err" }); } finally { setSaving(false); }
+  };
+
+  return (
+    <>
+      <Btn variant="secondary" onClick={() => setOpen(true)} className="w-full"><AlertTriangle size={16} /> Déclarer une panne</Btn>
+      {open && (
+        <Modal title="Déclarer une panne" onClose={() => setOpen(false)}>
+          <div className="space-y-3">
+            <label className="flex flex-col gap-1.5">
+              <span className="text-xs text-[#8A8A8A]">Description du problème *</span>
+              <textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={3} placeholder="Décrivez la panne…"
+                className="rounded-xl border border-[#33363F] bg-[#0F0F11] text-[#EDEDED] text-sm p-3 outline-none focus:border-[#22C55E]" />
+            </label>
+            <div>
+              <span className="text-xs text-[#8A8A8A]">Photos * (au moins une, prise en direct)</span>
+              <div className="grid grid-cols-3 gap-2 mt-1">
+                {photos.map((m, i) => <CameraCapture key={i} label={`Photo ${i + 1}`} mediaId={m || null} onUploaded={(id) => setPhoto(i, id)} notify={notify} />)}
+              </div>
+            </div>
+            <Btn onClick={submit} disabled={!desc.trim() || photoIds.length === 0 || saving} className="w-full">Envoyer la déclaration</Btn>
+          </div>
+        </Modal>
+      )}
+    </>
   );
 };
 
@@ -270,6 +313,10 @@ export const FleetChauffeur: React.FC = () => {
             <Btn onClick={doCheckout} disabled={!coComplet || kmFinInvalide || saving} className="w-full">Terminer le shift</Btn>
           </Panel>
         </Reveal>
+      )}
+
+      {a && statut === "EN_COURS" && (
+        <Reveal delay={0.15}><Panel className="p-5"><PanneDeclaration notify={notify} /></Panel></Reveal>
       )}
 
       {/* Terminé → récap + reversement */}

@@ -873,3 +873,45 @@ model RechargeRecord {
   @@index([vehicleId, date])
   @@index([siteId, date])
 }
+
+// =============================================================================
+// SAVER Fleet Ops — Partie C (Bloc C2 : Flux 4 — Panne & immobilisation)
+// =============================================================================
+
+enum PanneGravite {
+  CRITIQUE // véhicule immobilisé
+  NON_CRITIQUE
+}
+
+enum PanneStatut {
+  DECLAREE // déclarée par le chauffeur, en attente de qualification
+  QUALIFIEE // qualifiée par le Responsable terrain
+  EN_REPARATION // prise en charge par la Maintenance (Bloc C2b)
+  RESOLUE // réparée et véhicule réactivé (Bloc C2b)
+  ANNULEE
+}
+
+// --- Déclaration de panne (Flux 4) ---
+model Panne {
+  id          String       @id @default(cuid())
+  vehicleId   String
+  driverId    String // chauffeur déclarant
+  siteId      String
+  description String
+  photos      Json         @default("[]") // ids des médias (preuves obligatoires)
+
+  statut   PanneStatut   @default(DECLAREE)
+  gravite  PanneGravite? // renseignée à la qualification
+  immobilise Boolean     @default(false) // véhicule immobilisé suite à panne critique
+
+  qualifieeById String?
+  qualifieeAt   DateTime?
+
+  declareeAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([siteId, statut])
+  @@index([vehicleId])
+  @@index([driverId])
+}
