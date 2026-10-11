@@ -315,7 +315,7 @@ export const FleetChauffeur: React.FC = () => {
         </Reveal>
       )}
 
-      {a && statut === "EN_COURS" && (
+      {a && (statut === "EN_ATTENTE" || statut === "EN_COURS") && (
         <Reveal delay={0.15}><Panel className="p-5"><PanneDeclaration notify={notify} /></Panel></Reveal>
       )}
 
