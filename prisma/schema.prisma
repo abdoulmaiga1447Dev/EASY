@@ -915,3 +915,55 @@ model Panne {
   @@index([vehicleId])
   @@index([driverId])
 }
+
+// --- Garage partenaire (réparations) ---
+model Garage {
+  id        String   @id @default(cuid())
+  nom       String
+  ville     String?
+  telephone String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([active])
+}
+
+enum ReparationStatut {
+  PLANIFIE
+  EN_COURS
+  TERMINE
+  ANNULE
+}
+
+enum StatutFacture {
+  EN_ATTENTE
+  PAYEE
+}
+
+// --- Prise en charge d'une réparation par la Maintenance (Bloc C2b) ---
+model Reparation {
+  id        String           @id @default(cuid())
+  panneId   String
+  vehicleId String
+  siteId    String
+  garageId  String
+  statut    ReparationStatut @default(PLANIFIE)
+
+  datePrevueDebut DateTime?
+  datePrevueFin   DateTime?
+  coutEstime      Int?
+
+  devisMediaId   String? // devis (obligatoire au passage « en cours »)
+  montantFacture Int? // renseigné à la clôture
+  statutFacture  StatutFacture? // en attente / payée
+
+  motifAnnulation String?
+
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([panneId])
+  @@index([siteId, statut])
+  @@index([vehicleId])
+}

@@ -12,7 +12,7 @@ import { canAccessVehicle } from "./vehicleAccess";
 import { canReadShiftMedia } from "./checkin";
 import { canReadReversementMedia } from "./reversement";
 import { canReadRechargeMedia } from "./recharge";
-import { canReadPanneMedia } from "./panne";
+import { canReadPanneMedia, canReadReparationMedia } from "./panne";
 import { wrap, serverError, notFound } from "./helpers";
 
 export function mediaRouter(prisma: PrismaClient): express.Router {
@@ -23,7 +23,7 @@ export function mediaRouter(prisma: PrismaClient): express.Router {
   // --- Upload d'un fichier (photo ou document) ---
   r.post(
     "/api/media",
-    authorize("vehicule.creer", "vehicule.modifier", "document.gerer", "self.checkin", "self.reversement", "self.profil"),
+    authorize("vehicule.creer", "vehicule.modifier", "document.gerer", "self.checkin", "self.reversement", "self.profil", "maintenance.gerer"),
     (req, res) => {
       uploadMiddleware(req, res, async (err: any) => {
         if (err) return res.status(400).json({ error: { fr: err.message || "Upload invalide", en: "Invalid upload" } });
@@ -64,6 +64,9 @@ export function mediaRouter(prisma: PrismaClient): express.Router {
       } else if (media.resourceType === "Panne" && media.resourceId) {
         // Photos de panne : le chauffeur déclarant, le Responsable terrain ou la Maintenance du site.
         if (!(await canReadPanneMedia(prisma, ctx, media.resourceId))) return res.status(403).json({ error: { fr: "Accès refusé à ce fichier", en: "Access denied" } });
+      } else if (media.resourceType === "Reparation" && media.resourceId) {
+        // Devis de réparation : Maintenance / Responsable terrain du site.
+        if (!(await canReadReparationMedia(prisma, ctx, media.resourceId))) return res.status(403).json({ error: { fr: "Accès refusé à ce fichier", en: "Access denied" } });
       } else {
         // Média non encore rattaché : seul l'auteur de l'upload peut le lire.
         if (media.uploadedById !== ctx.userId) return res.status(403).json({ error: { fr: "Accès refusé à ce fichier", en: "Access denied" } });

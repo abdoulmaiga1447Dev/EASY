@@ -302,6 +302,20 @@ async function main() {
   }
   console.log(`Seed : ${bornes.length} bornes de recharge.`);
 
+  // ---------------------------------------------------------------------------
+  // Garages partenaires de démonstration (Flux 4, Partie C) — réparations
+  // ---------------------------------------------------------------------------
+  console.log("Seed : garages partenaires...");
+  const garages = [
+    { id: "garage_cocody", nom: "Garage Auto Cocody", ville: "Abidjan", telephone: "+225 2722000001" },
+    { id: "garage_yopougon", nom: "EV Service Yopougon", ville: "Abidjan", telephone: "+225 2722000002" },
+    { id: "garage_yakro", nom: "Garage Central Yamoussoukro", ville: "Yamoussoukro", telephone: "+225 3030000003" },
+  ];
+  for (const g of garages) {
+    await prisma.garage.upsert({ where: { id: g.id }, update: { nom: g.nom, ville: g.ville, telephone: g.telephone, active: true }, create: { ...g, active: true } });
+  }
+  console.log(`Seed : ${garages.length} garages partenaires.`);
+
   console.log(`\nSeed terminé. Mot de passe de démonstration : ${DEMO_PASSWORD}`);
   console.log("Comptes : admin@easy.ci, superviseur@easy.ci, terrain@easy.ci, dispatcher@easy.ci,");
   console.log("          finance@easy.ci, maintenance@easy.ci, chauffeur@easy.ci, banque@easy.ci, client@easy.ci");

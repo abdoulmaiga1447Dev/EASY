@@ -6,8 +6,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { AlertTriangle } from "lucide-react";
 import { useRbac } from "../../context/RbacContext";
-import { api, type ApiError } from "../../api/fleet";
-import { Btn, Field, Select, Spinner, EmptyState, Modal, Toast, AuthImage } from "./ui";
+import { api, uploadMedia, type ApiError } from "../../api/fleet";
+import { Btn, Field, Input, Select, Spinner, EmptyState, Modal, Toast, AuthImage } from "./ui";
 
 type ToastState = { message: string; kind: "ok" | "err" } | null;
 const errMsg = (e: unknown) => (e as ApiError)?.fr || "Erreur inattendue";
@@ -19,6 +19,105 @@ const STATUT: Record<string, { label: string; color: string }> = {
   ANNULEE: { label: "Annulée", color: "#8A8A8A" },
 };
 const GRAVITE: Record<string, string> = { CRITIQUE: "Critique", NON_CRITIQUE: "Non critique" };
+const REP_STATUT: Record<string, { label: string; color: string }> = {
+  PLANIFIE: { label: "Planifiée", color: "#F59E0B" },
+  EN_COURS: { label: "En cours", color: "#3B82F6" },
+  TERMINE: { label: "Terminée", color: "#22C55E" },
+  ANNULE: { label: "Annulée", color: "#8A8A8A" },
+};
+const fcfa = (n: number) => (n ?? 0).toLocaleString("fr-FR") + " F";
+
+// Prise en charge Maintenance (Bloc C2b) : planifier → en cours (devis) → terminé (facture).
+// À la clôture, le véhicule est réactivé automatiquement.
+const ReparationBloc: React.FC<{ detail: any; notify: (t: ToastState) => void; onChanged: () => void }> = ({ detail, notify, onChanged }) => {
+  const rep = detail.reparation;
+  const [garages, setGarages] = useState<any[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState<any>({ garageId: "", datePrevueDebut: "", datePrevueFin: "", coutEstime: "" });
+  const [devisId, setDevisId] = useState("");
+  const [fact, setFact] = useState<any>({ montant: "", statut: "EN_ATTENTE" });
+  const [motif, setMotif] = useState("");
+
+  useEffect(() => { api.get<{ garages: any[] }>("/api/fleet/garages").then((d) => setGarages(d.garages)).catch(() => {}); }, []);
+
+  const plan = async () => {
+    setSaving(true);
+    try {
+      await api.post(`/api/fleet/pannes/${detail.id}/reparation`, { garageId: form.garageId, datePrevueDebut: form.datePrevueDebut || null, datePrevueFin: form.datePrevueFin || null, coutEstime: form.coutEstime ? Number(form.coutEstime) : null });
+      notify({ message: "Réparation planifiée", kind: "ok" }); onChanged();
+    } catch (e) { notify({ message: errMsg(e), kind: "err" }); } finally { setSaving(false); }
+  };
+  const patch = async (payload: any, okMsg: string) => {
+    setSaving(true);
+    try { await api.patch(`/api/fleet/reparations/${rep.id}`, payload); notify({ message: okMsg, kind: "ok" }); onChanged(); }
+    catch (e) { notify({ message: errMsg(e), kind: "err" }); } finally { setSaving(false); }
+  };
+  const uploadDevis = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0]; if (!f) return;
+    try { const m = await uploadMedia(f); setDevisId(m.id); notify({ message: "Devis ajouté", kind: "ok" }); } catch (err) { notify({ message: errMsg(err), kind: "err" }); }
+  };
+
+  const Annuler = () => (
+    <div className="pt-2 space-y-1">
+      <input value={motif} onChange={(e) => setMotif(e.target.value)} placeholder="Motif d'annulation" className="w-full rounded-lg border border-[#33363F] bg-[#0F0F11] text-[#EDEDED] text-xs px-2 py-1.5 outline-none" />
+      <button onClick={() => patch({ action: "annuler", motif }, "Réparation annulée")} disabled={!motif.trim() || saving} className="text-xs text-[#EF4444] hover:underline disabled:opacity-40">Annuler la réparation</button>
+    </div>
+  );
+
+  // Pas de réparation en cours → planification (si la panne est qualifiée).
+  if (!rep) {
+    if (detail.statut !== "QUALIFIEE") return null;
+    return (
+      <div className="border-t border-[#232327] pt-3 space-y-2">
+        <div className="text-xs uppercase tracking-wide text-[#8A8A8A]">Prise en charge (Maintenance)</div>
+        <Field label="Garage *"><Select value={form.garageId} onChange={(e) => setForm({ ...form, garageId: e.target.value })}><option value="">— choisir un garage —</option>{garages.map((g) => <option key={g.id} value={g.id}>{g.nom}{g.ville ? ` · ${g.ville}` : ""}</option>)}</Select></Field>
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="Début prévu"><Input type="date" value={form.datePrevueDebut} onChange={(e) => setForm({ ...form, datePrevueDebut: e.target.value })} /></Field>
+          <Field label="Fin prévue"><Input type="date" value={form.datePrevueFin} onChange={(e) => setForm({ ...form, datePrevueFin: e.target.value })} /></Field>
+        </div>
+        <Field label="Coût estimé (FCFA)"><Input type="number" value={form.coutEstime} onChange={(e) => setForm({ ...form, coutEstime: e.target.value })} placeholder="optionnel" /></Field>
+        <Btn onClick={plan} disabled={!form.garageId || saving} className="w-full">Planifier la réparation</Btn>
+      </div>
+    );
+  }
+
+  return (
+    <div className="border-t border-[#232327] pt-3 space-y-2 text-sm">
+      <div className="text-xs uppercase tracking-wide text-[#8A8A8A]">Réparation</div>
+      <div className="flex justify-between"><span className="text-[#8A8A8A]">Statut</span><span style={{ color: REP_STATUT[rep.statut]?.color }}>{REP_STATUT[rep.statut]?.label}</span></div>
+      <div className="flex justify-between"><span className="text-[#8A8A8A]">Garage</span><span className="text-[#EDEDED]">{rep.garageNom ?? "—"}</span></div>
+
+      {rep.statut === "PLANIFIE" && (
+        <div className="pt-1 space-y-2">
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-[#8A8A8A]">Devis * {devisId && "✓"}</span>
+            <input type="file" accept="image/*,application/pdf" onChange={uploadDevis} className="text-xs text-[#8A8A8A]" />
+          </label>
+          <Btn onClick={() => patch({ action: "en_cours", devisMediaId: devisId }, "Réparation démarrée")} disabled={!devisId || saving} className="w-full">Marquer en cours</Btn>
+          <Annuler />
+        </div>
+      )}
+
+      {rep.statut === "EN_COURS" && (
+        <div className="pt-1 space-y-2">
+          {rep.devisMediaId && <AuthImage mediaId={rep.devisMediaId} className="w-full max-h-48 rounded-lg" zoomable />}
+          <Field label="Montant facturé (FCFA) *"><Input type="number" value={fact.montant} onChange={(e) => setFact({ ...fact, montant: e.target.value })} /></Field>
+          <Field label="Statut de la facture"><Select value={fact.statut} onChange={(e) => setFact({ ...fact, statut: e.target.value })}><option value="EN_ATTENTE">En attente</option><option value="PAYEE">Payée</option></Select></Field>
+          <Btn onClick={() => patch({ action: "termine", montantFacture: Number(fact.montant), statutFacture: fact.statut }, "Réparation terminée — véhicule réactivé")} disabled={fact.montant === "" || saving} className="w-full">Marquer terminé (réactive le véhicule)</Btn>
+          <Annuler />
+        </div>
+      )}
+
+      {rep.statut === "TERMINE" && (
+        <>
+          <div className="flex justify-between"><span className="text-[#8A8A8A]">Montant facturé</span><span className="text-[#EDEDED]">{fcfa(rep.montantFacture)}</span></div>
+          <div className="flex justify-between"><span className="text-[#8A8A8A]">Facture</span><span className="text-[#EDEDED]">{rep.statutFacture === "PAYEE" ? "Payée" : "En attente"}</span></div>
+          <div className="text-xs text-[#22C55E]">Véhicule réactivé.</div>
+        </>
+      )}
+    </div>
+  );
+};
 
 export const FleetPannes: React.FC = () => {
   const { can } = useRbac();
@@ -107,6 +206,10 @@ export const FleetPannes: React.FC = () => {
                   <Btn onClick={() => qualifier("CRITIQUE")} disabled={saving} className="flex-1 !bg-[#EF4444] !text-white"><AlertTriangle size={15} /> Critique (immobiliser)</Btn>
                 </div>
               </div>
+            )}
+
+            {can("maintenance.gerer") && detail.statut !== "DECLAREE" && (
+              <ReparationBloc detail={detail} notify={notify} onChanged={() => { openDetail(detail.id); load(); }} />
             )}
           </div>
         </Modal>

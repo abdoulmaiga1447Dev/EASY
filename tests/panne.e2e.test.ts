@@ -25,6 +25,7 @@ async function upload(userId: string): Promise<string> {
 }
 
 async function cleanup() {
+  await prisma.reparation.deleteMany({ where: { vehicleId: VEH } });
   await prisma.panne.deleteMany({ where: { vehicleId: VEH } });
   await prisma.assignment.deleteMany({ where: { driverId: DRIVER, vehicleId: VEH, date: jour } });
 }
@@ -93,5 +94,52 @@ describe("Qualification et immobilisation", () => {
     const res = await request(app).post(`/api/fleet/shifts/${a!.id}/checkin`).set(auth(DRIVER))
       .send({ gpsLat: 5.3, gpsLng: -4, kmDebut: 1000, photoCompteur: "x", photoVehicule: "x", photoPermis: "x", selfieKyc: "x" });
     expect(res.status).toBe(409);
+  });
+});
+
+describe("Réparation (Maintenance) et réactivation automatique", () => {
+  let panneId: string;
+  let repId: string;
+  beforeAll(async () => {
+    const m = await upload(DRIVER);
+    const d = await request(app).post("/api/fleet/pannes").set(auth(DRIVER)).send({ description: "Batterie HS", photos: [m] });
+    panneId = d.body.id;
+    await request(app).post(`/api/fleet/pannes/${panneId}/qualifier`).set(auth(DEMO.terrain)).send({ gravite: "CRITIQUE" });
+  });
+
+  it("la Maintenance liste les garages", async () => {
+    const res = await request(app).get("/api/fleet/garages").set(auth(DEMO.maintenance));
+    expect(res.status).toBe(200);
+    expect(res.body.garages.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("le Responsable terrain ne peut pas planifier une réparation (403)", async () => {
+    const res = await request(app).post(`/api/fleet/pannes/${panneId}/reparation`).set(auth(DEMO.terrain)).send({ garageId: "garage_cocody" });
+    expect(res.status).toBe(403);
+  });
+
+  it("planifie → en cours (devis) → terminé, et le véhicule est réactivé automatiquement", async () => {
+    const plan = await request(app).post(`/api/fleet/pannes/${panneId}/reparation`).set(auth(DEMO.maintenance)).send({ garageId: "garage_cocody", coutEstime: 50000 });
+    expect(plan.status).toBe(201);
+    expect(plan.body.statut).toBe("PLANIFIE");
+    repId = plan.body.id;
+
+    const sansDevis = await request(app).patch(`/api/fleet/reparations/${repId}`).set(auth(DEMO.maintenance)).send({ action: "en_cours" });
+    expect(sansDevis.status).toBe(400);
+
+    const devis = await upload(DEMO.maintenance);
+    const enCours = await request(app).patch(`/api/fleet/reparations/${repId}`).set(auth(DEMO.maintenance)).send({ action: "en_cours", devisMediaId: devis });
+    expect(enCours.status).toBe(200);
+    expect(enCours.body.statut).toBe("EN_COURS");
+
+    const fin = await request(app).patch(`/api/fleet/reparations/${repId}`).set(auth(DEMO.maintenance)).send({ action: "termine", montantFacture: 48000, statutFacture: "PAYEE" });
+    expect(fin.status).toBe(200);
+    expect(fin.body.statut).toBe("TERMINE");
+
+    // Réactivation automatique du véhicule + panne résolue.
+    const v = await prisma.fleetVehicle.findUnique({ where: { id: VEH }, select: { statut: true } });
+    expect(v?.statut).toBe("Disponible");
+    const pan = await prisma.panne.findUnique({ where: { id: panneId }, select: { statut: true } });
+    expect(pan?.statut).toBe("RESOLUE");
   });
 });
