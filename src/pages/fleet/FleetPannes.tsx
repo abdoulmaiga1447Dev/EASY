@@ -119,10 +119,80 @@ const ReparationBloc: React.FC<{ detail: any; notify: (t: ToastState) => void; o
   );
 };
 
+// ------------------------------ Gestion des garages (Maintenance) ------------------------------
+const emptyGarage = { nom: "", ville: "", telephone: "" };
+const GaragesManager: React.FC<{ notify: (t: ToastState) => void }> = ({ notify }) => {
+  const [list, setList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState<null | { id?: string }>(null);
+  const [form, setForm] = useState<any>(emptyGarage);
+  const [saving, setSaving] = useState(false);
+  const set = (p: any) => setForm((f: any) => ({ ...f, ...p }));
+
+  const load = async () => {
+    setLoading(true);
+    try { setList((await api.get<{ garages: any[] }>("/api/fleet/garages?all=1")).garages); }
+    catch (e) { notify({ message: errMsg(e), kind: "err" }); } finally { setLoading(false); }
+  };
+  useEffect(() => { load(); }, []);
+
+  const submit = async () => {
+    setSaving(true);
+    try {
+      const payload = { nom: form.nom, ville: form.ville || null, telephone: form.telephone || null };
+      if (modal?.id) await api.patch(`/api/fleet/garages/${modal.id}`, payload);
+      else await api.post("/api/fleet/garages", payload);
+      notify({ message: modal?.id ? "Garage modifié" : "Garage ajouté", kind: "ok" });
+      setModal(null); load();
+    } catch (e) { notify({ message: errMsg(e), kind: "err" }); } finally { setSaving(false); }
+  };
+  const toggle = async (g: any) => { try { await api.patch(`/api/fleet/garages/${g.id}`, { active: !g.active }); load(); } catch (e) { notify({ message: errMsg(e), kind: "err" }); } };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end"><Btn onClick={() => { setForm(emptyGarage); setModal({}); }}>Ajouter un garage</Btn></div>
+      {loading ? <Spinner /> : !list.length ? <EmptyState>Aucun garage enregistré.</EmptyState> : (
+        <div className="overflow-x-auto border border-[#232327] rounded-2xl">
+          <table className="w-full text-sm">
+            <thead className="bg-[#0F0F11] text-[#8A8A8A]"><tr>
+              <th className="text-left px-4 py-3">Nom</th><th className="text-left px-4 py-3">Ville</th><th className="text-left px-4 py-3">Téléphone</th><th className="text-left px-4 py-3">Statut</th><th className="px-4 py-3"></th>
+            </tr></thead>
+            <tbody>
+              {list.map((g) => (
+                <tr key={g.id} className="border-t border-[#232327]">
+                  <td className="px-4 py-3 text-[#EDEDED]">{g.nom}</td>
+                  <td className="px-4 py-3 text-[#8A8A8A]">{g.ville ?? "—"}</td>
+                  <td className="px-4 py-3 text-[#8A8A8A]">{g.telephone ?? "—"}</td>
+                  <td className="px-4 py-3"><span className="text-xs font-medium" style={{ color: g.active ? "#22C55E" : "#8A8A8A" }}>{g.active ? "Actif" : "Inactif"}</span></td>
+                  <td className="px-4 py-3 text-right whitespace-nowrap">
+                    <button className="text-xs text-[#22C55E] hover:underline mr-3" onClick={() => { setForm({ nom: g.nom, ville: g.ville ?? "", telephone: g.telephone ?? "" }); setModal({ id: g.id }); }}>Modifier</button>
+                    <button className="text-xs text-[#8A8A8A] hover:underline" onClick={() => toggle(g)}>{g.active ? "Désactiver" : "Activer"}</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {modal && (
+        <Modal title={modal.id ? "Modifier le garage" : "Ajouter un garage"} onClose={() => setModal(null)}>
+          <div className="space-y-3">
+            <Field label="Nom *"><Input value={form.nom} onChange={(e) => set({ nom: e.target.value })} placeholder="ex. Garage Auto Cocody" /></Field>
+            <Field label="Ville"><Input value={form.ville} onChange={(e) => set({ ville: e.target.value })} /></Field>
+            <Field label="Téléphone"><Input value={form.telephone} onChange={(e) => set({ telephone: e.target.value })} /></Field>
+            <Btn onClick={submit} disabled={!form.nom || saving} className="w-full">{modal.id ? "Enregistrer" : "Ajouter"}</Btn>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+};
+
 export const FleetPannes: React.FC = () => {
   const { can } = useRbac();
   const [toast, setToast] = useState<ToastState>(null);
   const notify = useMemo(() => (t: ToastState) => { setToast(t); if (t) setTimeout(() => setToast(null), 3500); }, []);
+  const [tab, setTab] = useState<"pannes" | "garages">("pannes");
   const [list, setList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtre, setFiltre] = useState("");
@@ -148,9 +218,21 @@ export const FleetPannes: React.FC = () => {
     } catch (e) { notify({ message: errMsg(e), kind: "err" }); } finally { setSaving(false); }
   };
 
+  const peutGererGarages = can("maintenance.gerer");
+  const tabCls = (active: boolean) => `px-4 py-2.5 text-sm border-b-2 transition ${active ? "border-[#22C55E] text-[#22C55E]" : "border-transparent text-[#8A8A8A] hover:text-[#EDEDED]"}`;
+
   return (
     <div>
       <h1 className="text-2xl font-bold text-[#EDEDED] mb-4">Pannes</h1>
+
+      {peutGererGarages && (
+        <div className="flex gap-1 border-b border-[#232327] mb-6">
+          <button onClick={() => setTab("pannes")} className={tabCls(tab === "pannes")}>Pannes</button>
+          <button onClick={() => setTab("garages")} className={tabCls(tab === "garages")}>Garages</button>
+        </div>
+      )}
+
+      {tab === "garages" && peutGererGarages ? <GaragesManager notify={notify} /> : (<>
       <div className="flex justify-end mb-4">
         <Field label="Statut"><Select value={filtre} onChange={(e) => setFiltre(e.target.value)}><option value="">Toutes</option><option value="DECLAREE">Déclarées</option><option value="QUALIFIEE">Qualifiées</option><option value="EN_REPARATION">En réparation</option><option value="RESOLUE">Résolues</option></Select></Field>
       </div>
@@ -176,6 +258,7 @@ export const FleetPannes: React.FC = () => {
           </table>
         </div>
       )}
+      </>)}
 
       {detail && (
         <Modal title="Détail de la panne" onClose={() => setDetail(null)}>

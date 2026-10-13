@@ -120,6 +120,44 @@ export function vehiclesRouter(prisma: PrismaClient): express.Router {
     })
   );
 
+  // ------------------------------ Dossier / historique du véhicule ------------------------------
+  r.get(
+    "/api/fleet/vehicles/:id/historique",
+    authorize("vehicule.voir"),
+    wrap(async (req, res) => {
+      const ctx = actor(req);
+      const v = await prisma.fleetVehicle.findUnique({ where: { id: req.params.id }, select: { id: true, siteId: true, clientId: true } });
+      if (!v) return res.status(404).json({ error: notFound });
+      if (!canAccessVehicle(ctx, v)) return res.status(403).json({ error: { fr: "Véhicule hors de votre périmètre", en: "Vehicle outside your scope" } });
+
+      const [pannes, reparations, shifts, attributions, recharges] = await Promise.all([
+        prisma.panne.findMany({ where: { vehicleId: v.id }, orderBy: { declareeAt: "desc" }, take: 50 }),
+        prisma.reparation.findMany({ where: { vehicleId: v.id }, orderBy: { createdAt: "desc" }, take: 50 }),
+        prisma.shiftRecord.findMany({ where: { vehicleId: v.id }, orderBy: { date: "desc" }, take: 50 }),
+        prisma.assignment.findMany({ where: { vehicleId: v.id }, orderBy: { date: "desc" }, take: 50 }),
+        prisma.rechargeRecord.findMany({ where: { vehicleId: v.id }, orderBy: { date: "desc" }, take: 50 }),
+      ]);
+
+      // Résolution des noms (chauffeurs) et garages.
+      const driverIds = [...new Set([...pannes.map((p) => p.driverId), ...shifts.map((s) => s.driverId), ...attributions.map((a) => a.driverId), ...recharges.map((r) => r.driverId).filter(Boolean) as string[]])];
+      const garageIds = [...new Set(reparations.map((r) => r.garageId))];
+      const [users, garages] = await Promise.all([
+        prisma.user.findMany({ where: { id: { in: driverIds } }, select: { id: true, name: true } }),
+        prisma.garage.findMany({ where: { id: { in: garageIds } }, select: { id: true, nom: true } }),
+      ]);
+      const nom = new Map(users.map((u) => [u.id, u.name]));
+      const gNom = new Map(garages.map((g) => [g.id, g.nom]));
+
+      res.json({
+        pannes: pannes.map((p) => ({ id: p.id, declareeAt: p.declareeAt, description: p.description, gravite: p.gravite, statut: p.statut, immobilise: p.immobilise, chauffeurNom: nom.get(p.driverId) ?? null })),
+        reparations: reparations.map((r) => ({ id: r.id, createdAt: r.createdAt, statut: r.statut, garageNom: gNom.get(r.garageId) ?? null, coutEstime: r.coutEstime, montantFacture: r.montantFacture, statutFacture: r.statutFacture, datePrevueDebut: r.datePrevueDebut, datePrevueFin: r.datePrevueFin, panneId: r.panneId })),
+        shifts: shifts.map((s) => ({ id: s.id, date: s.date, shift: s.shift, statut: s.statut, checkinAt: s.checkinAt, checkoutAt: s.checkoutAt, kmDebut: s.kmDebut, kmFin: s.kmFin, kmParcourus: s.kmParcourus, chauffeurNom: nom.get(s.driverId) ?? null })),
+        attributions: attributions.map((a) => ({ id: a.id, date: a.date, shift: a.shift, chauffeurNom: nom.get(a.driverId) ?? null })),
+        recharges: recharges.map((r) => ({ id: r.id, date: r.date, kwh: r.kwh, cout: r.cout, chauffeurNom: r.driverId ? nom.get(r.driverId) ?? null : null })),
+      });
+    })
+  );
+
   // ------------------------------ Création ------------------------------
   r.post(
     "/api/fleet/vehicles",

@@ -162,13 +162,48 @@ export function panneRouter(prisma: PrismaClient): express.Router {
     })
   );
 
-  // ------------------------------ Garages partenaires (pour la Maintenance) ------------------------------
+  // ------------------------------ Garages partenaires (gestion par la Maintenance) ------------------------------
   r.get(
     "/api/fleet/garages",
     authorize("maintenance.gerer"),
-    wrap(async (_req, res) => {
-      const garages = await prisma.garage.findMany({ where: { active: true }, orderBy: { nom: "asc" } });
+    wrap(async (req, res) => {
+      const where: any = {};
+      if (req.query.all !== "1") where.active = true; // par défaut, uniquement les garages actifs (pour la sélection)
+      const garages = await prisma.garage.findMany({ where, orderBy: { nom: "asc" } });
       res.json({ garages });
+    })
+  );
+
+  r.post(
+    "/api/fleet/garages",
+    authorize("maintenance.gerer"),
+    wrap(async (req, res) => {
+      const ctx = actor(req);
+      const b = req.body || {};
+      const nom = String(b.nom || "").trim();
+      if (!nom) return res.status(400).json({ error: { fr: "Le nom du garage est obligatoire", en: "Garage name required" } });
+      const garage = await prisma.garage.create({ data: { nom, ville: b.ville ? String(b.ville) : null, telephone: b.telephone ? String(b.telephone) : null, active: b.active === false ? false : true } });
+      await writeAudit(prisma, ctx, { action: "garage.create", resourceType: "Garage", resourceId: garage.id, siteId: null, after: { nom } });
+      res.status(201).json(garage);
+    })
+  );
+
+  r.patch(
+    "/api/fleet/garages/:id",
+    authorize("maintenance.gerer"),
+    wrap(async (req, res) => {
+      const ctx = actor(req);
+      const existing = await prisma.garage.findUnique({ where: { id: req.params.id } });
+      if (!existing) return res.status(404).json({ error: notFound });
+      const b = req.body || {};
+      const data: any = {};
+      if (b.nom != null) { const n = String(b.nom).trim(); if (!n) return res.status(400).json({ error: { fr: "Nom invalide", en: "Invalid name" } }); data.nom = n; }
+      if (b.ville !== undefined) data.ville = b.ville ? String(b.ville) : null;
+      if (b.telephone !== undefined) data.telephone = b.telephone ? String(b.telephone) : null;
+      if (b.active !== undefined) data.active = !!b.active;
+      const garage = await prisma.garage.update({ where: { id: existing.id }, data });
+      await writeAudit(prisma, ctx, { action: "garage.update", resourceType: "Garage", resourceId: garage.id, siteId: null, after: data });
+      res.json(garage);
     })
   );
 

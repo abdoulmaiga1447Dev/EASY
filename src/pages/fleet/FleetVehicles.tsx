@@ -224,6 +224,74 @@ const VehicleWizard: React.FC<{ onDone: () => void; onCancel: () => void; notify
   );
 };
 
+// ------------------------------------------------------------ Historique (dossier)
+const PANNE_STATUT: Record<string, string> = { DECLAREE: "Déclarée", QUALIFIEE: "Qualifiée", EN_REPARATION: "En réparation", RESOLUE: "Résolue", ANNULEE: "Annulée" };
+const REPAR_STATUT: Record<string, string> = { PLANIFIE: "Planifiée", EN_COURS: "En cours", TERMINE: "Terminée", ANNULE: "Annulée" };
+const histoFcfa = (n: number | null) => (n == null ? "—" : n.toLocaleString("fr-FR") + " F");
+const histoDate = (d: string | null) => (d ? new Date(d).toLocaleDateString("fr-FR") : "—");
+
+const VehicleHistorique: React.FC<{ id: string; notify: (t: ToastState) => void }> = ({ id, notify }) => {
+  const [h, setH] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => { api.get<any>(`/api/fleet/vehicles/${id}/historique`).then(setH).catch((e) => notify({ message: errMsg(e), kind: "err" })).finally(() => setLoading(false)); }, [id]);
+  if (loading) return <Spinner />;
+  if (!h) return null;
+
+  const Section: React.FC<{ title: string; count: number; children: React.ReactNode }> = ({ title, count, children }) => (
+    <div>
+      <div className="text-sm font-semibold text-white-premium mb-2">{title} <span className="text-muted-premium font-normal">({count})</span></div>
+      {count === 0 ? <div className="text-xs text-muted-premium">Aucun élément.</div> : <div className="space-y-2">{children}</div>}
+    </div>
+  );
+
+  return (
+    <div className="space-y-5 border-t border-gold/10 pt-5">
+      <h3 className="text-lg font-semibold text-white-premium">Dossier du véhicule</h3>
+
+      <Section title="Pannes & réparations" count={h.pannes.length}>
+        {h.pannes.map((p: any) => {
+          const rep = h.reparations.find((r: any) => r.panneId === p.id);
+          return (
+            <div key={p.id} className="border border-gold/10 rounded-lg p-3 text-sm">
+              <div className="flex justify-between flex-wrap gap-1">
+                <span className="text-white-premium">{histoDate(p.declareeAt)} · {p.gravite === "CRITIQUE" ? "Critique" : p.gravite === "NON_CRITIQUE" ? "Non critique" : "À qualifier"}{p.immobilise ? " · immobilisé" : ""}</span>
+                <span className="text-muted-premium">{PANNE_STATUT[p.statut] || p.statut}</span>
+              </div>
+              <div className="text-muted-premium text-xs mt-0.5">Déclarée par {p.chauffeurNom ?? "—"}</div>
+              <div className="text-white-premium/90 mt-1">{p.description}</div>
+              {rep && (
+                <div className="text-xs text-muted-premium mt-2 border-t border-gold/10 pt-2">
+                  Réparation : <span className="text-white-premium">{rep.garageNom ?? "—"}</span> · {REPAR_STATUT[rep.statut] || rep.statut}
+                  {rep.montantFacture != null && <> · facturé {histoFcfa(rep.montantFacture)} ({rep.statutFacture === "PAYEE" ? "payée" : "en attente"})</>}
+                  {(rep.datePrevueDebut || rep.datePrevueFin) && <> · prévu {histoDate(rep.datePrevueDebut)} → {histoDate(rep.datePrevueFin)}</>}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </Section>
+
+      <Section title="Activité (shifts)" count={h.shifts.length}>
+        {h.shifts.map((s: any) => (
+          <div key={s.id} className="flex justify-between text-sm border-b border-gold/5 pb-1.5">
+            <span className="text-muted-premium">{histoDate(s.date)} · Shift {s.shift} · {s.chauffeurNom ?? "—"}</span>
+            <span className="text-white-premium">{s.kmParcourus != null ? `${s.kmParcourus} km` : "—"}</span>
+          </div>
+        ))}
+      </Section>
+
+      <Section title="Recharges" count={h.recharges.length}>
+        {h.recharges.map((r: any) => (
+          <div key={r.id} className="flex justify-between text-sm border-b border-gold/5 pb-1.5">
+            <span className="text-muted-premium">{histoDate(r.date)} · {r.chauffeurNom ?? "Équipe"}</span>
+            <span className="text-white-premium">{r.kwh} kWh · {histoFcfa(r.cout)}</span>
+          </div>
+        ))}
+      </Section>
+    </div>
+  );
+};
+
 // ------------------------------------------------------------ Fiche détail
 const VehicleDetail: React.FC<{ id: string; onBack: () => void; notify: (t: ToastState) => void }> = ({ id, onBack, notify }) => {
   const { can } = useRbac();
@@ -318,6 +386,8 @@ const VehicleDetail: React.FC<{ id: string; onBack: () => void; notify: (t: Toas
           ))}
         </div>
       )}
+
+      <VehicleHistorique id={id} notify={notify} />
     </div>
   );
 };

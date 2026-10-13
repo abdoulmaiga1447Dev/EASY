@@ -28,6 +28,7 @@ async function cleanup() {
   await prisma.reparation.deleteMany({ where: { vehicleId: VEH } });
   await prisma.panne.deleteMany({ where: { vehicleId: VEH } });
   await prisma.assignment.deleteMany({ where: { driverId: DRIVER, vehicleId: VEH, date: jour } });
+  await prisma.garage.deleteMany({ where: { nom: { startsWith: "TEST-G" } } });
 }
 
 beforeAll(async () => {
@@ -141,5 +142,34 @@ describe("Réparation (Maintenance) et réactivation automatique", () => {
     expect(v?.statut).toBe("Disponible");
     const pan = await prisma.panne.findUnique({ where: { id: panneId }, select: { statut: true } });
     expect(pan?.statut).toBe("RESOLUE");
+  });
+});
+
+describe("Gestion des garages (Maintenance) et historique véhicule", () => {
+  it("la Maintenance crée, liste et désactive un garage ; le chauffeur n'y a pas accès", async () => {
+    const create = await request(app).post("/api/fleet/garages").set(auth(DEMO.maintenance)).send({ nom: "TEST-G Auto", ville: "Abidjan" });
+    expect(create.status).toBe(201);
+    const id = create.body.id;
+
+    const off = await request(app).patch(`/api/fleet/garages/${id}`).set(auth(DEMO.maintenance)).send({ active: false });
+    expect(off.status).toBe(200);
+    expect(off.body.active).toBe(false);
+
+    const actifs = await request(app).get("/api/fleet/garages").set(auth(DEMO.maintenance));
+    expect(actifs.body.garages.find((g: any) => g.id === id)).toBeUndefined();
+    const tous = await request(app).get("/api/fleet/garages?all=1").set(auth(DEMO.maintenance));
+    expect(tous.body.garages.find((g: any) => g.id === id)).toBeDefined();
+
+    const ko = await request(app).post("/api/fleet/garages").set(auth(DEMO.chauffeur)).send({ nom: "TEST-G X" });
+    expect(ko.status).toBe(403);
+  });
+
+  it("l'historique du véhicule regroupe pannes / réparations / shifts", async () => {
+    const res = await request(app).get(`/api/fleet/vehicles/${VEH}/historique`).set(auth(DEMO.admin));
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body.pannes)).toBe(true);
+    expect(Array.isArray(res.body.reparations)).toBe(true);
+    expect(Array.isArray(res.body.shifts)).toBe(true);
+    expect(res.body.pannes.length).toBeGreaterThanOrEqual(1);
   });
 });
