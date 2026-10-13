@@ -37,6 +37,7 @@ const ReparationBloc: React.FC<{ detail: any; notify: (t: ToastState) => void; o
   const [devisId, setDevisId] = useState("");
   const [fact, setFact] = useState<any>({ montant: "", statut: "EN_ATTENTE" });
   const [motif, setMotif] = useState("");
+  const [showAnnuler, setShowAnnuler] = useState(false);
 
   useEffect(() => { api.get<{ garages: any[] }>("/api/fleet/garages").then((d) => setGarages(d.garages)).catch(() => {}); }, []);
 
@@ -58,9 +59,18 @@ const ReparationBloc: React.FC<{ detail: any; notify: (t: ToastState) => void; o
   };
 
   const Annuler = () => (
-    <div className="pt-2 space-y-1">
-      <input value={motif} onChange={(e) => setMotif(e.target.value)} placeholder="Motif d'annulation" className="w-full rounded-lg border border-[#33363F] bg-[#0F0F11] text-[#EDEDED] text-xs px-2 py-1.5 outline-none" />
-      <button onClick={() => patch({ action: "annuler", motif }, "Réparation annulée")} disabled={!motif.trim() || saving} className="text-xs text-[#EF4444] hover:underline disabled:opacity-40">Annuler la réparation</button>
+    <div className="pt-2 mt-1 border-t border-[#232327]">
+      {!showAnnuler ? (
+        <button onClick={() => setShowAnnuler(true)} className="text-xs text-[#8A8A8A] hover:text-[#EF4444]">Annuler la réparation…</button>
+      ) : (
+        <div className="space-y-1.5 pt-1">
+          <input value={motif} onChange={(e) => setMotif(e.target.value)} placeholder="Motif d'annulation" className="w-full rounded-lg border border-[#33363F] bg-[#0F0F11] text-[#EDEDED] text-xs px-2 py-1.5 outline-none" />
+          <div className="flex gap-3">
+            <button onClick={() => patch({ action: "annuler", motif }, "Réparation annulée")} disabled={!motif.trim() || saving} className="text-xs text-[#EF4444] hover:underline disabled:opacity-40">Confirmer l'annulation</button>
+            <button onClick={() => { setShowAnnuler(false); setMotif(""); }} className="text-xs text-[#8A8A8A] hover:underline">Retour</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 
@@ -83,37 +93,43 @@ const ReparationBloc: React.FC<{ detail: any; notify: (t: ToastState) => void; o
 
   return (
     <div className="border-t border-[#232327] pt-3 space-y-2 text-sm">
-      <div className="text-xs uppercase tracking-wide text-[#8A8A8A]">Réparation</div>
-      <div className="flex justify-between"><span className="text-[#8A8A8A]">Statut</span><span style={{ color: REP_STATUT[rep.statut]?.color }}>{REP_STATUT[rep.statut]?.label}</span></div>
+      <div className="text-xs uppercase tracking-wide text-[#8A8A8A]">Réparation (Maintenance)</div>
+      <div className="flex justify-between"><span className="text-[#8A8A8A]">Statut</span><span className="font-medium" style={{ color: REP_STATUT[rep.statut]?.color }}>{REP_STATUT[rep.statut]?.label}</span></div>
       <div className="flex justify-between"><span className="text-[#8A8A8A]">Garage</span><span className="text-[#EDEDED]">{rep.garageNom ?? "—"}</span></div>
+      {rep.coutEstime != null && <div className="flex justify-between"><span className="text-[#8A8A8A]">Coût estimé</span><span className="text-[#EDEDED]">{fcfa(rep.coutEstime)}</span></div>}
 
       {rep.statut === "PLANIFIE" && (
-        <div className="pt-1 space-y-2">
-          <label className="flex flex-col gap-1">
-            <span className="text-xs text-[#8A8A8A]">Devis * {devisId && "✓"}</span>
-            <input type="file" accept="image/*,application/pdf" onChange={uploadDevis} className="text-xs text-[#8A8A8A]" />
+        <div className="pt-2 space-y-2 border-t border-[#232327] mt-1">
+          <p className="text-xs text-[#EDEDED]"><span className="text-[#22C55E] font-medium">Étape 1</span> — Joignez le <b>devis du garage</b>, puis démarrez la réparation.</p>
+          <label className="h-11 rounded-xl border border-dashed border-[#33363F] bg-[#0F0F11] flex items-center justify-center text-sm cursor-pointer gap-2" style={{ color: devisId ? "#22C55E" : "#8A8A8A" }}>
+            {devisId ? "✓ Devis ajouté — remplacer" : "📎 Choisir le devis (image ou PDF)"}
+            <input type="file" accept="image/*,application/pdf" onChange={uploadDevis} className="hidden" />
           </label>
-          <Btn onClick={() => patch({ action: "en_cours", devisMediaId: devisId }, "Réparation démarrée")} disabled={!devisId || saving} className="w-full">Marquer en cours</Btn>
+          <Btn onClick={() => patch({ action: "en_cours", devisMediaId: devisId }, "Réparation démarrée")} disabled={!devisId || saving} className="w-full">Démarrer la réparation</Btn>
+          {!devisId && <p className="text-[11px] text-[#8A8A8A] text-center">Ajoutez d'abord le devis pour activer le bouton.</p>}
           <Annuler />
         </div>
       )}
 
       {rep.statut === "EN_COURS" && (
-        <div className="pt-1 space-y-2">
-          {rep.devisMediaId && <AuthImage mediaId={rep.devisMediaId} className="w-full max-h-48 rounded-lg" zoomable />}
-          <Field label="Montant facturé (FCFA) *"><Input type="number" value={fact.montant} onChange={(e) => setFact({ ...fact, montant: e.target.value })} /></Field>
-          <Field label="Statut de la facture"><Select value={fact.statut} onChange={(e) => setFact({ ...fact, statut: e.target.value })}><option value="EN_ATTENTE">En attente</option><option value="PAYEE">Payée</option></Select></Field>
-          <Btn onClick={() => patch({ action: "termine", montantFacture: Number(fact.montant), statutFacture: fact.statut }, "Réparation terminée — véhicule réactivé")} disabled={fact.montant === "" || saving} className="w-full">Marquer terminé (réactive le véhicule)</Btn>
+        <div className="pt-2 space-y-2 border-t border-[#232327] mt-1">
+          <p className="text-xs text-[#EDEDED]"><span className="text-[#22C55E] font-medium">Étape 2</span> — À la fin des travaux, saisissez la <b>facture</b> pour clôturer. Le véhicule sera alors <b>réactivé automatiquement</b>.</p>
+          {rep.devisMediaId && (
+            <div><div className="text-xs text-[#8A8A8A] mb-1">Devis joint :</div><AuthImage mediaId={rep.devisMediaId} className="w-full max-h-40 rounded-lg" zoomable /></div>
+          )}
+          <Field label="Montant facturé (FCFA) *"><Input type="number" value={fact.montant} onChange={(e) => setFact({ ...fact, montant: e.target.value })} placeholder="ex. 48000" /></Field>
+          <Field label="Facture"><Select value={fact.statut} onChange={(e) => setFact({ ...fact, statut: e.target.value })}><option value="EN_ATTENTE">En attente de paiement</option><option value="PAYEE">Payée</option></Select></Field>
+          <Btn onClick={() => patch({ action: "termine", montantFacture: Number(fact.montant), statutFacture: fact.statut }, "Réparation terminée — véhicule réactivé")} disabled={fact.montant === "" || saving} className="w-full !bg-[#22C55E] !text-[#0A0A0B]">Clôturer et réactiver le véhicule</Btn>
           <Annuler />
         </div>
       )}
 
       {rep.statut === "TERMINE" && (
-        <>
+        <div className="pt-2 space-y-1 border-t border-[#232327] mt-1">
           <div className="flex justify-between"><span className="text-[#8A8A8A]">Montant facturé</span><span className="text-[#EDEDED]">{fcfa(rep.montantFacture)}</span></div>
-          <div className="flex justify-between"><span className="text-[#8A8A8A]">Facture</span><span className="text-[#EDEDED]">{rep.statutFacture === "PAYEE" ? "Payée" : "En attente"}</span></div>
-          <div className="text-xs text-[#22C55E]">Véhicule réactivé.</div>
-        </>
+          <div className="flex justify-between"><span className="text-[#8A8A8A]">Facture</span><span className="text-[#EDEDED]">{rep.statutFacture === "PAYEE" ? "Payée" : "En attente de paiement"}</span></div>
+          <div className="text-xs text-[#22C55E] pt-1">✓ Réparation terminée — véhicule réactivé.</div>
+        </div>
       )}
     </div>
   );
