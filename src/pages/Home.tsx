@@ -6,7 +6,7 @@
 import React from "react";
 import { motion } from "motion/react";
 import { Zap, BatteryCharging, MapPin, Leaf, ArrowRight, ShieldCheck, Gauge, PhoneCall, Building2, Hotel, Star } from "lucide-react";
-import heroImg from "../assets/saver/fleet-01.jpg";
+import heroImg from "../assets/saver/hero.png";
 import hubImg from "../assets/saver/fleet-09.jpg";
 import closeupImg from "../assets/saver/fleet-12.jpg";
 import rideImg from "../assets/saver/fleet-13.jpg";
