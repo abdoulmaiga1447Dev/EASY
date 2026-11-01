@@ -19,6 +19,7 @@ import rechargeImg from "../assets/saver/bento-recharge.png";
 // Charte
 const GREEN = "#00C853";
 const GREEN_DARK = "#00A846";
+const ORANGE = "#FF7A1A";
 const INK = "#0B1F14";
 
 interface HomeProps { setCurrentPage: (page: string) => void; id?: string; }
@@ -106,14 +107,14 @@ export const Home: React.FC<HomeProps> = ({ setCurrentPage, id }) => {
       <section style={{ background: INK }}>
         <div className="max-w-6xl mx-auto px-6 lg:px-8 py-10 grid grid-cols-2 md:grid-cols-4 gap-y-8 md:divide-x md:divide-white/10">
           {[
-            { v: "50+", l: "Véhicules électriques", icon: <Car size={24} /> },
-            { v: "100", l: "Chauffeurs dédiés", icon: <Users size={24} /> },
-            { v: "Abidjan", l: "Zone de service", icon: <MapPin size={24} /> },
-            { v: "0", l: "Émission à l'usage", icon: <Leaf size={24} /> },
+            { v: "50+", l: "Véhicules électriques", icon: <Car size={24} />, c: GREEN },
+            { v: "100", l: "Chauffeurs dédiés", icon: <Users size={24} />, c: ORANGE },
+            { v: "Abidjan", l: "Zone de service", icon: <MapPin size={24} />, c: GREEN },
+            { v: "0", l: "Émission à l'usage", icon: <Leaf size={24} />, c: ORANGE },
           ].map((s) => (
             <div key={s.l} className="flex flex-col items-center text-center md:px-4">
-              <div className="mb-3" style={{ color: GREEN }}>{s.icon}</div>
-              <div className="text-2xl sm:text-3xl font-extrabold text-white leading-none">{s.v}</div>
+              <div className="mb-3" style={{ color: s.c }}>{s.icon}</div>
+              <div className="text-2xl sm:text-3xl font-extrabold leading-none" style={{ color: s.c }}>{s.v}</div>
               <div className="mt-2 text-xs sm:text-sm text-white/65">{s.l}</div>
             </div>
           ))}
