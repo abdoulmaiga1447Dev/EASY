@@ -46,7 +46,7 @@ const BentoTile: React.FC<{ label: string; desc?: string; grad: string; icon: Re
 // (la couleur apparaît en bas et à droite).
 const BentoImageTile: React.FC<{ label: string; desc?: string; img: string; color: string; onClick?: () => void }> = ({ label, desc, img, color, onClick }) => (
   <button onClick={onClick} className="relative rounded-3xl text-left group" style={{ backgroundColor: color }}>
-    <div className="absolute top-0 left-0 right-[13%] bottom-[16%] rounded-2xl overflow-hidden">
+    <div className="absolute top-[6%] left-[5%] right-[16%] bottom-[20%] rounded-2xl overflow-hidden shadow-[0_14px_30px_rgba(0,0,0,0.45)] ring-1 ring-black/10">
       <img src={img} alt={label} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
       <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(6,20,13,0.85), transparent 60%)" }} />
       <div className="absolute left-3 bottom-3">
@@ -161,7 +161,7 @@ export const Home: React.FC<HomeProps> = ({ setCurrentPage, id }) => {
           <div className="mt-10 grid grid-cols-2 lg:grid-cols-4 auto-rows-[150px] gap-3.5">
             {/* Flagship — Courses VTC (carte verte + image décalée haut-gauche) */}
             <button onClick={() => go("vehicules")} className="relative col-span-2 row-span-2 rounded-3xl text-left group" style={{ backgroundColor: "#00C853" }}>
-              <div className="absolute top-0 left-0 right-[9%] bottom-[11%] rounded-2xl overflow-hidden">
+              <div className="absolute top-[4%] left-[3%] right-[10%] bottom-[12%] rounded-2xl overflow-hidden shadow-[0_18px_40px_rgba(0,0,0,0.45)] ring-1 ring-black/10">
                 <img src={rideImg} alt="Courses VTC" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                 <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(6,20,13,0.9) 0%, transparent 60%)" }} />
                 <span className="absolute top-4 right-4 rounded-lg bg-black/25 backdrop-blur px-2.5 py-1 text-[11px] font-bold tracking-wide text-white">EASY</span>
@@ -179,7 +179,7 @@ export const Home: React.FC<HomeProps> = ({ setCurrentPage, id }) => {
 
             {/* Bande large — Recharge (carte + image décalée haut-gauche) */}
             <button onClick={() => go("vehicules")} className="relative col-span-2 rounded-3xl text-left group" style={{ backgroundColor: "#047857" }}>
-              <div className="absolute top-0 left-0 right-[13%] bottom-[16%] rounded-2xl overflow-hidden">
+              <div className="absolute top-[8%] left-[3%] right-[14%] bottom-[20%] rounded-2xl overflow-hidden shadow-[0_14px_30px_rgba(0,0,0,0.45)] ring-1 ring-black/10">
                 <img src={rechargeImg} alt="Recharge & énergie" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                 <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(6,20,13,0.9), transparent 70%)" }} />
                 <div className="absolute left-5 bottom-3">
