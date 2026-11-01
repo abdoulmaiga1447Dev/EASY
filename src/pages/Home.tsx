@@ -5,7 +5,7 @@
  */
 import React from "react";
 import { motion } from "motion/react";
-import { Zap, BatteryCharging, MapPin, Leaf, ArrowRight, ShieldCheck, Gauge, PhoneCall, Star } from "lucide-react";
+import { Zap, BatteryCharging, MapPin, Leaf, ArrowRight, ShieldCheck, Gauge, PhoneCall, Star, Car, Users } from "lucide-react";
 import heroImg from "../assets/saver/hero.png";
 import hubImg from "../assets/saver/fleet-09.jpg";
 import closeupImg from "../assets/saver/fleet-12.jpg";
@@ -103,17 +103,18 @@ export const Home: React.FC<HomeProps> = ({ setCurrentPage, id }) => {
       </section>
 
       {/* ====================== STATS ====================== */}
-      <section className="relative -mt-px bg-[#06140D]">
-        <div className="max-w-6xl mx-auto px-6 lg:px-8 py-8 grid grid-cols-2 md:grid-cols-4 gap-6">
+      <section className="bg-white border-b border-[#E6EBE8]">
+        <div className="max-w-6xl mx-auto px-6 lg:px-8 py-10 grid grid-cols-2 md:grid-cols-4 gap-y-8 md:divide-x md:divide-[#E6EBE8]">
           {[
-            { v: "50+", l: "Véhicules électriques" },
-            { v: "100", l: "Chauffeurs" },
-            { v: "2", l: "Villes (Abidjan, Yamoussoukro)" },
-            { v: "0", l: "Émission à l'usage" },
+            { v: "50+", l: "Véhicules électriques", icon: <Car size={20} /> },
+            { v: "100", l: "Chauffeurs dédiés", icon: <Users size={20} /> },
+            { v: "Abidjan", l: "Zone de service", icon: <MapPin size={20} /> },
+            { v: "0", l: "Émission à l'usage", icon: <Leaf size={20} /> },
           ].map((s) => (
-            <div key={s.l} className="text-center">
-              <div className="text-3xl font-extrabold" style={{ color: GREEN }}>{s.v}</div>
-              <div className="mt-1 text-xs sm:text-sm text-white/70">{s.l}</div>
+            <div key={s.l} className="flex flex-col items-center text-center md:px-4">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3" style={{ background: "rgba(0,200,83,0.12)", color: GREEN_DARK }}>{s.icon}</div>
+              <div className="text-2xl sm:text-3xl font-extrabold text-[#0B1F14] leading-none">{s.v}</div>
+              <div className="mt-2 text-xs sm:text-sm text-[#5B6B62]">{s.l}</div>
             </div>
           ))}
         </div>
