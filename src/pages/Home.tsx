@@ -13,6 +13,7 @@ import rideImg from "../assets/saver/fleet-13.jpg";
 import rentImg from "../assets/saver/fleet-11.jpg";
 import entreprisesImg from "../assets/saver/bento-entreprises.png";
 import hotelsImg from "../assets/saver/bento-hotels.png";
+import flotteImg from "../assets/saver/bento-flotte.png";
 
 // Charte
 const GREEN = "#00C853";
@@ -165,7 +166,7 @@ export const Home: React.FC<HomeProps> = ({ setCurrentPage, id }) => {
             <BentoImageTile label="Entreprises" desc="Transport corporate" img={entreprisesImg} onClick={() => go("corporate")} />
             <BentoImageTile label="Hôtels & partenaires" desc="Navettes, conciergerie" img={hotelsImg} onClick={() => go("partenaire")} />
             <BentoImageTile label="Location" desc="Longue durée" img={rentImg} onClick={() => go("vehicules")} />
-            <BentoTile label="Flotte 100% électrique" grad="linear-gradient(135deg,#84CC16,#16A34A)" icon={<Zap size={20} />} dark onClick={() => go("vehicules")} />
+            <BentoImageTile label="Flotte 100% électrique" img={flotteImg} onClick={() => go("vehicules")} />
 
             {/* Bande large — Recharge */}
             <button onClick={() => go("vehicules")} className="relative col-span-2 rounded-3xl overflow-hidden text-left p-5 flex flex-col justify-between" style={{ background: "#0A1F15" }}>
