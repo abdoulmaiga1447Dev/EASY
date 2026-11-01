@@ -64,9 +64,11 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage, id 
   return (
     <nav id={id} className="fixed top-3 inset-x-0 z-50 px-3">
       <div className={`mx-auto max-w-5xl flex items-center justify-between gap-2 rounded-full bg-white/95 backdrop-blur-md py-2 pl-3 pr-2 ring-1 ring-black/5 transition-shadow ${scrolled ? "shadow-[0_10px_30px_rgba(0,0,0,0.14)]" : "shadow-[0_6px_20px_rgba(0,0,0,0.08)]"}`}>
-        {/* Logo */}
-        <button onClick={() => go("home")} className="flex items-center shrink-0 pl-1 pr-2" aria-label="Accueil">
-          <img src={logoGreen} alt="EASY" className="h-7 w-auto object-contain" referrerPolicy="no-referrer" />
+        {/* Logo (badge noir arrondi, adapté au fond noir du logo) */}
+        <button onClick={() => go("home")} className="flex items-center shrink-0" aria-label="Accueil">
+          <span className="flex items-center justify-center rounded-2xl bg-black px-3 py-2">
+            <img src={logoGreen} alt="EASY" className="h-6 w-auto object-contain" referrerPolicy="no-referrer" />
+          </span>
         </button>
 
         {/* Liens (desktop) */}
