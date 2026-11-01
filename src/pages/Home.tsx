@@ -106,13 +106,13 @@ export const Home: React.FC<HomeProps> = ({ setCurrentPage, id }) => {
       <section style={{ background: INK }}>
         <div className="max-w-6xl mx-auto px-6 lg:px-8 py-10 grid grid-cols-2 md:grid-cols-4 gap-y-8 md:divide-x md:divide-white/10">
           {[
-            { v: "50+", l: "Véhicules électriques", icon: <Car size={20} /> },
-            { v: "100", l: "Chauffeurs dédiés", icon: <Users size={20} /> },
-            { v: "Abidjan", l: "Zone de service", icon: <MapPin size={20} /> },
-            { v: "0", l: "Émission à l'usage", icon: <Leaf size={20} /> },
+            { v: "50+", l: "Véhicules électriques", icon: <Car size={24} /> },
+            { v: "100", l: "Chauffeurs dédiés", icon: <Users size={24} /> },
+            { v: "Abidjan", l: "Zone de service", icon: <MapPin size={24} /> },
+            { v: "0", l: "Émission à l'usage", icon: <Leaf size={24} /> },
           ].map((s) => (
             <div key={s.l} className="flex flex-col items-center text-center md:px-4">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3" style={{ background: "rgba(0,200,83,0.15)", color: GREEN }}>{s.icon}</div>
+              <div className="mb-3" style={{ color: GREEN }}>{s.icon}</div>
               <div className="text-2xl sm:text-3xl font-extrabold text-white leading-none">{s.v}</div>
               <div className="mt-2 text-xs sm:text-sm text-white/65">{s.l}</div>
             </div>
