@@ -15,6 +15,7 @@ import entreprisesImg from "../assets/saver/bento-entreprises.png";
 import hotelsImg from "../assets/saver/bento-hotels.png";
 import flotteImg from "../assets/saver/bento-flotte.png";
 import rechargeImg from "../assets/saver/bento-recharge.png";
+import mascotImg from "../assets/saver/impact-mascot.png";
 
 // Charte
 const GREEN = "#00C853";
@@ -324,6 +325,8 @@ export const Home: React.FC<HomeProps> = ({ setCurrentPage, id }) => {
       {/* ====================== IMPACT (bande verte) ====================== */}
       <section className="relative overflow-hidden" style={{ background: INK }}>
         <ImpactDoodles />
+        {/* Mascotte : au-dessus du fond, sous le contenu (coin bas-gauche) */}
+        <img src={mascotImg} alt="" aria-hidden className="pointer-events-none select-none absolute bottom-0 left-0 sm:left-4 w-40 sm:w-52 lg:w-60 drop-shadow-[0_6px_14px_rgba(0,0,0,0.35)]" />
         <div className="relative z-10 max-w-6xl mx-auto px-6 lg:px-8 py-16 grid lg:grid-cols-2 gap-10 items-center">
           <motion.div {...fade}>
             <span className="inline-flex items-center gap-2 text-xs font-semibold tracking-wide" style={{ color: GREEN }}>
