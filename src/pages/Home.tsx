@@ -5,7 +5,7 @@
  */
 import React from "react";
 import { motion } from "motion/react";
-import { Zap, BatteryCharging, MapPin, Leaf, ArrowRight, ShieldCheck, Gauge, PhoneCall, Star, Car, Users } from "lucide-react";
+import { Zap, BatteryCharging, MapPin, Leaf, ArrowRight, ShieldCheck, Gauge, PhoneCall, Car, Users } from "lucide-react";
 import heroImg from "../assets/saver/hero.png";
 import hubImg from "../assets/saver/fleet-09.jpg";
 import closeupImg from "../assets/saver/fleet-12.jpg";
@@ -16,6 +16,8 @@ import hotelsImg from "../assets/saver/bento-hotels.png";
 import flotteImg from "../assets/saver/bento-flotte.png";
 import rechargeImg from "../assets/saver/bento-recharge.png";
 import mascotImg from "../assets/saver/impact-mascot.png";
+import evenementsImg from "../assets/saver/bento-evenements.jpg";
+import suiviImg from "../assets/saver/bento-suivi.jpg";
 
 // Charte
 const GREEN = "#00C853";
@@ -31,17 +33,6 @@ const fade = {
   viewport: { once: true, margin: "-80px" },
   transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] as const },
 };
-
-// Tuiles du bento « TOUT EASY »
-const BentoTile: React.FC<{ label: string; desc?: string; grad: string; icon: React.ReactNode; dark?: boolean; onClick?: () => void }> = ({ label, desc, grad, icon, dark, onClick }) => (
-  <button onClick={onClick} className="relative rounded-3xl overflow-hidden text-left p-4 flex flex-col justify-between transition-transform active:scale-[0.98] hover:brightness-[1.06]" style={{ background: grad }}>
-    <span className={`w-9 h-9 rounded-xl flex items-center justify-center text-white ${dark ? "bg-black/15" : "bg-white/20"}`}>{icon}</span>
-    <span>
-      <span className="block text-sm font-bold text-white leading-tight">{label}</span>
-      {desc && <span className="block text-xs text-white/80 mt-0.5">{desc}</span>}
-    </span>
-  </button>
-);
 
 // Tuile « cartes décalées » : carte de couleur derrière (décalée bas-droite) +
 // carte image au-dessus (décalée haut-gauche).
@@ -284,8 +275,8 @@ export const Home: React.FC<HomeProps> = ({ setCurrentPage, id }) => {
               </div>
             </button>
 
-            <BentoTile label="Événements & VIP" grad="linear-gradient(135deg,#F59E0B,#B45309)" icon={<Star size={20} />} onClick={() => go("contact")} />
-            <BentoTile label="Suivi temps réel" grad="linear-gradient(135deg,#2563EB,#1E3A8A)" icon={<Gauge size={20} />} onClick={() => go("connexion")} />
+            <BentoImageTile label="Événements & VIP" desc="Soirées, cérémonies" img={evenementsImg} color="#F59E0B" onClick={() => go("contact")} />
+            <BentoImageTile label="Suivi temps réel" desc="Flotte géolocalisée" img={suiviImg} color="#2563EB" onClick={() => go("connexion")} />
           </div>
         </div>
       </section>
