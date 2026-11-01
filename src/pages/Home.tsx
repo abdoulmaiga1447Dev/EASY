@@ -42,13 +42,17 @@ const BentoTile: React.FC<{ label: string; desc?: string; grad: string; icon: Re
   </button>
 );
 
-const BentoImageTile: React.FC<{ label: string; desc?: string; img: string; onClick?: () => void }> = ({ label, desc, img, onClick }) => (
-  <button onClick={onClick} className="relative rounded-3xl overflow-hidden text-left group">
-    <img src={img} alt={label} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-    <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(6,20,13,0.85), rgba(6,20,13,0.05) 65%)" }} />
-    <div className="absolute left-4 bottom-4">
+// Tuile image « décalée » : fond coloré + image poussée à gauche (bande de couleur à droite).
+const BentoImageTile: React.FC<{ label: string; desc?: string; img: string; color: string; onClick?: () => void }> = ({ label, desc, img, color, onClick }) => (
+  <button onClick={onClick} className="relative rounded-3xl overflow-hidden text-left group" style={{ backgroundColor: color }}>
+    <div className="absolute inset-y-0 left-0 w-[82%] overflow-hidden">
+      <img src={img} alt={label} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+      <div className="absolute inset-0" style={{ background: `linear-gradient(to right, transparent 55%, ${color} 100%)` }} />
+      <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(6,20,13,0.85), transparent 60%)" }} />
+    </div>
+    <div className="absolute left-4 bottom-4 z-10">
       <div className="text-sm font-bold text-white">{label}</div>
-      {desc && <div className="text-xs text-white/80">{desc}</div>}
+      {desc && <div className="text-xs text-white/85">{desc}</div>}
     </div>
   </button>
 );
@@ -155,29 +159,35 @@ export const Home: React.FC<HomeProps> = ({ setCurrentPage, id }) => {
           <motion.p {...fade} className="text-center mt-2 text-white/60">Une seule marque, tous vos besoins de mobilité.</motion.p>
 
           <div className="mt-10 grid grid-cols-2 lg:grid-cols-4 auto-rows-[150px] gap-3.5">
-            {/* Flagship — Courses VTC (photo) */}
-            <button onClick={() => go("vehicules")} className="relative col-span-2 row-span-2 rounded-3xl overflow-hidden group text-left">
-              <img src={rideImg} alt="Courses VTC" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-              <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(6,20,13,0.9) 0%, rgba(6,20,13,0.1) 60%)" }} />
-              <span className="absolute top-4 right-4 rounded-lg bg-white/15 backdrop-blur px-2.5 py-1 text-[11px] font-bold tracking-wide text-white">EASY</span>
-              <div className="absolute left-5 bottom-5">
+            {/* Flagship — Courses VTC (image décalée + bande verte) */}
+            <button onClick={() => go("vehicules")} className="relative col-span-2 row-span-2 rounded-3xl overflow-hidden group text-left" style={{ backgroundColor: "#00C853" }}>
+              <div className="absolute inset-y-0 left-0 w-[82%] overflow-hidden">
+                <img src={rideImg} alt="Courses VTC" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                <div className="absolute inset-0" style={{ background: "linear-gradient(to right, transparent 55%, #00C853 100%)" }} />
+                <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(6,20,13,0.9) 0%, transparent 60%)" }} />
+              </div>
+              <span className="absolute top-4 right-4 z-10 rounded-lg bg-black/25 backdrop-blur px-2.5 py-1 text-[11px] font-bold tracking-wide text-white">EASY</span>
+              <div className="absolute left-5 bottom-5 z-10">
                 <div className="text-2xl font-extrabold text-white">Courses VTC</div>
-                <div className="text-sm text-white/80 mt-1">Réservez un véhicule électrique avec chauffeur, à la demande.</div>
+                <div className="text-sm text-white/85 mt-1">Réservez un véhicule électrique avec chauffeur, à la demande.</div>
               </div>
             </button>
 
-            <BentoImageTile label="Entreprises" desc="Transport corporate" img={entreprisesImg} onClick={() => go("corporate")} />
-            <BentoImageTile label="Hôtels & partenaires" desc="Navettes, conciergerie" img={hotelsImg} onClick={() => go("partenaire")} />
-            <BentoImageTile label="Location" desc="Longue durée" img={rentImg} onClick={() => go("vehicules")} />
-            <BentoImageTile label="Flotte 100% électrique" img={flotteImg} onClick={() => go("vehicules")} />
+            <BentoImageTile label="Entreprises" desc="Transport corporate" img={entreprisesImg} color="#2563EB" onClick={() => go("corporate")} />
+            <BentoImageTile label="Hôtels & partenaires" desc="Navettes, conciergerie" img={hotelsImg} color="#FF7A1A" onClick={() => go("partenaire")} />
+            <BentoImageTile label="Location" desc="Longue durée" img={rentImg} color="#0EA5A5" onClick={() => go("vehicules")} />
+            <BentoImageTile label="Flotte 100% électrique" img={flotteImg} color="#16A34A" onClick={() => go("vehicules")} />
 
-            {/* Bande large — Recharge (image) */}
-            <button onClick={() => go("vehicules")} className="relative col-span-2 rounded-3xl overflow-hidden text-left group">
-              <img src={rechargeImg} alt="Recharge & énergie" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-              <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(6,20,13,0.9), rgba(6,20,13,0.05) 70%)" }} />
-              <div className="absolute left-5 bottom-4">
+            {/* Bande large — Recharge (image décalée + bande colorée) */}
+            <button onClick={() => go("vehicules")} className="relative col-span-2 rounded-3xl overflow-hidden text-left group" style={{ backgroundColor: "#047857" }}>
+              <div className="absolute inset-y-0 left-0 w-[82%] overflow-hidden">
+                <img src={rechargeImg} alt="Recharge & énergie" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                <div className="absolute inset-0" style={{ background: "linear-gradient(to right, transparent 55%, #047857 100%)" }} />
+                <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(6,20,13,0.9), transparent 70%)" }} />
+              </div>
+              <div className="absolute left-5 bottom-4 z-10">
                 <div className="text-lg font-bold text-white">Recharge & énergie</div>
-                <div className="text-sm text-white/80">Un réseau de bornes pour une flotte toujours prête.</div>
+                <div className="text-sm text-white/85">Un réseau de bornes pour une flotte toujours prête.</div>
               </div>
             </button>
 
