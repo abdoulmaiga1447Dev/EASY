@@ -209,7 +209,7 @@ export const Home: React.FC<HomeProps> = ({ setCurrentPage, id }) => {
                 { icon: <Leaf size={18} />, t: "Empreinte carbone réduite à chaque trajet" },
               ].map((x) => (
                 <li key={x.t} className="flex items-center gap-3 text-[#0B1F14]">
-                  <span className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: "rgba(0,200,83,0.12)", color: GREEN_DARK }}>{x.icon}</span>
+                  <span className="shrink-0" style={{ color: GREEN_DARK }}>{x.icon}</span>
                   <span className="text-sm">{x.t}</span>
                 </li>
               ))}
