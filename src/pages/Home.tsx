@@ -14,6 +14,7 @@ import rentImg from "../assets/saver/fleet-11.jpg";
 import entreprisesImg from "../assets/saver/bento-entreprises.png";
 import hotelsImg from "../assets/saver/bento-hotels.png";
 import flotteImg from "../assets/saver/bento-flotte.png";
+import rechargeImg from "../assets/saver/bento-recharge.png";
 
 // Charte
 const GREEN = "#00C853";
@@ -168,13 +169,13 @@ export const Home: React.FC<HomeProps> = ({ setCurrentPage, id }) => {
             <BentoImageTile label="Location" desc="Longue durée" img={rentImg} onClick={() => go("vehicules")} />
             <BentoImageTile label="Flotte 100% électrique" img={flotteImg} onClick={() => go("vehicules")} />
 
-            {/* Bande large — Recharge */}
-            <button onClick={() => go("vehicules")} className="relative col-span-2 rounded-3xl overflow-hidden text-left p-5 flex flex-col justify-between" style={{ background: "#0A1F15" }}>
-              <div className="absolute -right-6 -top-8 w-40 h-40 rounded-full" style={{ background: "radial-gradient(circle, rgba(0,200,83,0.5), transparent 70%)" }} />
-              <BatteryCharging size={22} className="text-[#00C853] relative" />
-              <div className="relative">
+            {/* Bande large — Recharge (image) */}
+            <button onClick={() => go("vehicules")} className="relative col-span-2 rounded-3xl overflow-hidden text-left group">
+              <img src={rechargeImg} alt="Recharge & énergie" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+              <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(6,20,13,0.9), rgba(6,20,13,0.05) 70%)" }} />
+              <div className="absolute left-5 bottom-4">
                 <div className="text-lg font-bold text-white">Recharge & énergie</div>
-                <div className="text-sm text-white/65">Un réseau de bornes pour une flotte toujours prête.</div>
+                <div className="text-sm text-white/80">Un réseau de bornes pour une flotte toujours prête.</div>
               </div>
             </button>
 
