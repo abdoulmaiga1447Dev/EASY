@@ -5,10 +5,12 @@
  */
 import React from "react";
 import { motion } from "motion/react";
-import { Zap, BatteryCharging, MapPin, Leaf, ArrowRight, ShieldCheck, Gauge, PhoneCall } from "lucide-react";
+import { Zap, BatteryCharging, MapPin, Leaf, ArrowRight, ShieldCheck, Gauge, PhoneCall, Building2, Hotel, Star } from "lucide-react";
 import heroImg from "../assets/saver/fleet-01.jpg";
 import hubImg from "../assets/saver/fleet-09.jpg";
 import closeupImg from "../assets/saver/fleet-12.jpg";
+import rideImg from "../assets/saver/fleet-13.jpg";
+import rentImg from "../assets/saver/fleet-11.jpg";
 
 // Charte
 const GREEN = "#00C853";
@@ -23,6 +25,28 @@ const fade = {
   viewport: { once: true, margin: "-80px" },
   transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] as const },
 };
+
+// Tuiles du bento « TOUT EASY »
+const BentoTile: React.FC<{ label: string; desc?: string; grad: string; icon: React.ReactNode; dark?: boolean; onClick?: () => void }> = ({ label, desc, grad, icon, dark, onClick }) => (
+  <button onClick={onClick} className="relative rounded-3xl overflow-hidden text-left p-4 flex flex-col justify-between transition-transform active:scale-[0.98] hover:brightness-[1.06]" style={{ background: grad }}>
+    <span className={`w-9 h-9 rounded-xl flex items-center justify-center text-white ${dark ? "bg-black/15" : "bg-white/20"}`}>{icon}</span>
+    <span>
+      <span className="block text-sm font-bold text-white leading-tight">{label}</span>
+      {desc && <span className="block text-xs text-white/80 mt-0.5">{desc}</span>}
+    </span>
+  </button>
+);
+
+const BentoImageTile: React.FC<{ label: string; desc?: string; img: string; onClick?: () => void }> = ({ label, desc, img, onClick }) => (
+  <button onClick={onClick} className="relative rounded-3xl overflow-hidden text-left group">
+    <img src={img} alt={label} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+    <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(6,20,13,0.85), rgba(6,20,13,0.05) 65%)" }} />
+    <div className="absolute left-4 bottom-4">
+      <div className="text-sm font-bold text-white">{label}</div>
+      {desc && <div className="text-xs text-white/80">{desc}</div>}
+    </div>
+  </button>
+);
 
 export const Home: React.FC<HomeProps> = ({ setCurrentPage, id }) => {
   const go = (p: string) => setCurrentPage(p);
@@ -112,6 +136,47 @@ export const Home: React.FC<HomeProps> = ({ setCurrentPage, id }) => {
                 <p className="mt-2 text-sm text-[#5B6B62] leading-relaxed">{f.d}</p>
               </motion.div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ====================== BENTO « TOUT EASY » ====================== */}
+      <section style={{ background: INK }}>
+        <div className="max-w-6xl mx-auto px-6 lg:px-8 py-20">
+          <motion.h2 {...fade} className="text-center text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
+            TOUT <span className="text-white/35">EASY</span>
+          </motion.h2>
+          <motion.p {...fade} className="text-center mt-2 text-white/60">Une seule marque, tous vos besoins de mobilité.</motion.p>
+
+          <div className="mt-10 grid grid-cols-2 lg:grid-cols-4 auto-rows-[150px] gap-3.5">
+            {/* Flagship — Courses VTC (photo) */}
+            <button onClick={() => go("vehicules")} className="relative col-span-2 row-span-2 rounded-3xl overflow-hidden group text-left">
+              <img src={rideImg} alt="Courses VTC" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+              <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(6,20,13,0.9) 0%, rgba(6,20,13,0.1) 60%)" }} />
+              <span className="absolute top-4 right-4 rounded-lg bg-white/15 backdrop-blur px-2.5 py-1 text-[11px] font-bold tracking-wide text-white">EASY</span>
+              <div className="absolute left-5 bottom-5">
+                <div className="text-2xl font-extrabold text-white">Courses VTC</div>
+                <div className="text-sm text-white/80 mt-1">Réservez un véhicule électrique avec chauffeur, à la demande.</div>
+              </div>
+            </button>
+
+            <BentoTile label="Entreprises" desc="Transport corporate" grad="linear-gradient(135deg,#00C853,#009E3F)" icon={<Building2 size={20} />} dark onClick={() => go("corporate")} />
+            <BentoTile label="Hôtels & partenaires" desc="Navettes, conciergerie" grad="linear-gradient(135deg,#0EA5A5,#0D7A6E)" icon={<Hotel size={20} />} onClick={() => go("partenaire")} />
+            <BentoImageTile label="Location" desc="Longue durée" img={rentImg} onClick={() => go("vehicules")} />
+            <BentoTile label="Flotte 100% électrique" grad="linear-gradient(135deg,#84CC16,#16A34A)" icon={<Zap size={20} />} dark onClick={() => go("vehicules")} />
+
+            {/* Bande large — Recharge */}
+            <button onClick={() => go("vehicules")} className="relative col-span-2 rounded-3xl overflow-hidden text-left p-5 flex flex-col justify-between" style={{ background: "#0A1F15" }}>
+              <div className="absolute -right-6 -top-8 w-40 h-40 rounded-full" style={{ background: "radial-gradient(circle, rgba(0,200,83,0.5), transparent 70%)" }} />
+              <BatteryCharging size={22} className="text-[#00C853] relative" />
+              <div className="relative">
+                <div className="text-lg font-bold text-white">Recharge & énergie</div>
+                <div className="text-sm text-white/65">Un réseau de bornes pour une flotte toujours prête.</div>
+              </div>
+            </button>
+
+            <BentoTile label="Événements & VIP" grad="linear-gradient(135deg,#F59E0B,#B45309)" icon={<Star size={20} />} onClick={() => go("contact")} />
+            <BentoTile label="Suivi temps réel" grad="linear-gradient(135deg,#2563EB,#1E3A8A)" icon={<Gauge size={20} />} onClick={() => go("connexion")} />
           </div>
         </div>
       </section>
