@@ -5,13 +5,14 @@
  */
 import React from "react";
 import { motion } from "motion/react";
-import { Zap, BatteryCharging, MapPin, Leaf, ArrowRight, ShieldCheck, Gauge, PhoneCall, Hotel, Star } from "lucide-react";
+import { Zap, BatteryCharging, MapPin, Leaf, ArrowRight, ShieldCheck, Gauge, PhoneCall, Star } from "lucide-react";
 import heroImg from "../assets/saver/hero.png";
 import hubImg from "../assets/saver/fleet-09.jpg";
 import closeupImg from "../assets/saver/fleet-12.jpg";
 import rideImg from "../assets/saver/fleet-13.jpg";
 import rentImg from "../assets/saver/fleet-11.jpg";
 import entreprisesImg from "../assets/saver/bento-entreprises.png";
+import hotelsImg from "../assets/saver/bento-hotels.png";
 
 // Charte
 const GREEN = "#00C853";
@@ -162,7 +163,7 @@ export const Home: React.FC<HomeProps> = ({ setCurrentPage, id }) => {
             </button>
 
             <BentoImageTile label="Entreprises" desc="Transport corporate" img={entreprisesImg} onClick={() => go("corporate")} />
-            <BentoTile label="Hôtels & partenaires" desc="Navettes, conciergerie" grad="linear-gradient(135deg,#0EA5A5,#0D7A6E)" icon={<Hotel size={20} />} onClick={() => go("partenaire")} />
+            <BentoImageTile label="Hôtels & partenaires" desc="Navettes, conciergerie" img={hotelsImg} onClick={() => go("partenaire")} />
             <BentoImageTile label="Location" desc="Longue durée" img={rentImg} onClick={() => go("vehicules")} />
             <BentoTile label="Flotte 100% électrique" grad="linear-gradient(135deg,#84CC16,#16A34A)" icon={<Zap size={20} />} dark onClick={() => go("vehicules")} />
 
