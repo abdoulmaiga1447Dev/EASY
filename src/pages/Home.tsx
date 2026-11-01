@@ -5,7 +5,7 @@
  */
 import React from "react";
 import { motion } from "motion/react";
-import { Zap, BatteryCharging, MapPin, Leaf, ArrowRight, ShieldCheck, Gauge, PhoneCall, Car, Users } from "lucide-react";
+import { Zap, BatteryCharging, MapPin, Leaf, ArrowRight, ShieldCheck, Gauge, PhoneCall } from "lucide-react";
 import heroImg from "../assets/saver/hero.png";
 import hubImg from "../assets/saver/fleet-09.jpg";
 import closeupImg from "../assets/saver/fleet-12.jpg";
@@ -189,21 +189,47 @@ export const Home: React.FC<HomeProps> = ({ setCurrentPage, id }) => {
         </div>
       </section>
 
-      {/* ====================== STATS ====================== */}
-      <section style={{ background: INK }}>
-        <div className="max-w-6xl mx-auto px-6 lg:px-8 py-10 grid grid-cols-2 md:grid-cols-4 gap-y-8 md:divide-x md:divide-white/10">
-          {[
-            { v: "50+", l: "Véhicules électriques", icon: <Car size={24} />, c: GREEN },
-            { v: "100", l: "Chauffeurs dédiés", icon: <Users size={24} />, c: ORANGE },
-            { v: "Abidjan", l: "Zone de service", icon: <MapPin size={24} />, c: GREEN },
-            { v: "0", l: "Émission à l'usage", icon: <Leaf size={24} />, c: ORANGE },
-          ].map((s) => (
-            <div key={s.l} className="flex flex-col items-center text-center md:px-4">
-              <div className="mb-3" style={{ color: s.c }}>{s.icon}</div>
-              <div className="text-2xl sm:text-3xl font-extrabold leading-none" style={{ color: s.c }}>{s.v}</div>
-              <div className="mt-2 text-xs sm:text-sm text-white/65">{s.l}</div>
-            </div>
-          ))}
+      {/* ====================== BANDE DÉFILANTE (ticker) ====================== */}
+      <section className="easy-ticker relative overflow-hidden border-y border-white/5" style={{ background: INK }}>
+        <style>{`
+          @keyframes easy-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+          .easy-ticker:hover .easy-track { animation-play-state: paused; }
+          @media (prefers-reduced-motion: reduce) { .easy-track { animation: none !important; } }
+        `}</style>
+        {/* masques de bord (fondu gauche/droite) */}
+        <div className="pointer-events-none absolute inset-y-0 left-0 w-16 sm:w-28 z-10" style={{ background: "linear-gradient(to right, #0B1F14, transparent)" }} />
+        <div className="pointer-events-none absolute inset-y-0 right-0 w-16 sm:w-28 z-10" style={{ background: "linear-gradient(to left, #0B1F14, transparent)" }} />
+        <div className="py-5">
+          <div className="easy-track flex w-max items-center gap-8" style={{ animation: "easy-marquee 36s linear infinite" }}>
+            {[
+              ...[
+                { n: "50+", t: "véhicules électriques" },
+                { n: "100", t: "chauffeurs dédiés" },
+                { n: "Abidjan", t: "zone de service" },
+                { n: "0", t: "émission à l'usage" },
+                { n: "100 %", t: "électrique" },
+                { n: "Recharge", t: "maîtrisée" },
+                { n: "Suivi", t: "en temps réel" },
+              ],
+              ...[
+                { n: "50+", t: "véhicules électriques" },
+                { n: "100", t: "chauffeurs dédiés" },
+                { n: "Abidjan", t: "zone de service" },
+                { n: "0", t: "émission à l'usage" },
+                { n: "100 %", t: "électrique" },
+                { n: "Recharge", t: "maîtrisée" },
+                { n: "Suivi", t: "en temps réel" },
+              ],
+            ].map((s, i) => (
+              <React.Fragment key={i}>
+                <span className="whitespace-nowrap text-sm sm:text-base">
+                  <span className="font-extrabold text-white">{s.n}</span>{" "}
+                  <span className="text-white/55">{s.t}</span>
+                </span>
+                <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: GREEN }} />
+              </React.Fragment>
+            ))}
+          </div>
         </div>
       </section>
 
