@@ -104,6 +104,49 @@ const BentoBackdrop: React.FC<{ k?: number; id?: string }> = ({ k = 1, id = "eb"
   </svg>
 );
 
+// Doodles décoratifs (style dessiné main) pour la bande « Notre impact » :
+// couche posée AU-DESSUS du fond et SOUS le contenu (texte + photo).
+// Trait vert menthe pour rester lisible sur le vert foncé.
+const ImpactDoodles: React.FC = () => (
+  <svg aria-hidden className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 1200 400" preserveAspectRatio="xMidYMid slice"
+       fill="none" stroke="#3DDC97" strokeLinecap="round" strokeLinejoin="round">
+    {/* Feuille (haut gauche) */}
+    <g transform="translate(70 60) rotate(-12)" opacity="0.55">
+      <path d="M0 0 C22 -34 64 -34 86 -12 C64 20 22 20 0 0 Z" fill="#00C853" fillOpacity="0.14" strokeWidth="2.5" />
+      <path d="M10 2 C32 -10 58 -14 76 -12" strokeWidth="2" />
+    </g>
+
+    {/* Petite voiture électrique + lignes de mouvement (gauche) */}
+    <g transform="translate(70 210)" opacity="0.5" strokeWidth="2.5">
+      <path d="M-18 26 h18 M-24 34 h22 M-18 42 h18" strokeWidth="2" />
+      <path d="M8 42 L124 42" />
+      <path d="M14 42 C14 24 24 21 40 20 C50 10 78 10 90 20 C108 21 120 26 124 42" />
+      <circle cx="40" cy="44" r="9" />
+      <circle cx="104" cy="44" r="9" />
+    </g>
+
+    {/* Pousse / plante (bas gauche) */}
+    <g transform="translate(150 320)" opacity="0.5" strokeWidth="2.5">
+      <path d="M0 40 C0 22 0 10 0 -2" />
+      <path d="M0 10 C-20 4 -24 -10 -8 -14 C-4 0 -1 6 0 12 Z" fill="#00C853" fillOpacity="0.12" />
+      <path d="M0 2 C20 -4 24 -18 8 -22 C4 -8 1 -2 0 4 Z" fill="#00C853" fillOpacity="0.12" />
+    </g>
+
+    {/* Étincelles / marques d'impact */}
+    <g fill="#3DDC97" stroke="none">
+      <path d="M360 70 C361.5 79 364 81.5 373 83 C364 84.5 361.5 87 360 96 C358.5 87 356 84.5 347 83 C356 81.5 358.5 79 360 70 Z" opacity="0.5" />
+      <path d="M250 300 C251 306 253 308 259 309 C253 310 251 312 250 318 C249 312 247 310 241 309 C247 308 249 306 250 300 Z" opacity="0.45" />
+      <path d="M520 110 C520.8 115 522 116.2 527 117 C522 117.8 520.8 119 520 124 C519.2 119 518 117.8 513 117 C518 116.2 519.2 115 520 110 Z" opacity="0.45" />
+    </g>
+
+    {/* Nuage barré (zéro émission) haut-centre */}
+    <g transform="translate(440 70)" opacity="0.4" strokeWidth="2.5">
+      <path d="M0 24 C-8 24 -12 16 -4 12 C-4 2 10 2 12 10 C22 6 30 14 24 22 C24 24 20 24 18 24 Z" />
+      <path d="M-10 32 L30 -2" strokeWidth="2.5" />
+    </g>
+  </svg>
+);
+
 export const Home: React.FC<HomeProps> = ({ setCurrentPage, id }) => {
   const go = (p: string) => setCurrentPage(p);
 
@@ -279,8 +322,9 @@ export const Home: React.FC<HomeProps> = ({ setCurrentPage, id }) => {
       </section>
 
       {/* ====================== IMPACT (bande verte) ====================== */}
-      <section style={{ background: INK }}>
-        <div className="max-w-6xl mx-auto px-6 lg:px-8 py-16 grid lg:grid-cols-2 gap-10 items-center">
+      <section className="relative overflow-hidden" style={{ background: INK }}>
+        <ImpactDoodles />
+        <div className="relative z-10 max-w-6xl mx-auto px-6 lg:px-8 py-16 grid lg:grid-cols-2 gap-10 items-center">
           <motion.div {...fade}>
             <span className="inline-flex items-center gap-2 text-xs font-semibold tracking-wide" style={{ color: GREEN }}>
               <Leaf size={14} /> NOTRE IMPACT
