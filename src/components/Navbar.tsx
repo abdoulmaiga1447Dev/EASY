@@ -1,13 +1,14 @@
-import React, { useState } from "react";
+/**
+ * Navbar — refonte UI 2026 : barre « pilule » flottante (style Uber/Yango),
+ * charte vert/blanc. Logo à gauche, liens au centre, CTA vert à droite.
+ */
+import React, { useState, useEffect } from "react";
 import { useLanguage } from "../context/LanguageContext";
 import { useAuth } from "../context/AuthContext";
-import { useSegment } from "../context/SegmentContext";
-import { Button } from "./Button";
-import { Menu, X, Globe, User, LogOut, Shield } from "lucide-react";
+import { Menu, X, Globe, LogOut } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 const logoGreen = "/images/easy-logo-green.png";
-const logoGold = "/images/easy-logo-gold.png";
 
 interface NavbarProps {
   currentPage: string;
@@ -15,247 +16,129 @@ interface NavbarProps {
   id: string;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({
-  currentPage,
-  setCurrentPage,
-  id
-}) => {
+const GREEN = "#00C853";
+
+export const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage, id }) => {
   const { language, toggleLanguage, t, translate } = useLanguage();
   const { isAuthenticated, user, logout } = useAuth();
-  const { segment, setSegment } = useSegment();
   const [isOpen, setIsOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 10);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   const isProfessional = isAuthenticated && (user?.role === "corporate" || user?.role === "partenaire" || user?.role === "chauffeur" || user?.role === "admin");
 
   const menuItems = isProfessional
     ? [
-        ...(user?.role === "chauffeur" ? [{ id: "chauffeur", label: translate({ fr: "Espace Chauffeur ✦", en: "Chauffeur Space ✦" }) }] : []),
-        ...(user?.role === "partenaire" ? [{ id: "partenaire", label: translate({ fr: "Espace Partenaire ✦", en: "Partner Space ✦" }) }] : []),
-        ...(user?.role === "corporate" ? [{ id: "corporate", label: translate({ fr: "Espace Corporate ✦", en: "Corporate Space ✦" }) }] : []),
-        ...(user?.role === "admin" ? [{ id: "admin", label: translate({ fr: "Administration EASY ✦", en: "EASY Admin ✦" }) }] : [])
+        ...(user?.role === "chauffeur" ? [{ id: "chauffeur", label: translate({ fr: "Espace Chauffeur", en: "Chauffeur" }) }] : []),
+        ...(user?.role === "partenaire" ? [{ id: "partenaire", label: translate({ fr: "Espace Partenaire", en: "Partner" }) }] : []),
+        ...(user?.role === "corporate" ? [{ id: "corporate", label: translate({ fr: "Espace Corporate", en: "Corporate" }) }] : []),
+        ...(user?.role === "admin" ? [{ id: "admin", label: translate({ fr: "Administration", en: "Admin" }) }] : []),
       ]
     : [
         { id: "home", label: t("navHome") },
         { id: "vehicules", label: t("navVehicles") },
-        { id: "nos-chauffeurs", label: translate({ fr: "Nos Chauffeurs", en: "Our Chauffeurs" }) },
+        { id: "nos-chauffeurs", label: translate({ fr: "Chauffeurs", en: "Chauffeurs" }) },
         { id: "tarifs", label: t("navRates") },
-        { id: "devis", label: translate({ fr: "Devis Prestige", en: "Prestige Quote" }) },
-        ...(isAuthenticated ? [{ id: "commandes", label: translate({ fr: "Mes Commandes", en: "My Orders" }) }] : []),
-        { id: "contact", label: t("navContact") }
+        { id: "contact", label: t("navContact") },
       ];
 
-  const activeIndex = menuItems.findIndex(item => item.id === currentPage);
-
-  const handleNavigate = (pageId: string) => {
+  const go = (pageId: string) => {
     setCurrentPage(pageId);
     setIsOpen(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const ctaLabel = isProfessional
+    ? translate({ fr: "Mon espace", en: "My space" })
+    : isAuthenticated
+    ? translate({ fr: "Réserver", en: "Book" })
+    : t("navLogin");
+  const ctaTarget = isProfessional ? (user?.role || "home") : isAuthenticated ? "reservation" : "connexion";
+
   return (
-    <nav id={id} className="fixed top-0 left-0 right-0 z-50 bg-dark/95 backdrop-blur-md border-b border-gold/10 px-4 py-3 md:px-8">
-      <div className="max-w-7xl mx-auto flex items-center justify-between">
-        {/* Logo Branding */}
-        <div
-          id="nav_brand"
-          onClick={() => handleNavigate("home")}
-          className="flex items-center gap-3 cursor-pointer"
-        >
-          <img
-            src={segment === "public" ? logoGreen : logoGold}
-            alt="EASY Logo"
-            className="h-11 md:h-14 w-auto object-contain"
-            referrerPolicy="no-referrer"
-          />
+    <nav id={id} className="fixed top-3 inset-x-0 z-50 px-3">
+      <div className={`mx-auto max-w-5xl flex items-center justify-between gap-2 rounded-full bg-white/95 backdrop-blur-md py-2 pl-3 pr-2 ring-1 ring-black/5 transition-shadow ${scrolled ? "shadow-[0_10px_30px_rgba(0,0,0,0.14)]" : "shadow-[0_6px_20px_rgba(0,0,0,0.08)]"}`}>
+        {/* Logo */}
+        <button onClick={() => go("home")} className="flex items-center shrink-0 pl-1 pr-2" aria-label="Accueil">
+          <img src={logoGreen} alt="EASY" className="h-7 w-auto object-contain" referrerPolicy="no-referrer" />
+        </button>
+
+        {/* Liens (desktop) */}
+        <div className="hidden lg:flex items-center gap-1">
+          {menuItems.map((item) => {
+            const active = currentPage === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => go(item.id)}
+                className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${active ? "text-[#0B1F14] bg-[#00C853]/12" : "text-[#5B6B62] hover:text-[#0B1F14] hover:bg-black/[0.04]"}`}
+              >
+                {item.label}
+              </button>
+            );
+          })}
         </div>
 
-        {/* Desktop Links */}
-        <div id="desktop_menu" className="hidden lg:flex items-center">
-          <div className="liquid-group flex items-center relative overflow-hidden">
-            {activeIndex !== -1 && (
-              <div 
-                className="liquid-slider"
-                style={{
-                  position: "absolute",
-                  inset: "var(--gap)",
-                  width: `calc((100% - ${(menuItems.length - 1) * 6}px) / ${menuItems.length})`,
-                  transform: `translateX(calc(${activeIndex * 100}% + ${activeIndex * 6}px))`,
-                  transition: "transform var(--speed) var(--ease)",
-                }}
-              />
-            )}
-            {menuItems.map((item) => {
-              const isActive = currentPage === item.id;
-              return (
-                <button
-                  key={item.id}
-                  id={`nav_link_${item.id}`}
-                  onClick={() => handleNavigate(item.id)}
-                  className={`relative z-10 py-2 px-5 font-sans text-xs tracking-wider font-bold uppercase cursor-pointer transition-colors duration-300 ${
-                    isActive
-                      ? "text-white"
-                      : "text-[#8e8e93] hover:text-white"
-                  }`}
-                  style={{
-                    whiteSpace: "nowrap",
-                    background: "none",
-                    border: "none"
-                  }}
-                >
-                  {item.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Action Controls & Info */}
-        <div id="nav_actions" className="hidden lg:flex items-center gap-4">
-          {/* Language Switch */}
-          <button
-            id="lang_switch_desktop"
-            onClick={toggleLanguage}
-            className="flex items-center gap-1.5 text-xs font-mono font-medium text-muted-premium hover:text-gold uppercase px-2 py-1 rounded border border-white-premium/5 hover:border-gold/20 cursor-pointer"
-            title="Toggle Language"
-          >
-            <Globe size={13} className="text-gold" />
-            {language === "fr" ? "EN" : "FR"}
+        {/* Actions */}
+        <div className="flex items-center gap-1.5">
+          <button onClick={toggleLanguage} className="hidden sm:flex items-center gap-1 text-xs font-semibold text-[#5B6B62] hover:text-[#0B1F14] px-2 py-1.5 rounded-full" title="Langue">
+            <Globe size={14} /> {language === "fr" ? "EN" : "FR"}
           </button>
 
-          {/* Auth State */}
-          {isAuthenticated && user ? (
-            <div className="flex items-center gap-3 bg-surface p-1 px-3 rounded-md border border-white-premium/5">
-              <div className="flex flex-col items-end">
-                <span className="text-xs font-medium text-white-premium">{user.name}</span>
-                <span className="text-[9px] uppercase tracking-wider text-gold-light flex items-center gap-0.5">
-                  <Shield size={8} /> {user.role}
-                </span>
-              </div>
-              <button
-                id="logout_btn_desktop"
-                onClick={logout}
-                className="text-muted-premium hover:text-red-400 p-1 cursor-pointer"
-                title={t("navLogout")}
-              >
-                <LogOut size={16} />
-              </button>
-            </div>
-          ) : (
-            <button
-              id="login_btn_desktop"
-              onClick={() => handleNavigate("connexion")}
-              className="text-sm font-medium text-white-premium hover:text-gold flex items-center gap-1.5 px-3 py-1.5 rounded cursor-pointer"
-            >
-              <User size={15} className="text-gold" />
-              {t("navLogin")}
+          {isAuthenticated && user && (
+            <button onClick={logout} className="hidden sm:flex items-center text-[#5B6B62] hover:text-[#EF4444] p-2 rounded-full" title={t("navLogout")}>
+              <LogOut size={16} />
             </button>
           )}
 
-          {/* Direct CTA */}
-          {!isProfessional && (
-            <Button
-              id="nav_book_cta"
-              variant="primary"
-              onClick={() => handleNavigate(isAuthenticated ? "reservation" : "connexion")}
-            >
-              {t("navReserve")}
-            </Button>
-          )}
-        </div>
-
-        {/* Mobile menu controllers */}
-        <div className="flex lg:hidden items-center gap-3">
-          {/* Quick Lang Switch */}
           <button
-            id="lang_switch_mobile"
-            onClick={toggleLanguage}
-            className="flex items-center gap-1 text-xs font-mono text-muted-premium hover:text-gold border border-white-premium/10 rounded px-2 py-1 cursor-pointer"
+            onClick={() => go(ctaTarget)}
+            className="rounded-full px-5 py-2.5 text-sm font-semibold text-[#06140D] shadow-sm transition-transform active:scale-[0.98] whitespace-nowrap"
+            style={{ background: GREEN }}
           >
-            <Globe size={12} className="text-gold" />
-            {language === "fr" ? "EN" : "FR"}
+            {ctaLabel}
           </button>
 
-          <button
-            id="mobile_hamburger"
-            onClick={() => {
-              setIsOpen(!isOpen);
-              console.log("Mobile navigation bar state toggled: " + !isOpen);
-            }}
-            className="text-white-premium p-1 hover:text-gold transition-colors cursor-pointer"
-          >
-            {isOpen ? <X size={24} /> : <Menu size={24} />}
+          <button onClick={() => setIsOpen(!isOpen)} className="lg:hidden text-[#0B1F14] p-2 rounded-full hover:bg-black/[0.05]" aria-label="Menu">
+            {isOpen ? <X size={22} /> : <Menu size={22} />}
           </button>
         </div>
       </div>
 
-      {/* Drawer Menu overlay for mobile */}
+      {/* Menu mobile */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            id="mobile_drawer"
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3, ease: "easeInOut" }}
-            className="lg:hidden bg-surface mt-3 rounded-lg border border-gold/10 overflow-hidden"
+            initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2 }}
+            className="lg:hidden mx-auto max-w-5xl mt-2 rounded-3xl bg-white shadow-xl ring-1 ring-black/5 overflow-hidden"
           >
-            <div className="flex flex-col p-4 gap-3 bg-surface text-left">
+            <div className="flex flex-col p-3">
               {menuItems.map((item) => (
                 <button
                   key={item.id}
-                  id={`nav_mobile_link_${item.id}`}
-                  onClick={() => handleNavigate(item.id)}
-                  className={`py-2 px-2.5 rounded-lg text-left font-sans text-sm font-medium transition-all ${
-                    currentPage === item.id ? "text-gold bg-gold/5 font-bold" : "text-muted-premium hover:text-white"
-                  }`}
+                  onClick={() => go(item.id)}
+                  className={`text-left px-4 py-3 rounded-2xl text-sm font-semibold ${currentPage === item.id ? "text-[#0B1F14] bg-[#00C853]/12" : "text-[#5B6B62] hover:bg-black/[0.04]"}`}
                 >
                   {item.label}
                 </button>
               ))}
-
-              <hr className="border-gold/10 my-1" />
-
-              {/* No manual segment selector as it is now fully automatic according to route */}
-
-              <div className="flex items-center justify-between py-2">
-                {isAuthenticated && user ? (
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-white-premium">
-                      {user.name} ({user.role})
-                    </span>
-                    <button
-                      id="logout_btn_mobile"
-                      onClick={() => {
-                        logout();
-                        setIsOpen(false);
-                      }}
-                      className="text-xs text-red-400 hover:underline flex items-center gap-1 cursor-pointer"
-                    >
-                      <LogOut size={14} /> {t("navLogout")}
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    id="login_btn_mobile"
-                    onClick={() => handleNavigate("connexion")}
-                    className="text-sm font-medium text-white-premium hover:text-gold flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <User size={14} className="text-gold" />
-                    {t("navLogin")}
+              <div className="flex items-center justify-between px-2 pt-2 mt-1 border-t border-black/5">
+                <button onClick={toggleLanguage} className="flex items-center gap-1 text-xs font-semibold text-[#5B6B62] py-2">
+                  <Globe size={14} /> {language === "fr" ? "English" : "Français"}
+                </button>
+                {isAuthenticated && user && (
+                  <button onClick={() => { logout(); setIsOpen(false); }} className="flex items-center gap-1 text-xs font-semibold text-[#EF4444] py-2">
+                    <LogOut size={14} /> {t("navLogout")}
                   </button>
                 )}
               </div>
-
-              {!isProfessional && (
-                <Button
-                  id="nav_book_mobile_cta"
-                  variant="primary"
-                  onClick={() => handleNavigate(isAuthenticated ? "reservation" : "connexion")}
-                  className="w-full mt-2"
-                >
-                  {t("navReserve")}
-                </Button>
-              )}
             </div>
           </motion.div>
         )}
