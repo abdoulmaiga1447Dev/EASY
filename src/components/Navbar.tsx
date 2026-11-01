@@ -79,7 +79,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage, id 
               <button
                 key={item.id}
                 onClick={() => go(item.id)}
-                className={`px-4 py-2 rounded-full text-sm font-semibold cursor-pointer transition-colors ${active ? "text-[#00A846] bg-[#00C853]/14" : "text-[#0B1F14] hover:text-white hover:bg-[#0B1F14]"}`}
+                className={`px-4 py-2 rounded-full text-sm font-semibold cursor-pointer transition-colors ${active ? "text-[#06140D] bg-[#00C853] shadow-sm" : "text-[#0B1F14] hover:text-white hover:bg-[#0B1F14]"}`}
               >
                 {item.label}
               </button>
@@ -126,7 +126,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage, setCurrentPage, id 
                 <button
                   key={item.id}
                   onClick={() => go(item.id)}
-                  className={`text-left px-4 py-3 rounded-2xl text-sm font-semibold ${currentPage === item.id ? "text-[#00A846] bg-[#00C853]/14" : "text-[#0B1F14] hover:text-[#00A846] hover:bg-black/[0.06]"}`}
+                  className={`text-left px-4 py-3 rounded-2xl text-sm font-semibold ${currentPage === item.id ? "text-[#06140D] bg-[#00C853]" : "text-[#0B1F14] hover:text-white hover:bg-[#0B1F14]"}`}
                 >
                   {item.label}
                 </button>
