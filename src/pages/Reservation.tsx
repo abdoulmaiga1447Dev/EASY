@@ -1309,28 +1309,28 @@ export const Reservation: React.FC<ReservationProps> = ({ setCurrentPage, id }) 
             <div className="space-y-2.5">
               {/* WhatsApp Button */}
               <a 
-                href="https://wa.me/2250170083681?text=Bonjour,%20j'ai%20besoin%20d'aide%20pour%20ma%20r%C3%A9servation%20sur%20Easy"
+                href="https://wa.me/2250797139787?text=Bonjour,%20j'ai%20besoin%20d'aide%20pour%20ma%20r%C3%A9servation%20sur%20Easy"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center justify-between p-3 rounded-xl bg-[#25D366]/10 border border-[#25D366]/20 hover:bg-[#25D366]/20 transition-all text-xs group"
               >
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-[#25D366] animate-pulse" />
-                  <span className="text-white-premium font-bold font-mono">01 70 08 36 81</span>
+                  <span className="text-white-premium font-bold font-mono">07 97 13 97 87</span>
                 </div>
                 <span className="bg-[#25D366] text-black text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full flex items-center gap-1">
-                  WhatsApp & Appel
+                  WhatsApp
                 </span>
               </a>
 
               {/* Phone call only */}
               <a 
-                href="tel:+2250797139787"
+                href="tel:+2250170083681"
                 className="flex items-center justify-between p-3 rounded-xl bg-white-premium/5 border border-white-premium/10 hover:bg-white-premium/10 transition-all text-xs"
               >
                 <div className="flex items-center gap-2">
                   <Phone size={12} className="text-neutral-400" />
-                  <span className="text-white-premium font-bold font-mono">07 97 13 97 87</span>
+                  <span className="text-white-premium font-bold font-mono">01 70 08 36 81</span>
                 </div>
                 <span className="bg-white-premium/10 text-neutral-300 text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full">
                   Appel uniquement
@@ -1344,7 +1344,7 @@ export const Reservation: React.FC<ReservationProps> = ({ setCurrentPage, id }) 
 
       {/* Floating WhatsApp Help Button */}
       <a
-        href="https://wa.me/2250170083681?text=Bonjour,%20j'ai%20besoin%20d'aide%20pour%20ma%20r%C3%A9servation%20sur%20Easy"
+        href="https://wa.me/2250797139787?text=Bonjour,%20j'ai%20besoin%20d'aide%20pour%20ma%20r%C3%A9servation%20sur%20Easy"
         target="_blank"
         rel="noopener noreferrer"
         className="fixed bottom-6 right-6 z-50 flex items-center gap-2 bg-[#25D366] hover:bg-[#20ba56] text-white px-4 py-3 rounded-full shadow-2xl transition-all duration-300 hover:scale-105 active:scale-95 group font-sans"

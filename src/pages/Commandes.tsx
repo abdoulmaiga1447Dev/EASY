@@ -438,7 +438,7 @@ export const Commandes: React.FC<CommandesProps> = ({
                                       type="text"
                                       value={editClientPhone}
                                       onChange={(e) => setEditClientPhone(e.target.value)}
-                                      placeholder="Ex: 0798668682"
+                                      placeholder="+225 XX XX XX XX XX"
                                       className="w-full bg-[#1c1c24] border border-[#C5A880]/20 focus:border-[#C5A880] rounded-lg p-2 text-xs text-white focus:outline-none transition-colors font-mono"
                                     />
                                   </div>

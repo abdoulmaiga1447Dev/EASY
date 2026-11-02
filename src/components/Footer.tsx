@@ -47,7 +47,7 @@ export const Footer: React.FC<FooterProps> = ({
             {/* WhatsApp CTA */}
             <a
               id="footer_wa_link"
-              href="https://wa.me/2250700010203?text=Bonjour,%20je%20souhaite%20réserver%20un%20véhicule%20EASY"
+              href="https://wa.me/2250797139787?text=Bonjour,%20je%20souhaite%20réserver%20un%20véhicule%20EASY"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 text-xs text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg py-2 px-4 shadow-sm transition-all duration-150 font-medium active:translate-y-[1px]"
@@ -137,7 +137,7 @@ export const Footer: React.FC<FooterProps> = ({
           </div>
           <div className="flex items-center gap-2.5">
             <Phone size={14} className="text-gold" />
-            <span>+225 07 00 01 02 03</span>
+            <span>+225 01 70 08 36 81</span>
           </div>
           <div className="flex items-center gap-2.5">
             <Mail size={14} className="text-gold" />

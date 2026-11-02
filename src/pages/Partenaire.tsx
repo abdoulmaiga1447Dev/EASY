@@ -1008,7 +1008,7 @@ export const Partenaire: React.FC<PartenaireProps> = ({ setCurrentPage, id }) =>
                     required
                     value={clientPhone}
                     onChange={(e) => setClientPhone(e.target.value)}
-                    placeholder="Ex: +225 07 08 09 10 11"
+                    placeholder="+225 XX XX XX XX XX"
                     className="w-full bg-transparent text-sm text-white placeholder-neutral-600 outline-none focus:placeholder-neutral-500 font-medium"
                   />
                 </div>

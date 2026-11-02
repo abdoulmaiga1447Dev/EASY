@@ -1882,7 +1882,7 @@ async function startServer() {
           id: "drv_" + Math.random().toString(36).substr(2, 9),
           userId: user.id,
           name: user.name,
-          phone: user.phone || "+225 00000000",
+          phone: user.phone || "",
           email: user.email,
           photo: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256",
           availability: "disponible",

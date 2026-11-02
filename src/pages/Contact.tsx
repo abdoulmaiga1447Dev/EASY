@@ -117,7 +117,7 @@ export const Contact: React.FC<ContactProps> = ({ id }) => {
                     <span className="text-white font-semibold block">
                       {translate({ fr: "Contact Téléphonique Office", en: "Office Hotline Contact" })}
                     </span>
-                    <span className="text-neutral-300 block mt-1">+225 07 00 01 02 03</span>
+                    <span className="text-neutral-300 block mt-1">+225 01 70 08 36 81</span>
                   </div>
                 </div>
 
@@ -156,7 +156,7 @@ export const Contact: React.FC<ContactProps> = ({ id }) => {
                 {/* Standard WhatsApp dynamic anchor link */}
                 <a
                   id="direct_whatsapp_accent"
-                  href="https://wa.me/2250700010203?text=Bonjour,%20je%20souhaite%20réserver%20un%20véhicule%20EASY"
+                  href="https://wa.me/2250797139787?text=Bonjour,%20je%20souhaite%20réserver%20un%20véhicule%20EASY"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-white bg-emerald-600 font-medium hover:bg-emerald-700 shadow-sm transition-all duration-150 text-xs active:translate-y-[1px]"

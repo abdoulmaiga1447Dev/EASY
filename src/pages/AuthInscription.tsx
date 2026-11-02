@@ -461,7 +461,7 @@ export const AuthInscription: React.FC<AuthInscriptionProps> = ({
                           id="reg_phone"
                           value={phone}
                           onChange={(e) => setPhone(e.target.value)}
-                          placeholder="Ex: +225 0707070707"
+                          placeholder="+225 XX XX XX XX XX"
                           className="w-full bg-black/60 border border-gold-light/10 focus:border-gold-light rounded-xl p-3 pl-10 text-sm text-white placeholder-neutral-500 outline-none transition-colors"
                           required
                         />
