@@ -104,7 +104,7 @@ export const Contact: React.FC<ContactProps> = ({ id }) => {
                   <div>
                     <span className="text-white font-semibold block">{t("contactAddressTitle")}</span>
                     <span className="text-neutral-300 block mt-1 leading-relaxed">
-                      Immeuble Trade Center, CC02 Avenue Chardy, Plateau, Abidjan, Côte d'Ivoire
+                      Cocody Angré CNPS, Cité Star 12, Abidjan, Côte d'Ivoire
                     </span>
                   </div>
                 </div>
@@ -118,6 +118,7 @@ export const Contact: React.FC<ContactProps> = ({ id }) => {
                       {translate({ fr: "Contact Téléphonique Office", en: "Office Hotline Contact" })}
                     </span>
                     <span className="text-neutral-300 block mt-1">+225 01 70 08 36 81</span>
+                    <span className="text-neutral-300 block">+225 07 97 13 97 87</span>
                   </div>
                 </div>
 

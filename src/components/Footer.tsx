@@ -132,12 +132,15 @@ export const Footer: React.FC<FooterProps> = ({
           <div className="flex items-start gap-2.5">
             <MapPin size={14} className="text-gold mt-0.5" />
             <span className="leading-relaxed">
-              Plateau, Avenue Chardy, Abidjan, Côte d'Ivoire
+              Cocody Angré CNPS, Cité Star 12, Abidjan, Côte d'Ivoire
             </span>
           </div>
-          <div className="flex items-center gap-2.5">
-            <Phone size={14} className="text-gold" />
-            <span>+225 01 70 08 36 81</span>
+          <div className="flex items-start gap-2.5">
+            <Phone size={14} className="text-gold mt-0.5" />
+            <span className="leading-relaxed">
+              +225 01 70 08 36 81<br />
+              +225 07 97 13 97 87
+            </span>
           </div>
           <div className="flex items-center gap-2.5">
             <Mail size={14} className="text-gold" />
