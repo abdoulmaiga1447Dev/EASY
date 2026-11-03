@@ -27,3 +27,6 @@ Thumbs.db
 
 # Fichiers uploadés (photos/documents véhicules)
 uploads/
+
+# Données personnelles chauffeurs (badges) — ne jamais committer
+src/assets/chauffeur_infos/

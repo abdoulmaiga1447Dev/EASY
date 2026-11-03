@@ -1,142 +1,91 @@
+/**
+ * Page « Nos chauffeurs » — refonte UI/UX 2026.
+ * Thème clair aligné sur l'accueil (charte vert/blanc), premium & moderne.
+ * Vraies photos de l'équipe (badges SAVER recadrés) + vraies photos de la flotte.
+ * Aucune donnée inventée : seuls nom + rôle réels sont affichés par chauffeur.
+ */
 import React from "react";
-import { Card } from "../components/Card";
-import { Badge } from "../components/Badge";
 import { useLanguage } from "../context/LanguageContext";
-import { 
-  Star, 
-  Shield, 
-  Award, 
-  Sparkles, 
-  Navigation, 
-  UserCheck, 
-  ShieldCheck, 
-  CheckCircle2, 
-  Coins, 
-  ChevronRight 
-} from "lucide-react";
+import { ShieldCheck, Gauge, UserCheck, BadgeCheck, MapPin, ArrowRight, PhoneCall, Leaf } from "lucide-react";
 import { motion } from "motion/react";
 
-// Import generated images
-import chauffeurHeroImg from "../assets/images/chauffeur_hero_1782312254137.jpg";
-import chauffeurPassengerImg from "../assets/images/chauffeur_passenger_1782312271700.jpg";
+import heroImg from "../assets/saver/fleet-09.jpg";
+import showcaseImg from "../assets/saver/fleet-13.jpg";
+import jacquesImg from "../assets/saver/chauffeur-jacques.jpg";
+import yeoImg from "../assets/saver/chauffeur-yeo.jpg";
+import traoreImg from "../assets/saver/chauffeur-traore.jpg";
 
-interface DriverProfile {
+const GREEN = "#00C853";
+const INK = "#0B1F14";
+
+const fade = {
+  initial: { opacity: 0, y: 20 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: true, margin: "-80px" },
+  transition: { duration: 0.6 },
+};
+
+interface Driver {
   id: string;
   name: string;
   photo: string;
-  role: string;
-  rating: number;
-  skills: string[];
-  bio: string;
-  review: {
-    text: string;
-    author: string;
-    company?: string;
-  };
 }
 
 export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
   const { translate } = useLanguage();
 
-  const drivers: DriverProfile[] = [
+  const drivers: Driver[] = [
+    { id: "drv_jacques", name: "Gbemonto Jacques", photo: jacquesImg },
+    { id: "drv_yeo", name: "Yeo Navigue Abou", photo: yeoImg },
+    { id: "drv_traore", name: "Traore Abdoul", photo: traoreImg },
+  ];
+
+  const values = [
     {
-      id: "drv_1",
-      name: "Jean Koffi",
-      photo: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=256&auto=format&fit=crop",
-      role: translate({ fr: "Chauffeur d'Élite Privé", en: "Elite Private Chauffeur" }),
-      rating: 5.0,
-      skills: [
-        translate({ fr: "Conduite Défensive", en: "Defensive Driving" }),
-        translate({ fr: "Secourisme", en: "First Aid" }),
-        translate({ fr: "Anglais de Protocole", en: "Protocol English" })
-      ],
-      bio: translate({
-        fr: "Ancien conducteur de délégations officielles, Jean totalise 12 ans d'expérience. Reconnu pour sa parfaite maîtrise des voies d'Abidjan et son calme imperturbable.",
-        en: "Former driver for official delegations, Jean has 12 years of experience. Known for his perfect mastery of Abidjan roads and imperturbable calm."
+      icon: <UserCheck size={22} />,
+      t: translate({ fr: "Chauffeurs vérifiés", en: "Verified chauffeurs" }),
+      d: translate({
+        fr: "Chaque chauffeur EASY est formé, identifié et porteur d'un badge officiel SAVER.",
+        en: "Every EASY chauffeur is trained, identified and carries an official SAVER badge.",
       }),
-      review: {
-        text: translate({
-          fr: "Un service irréprochable sous la pluie torrentielle de la saison humide d'Abidjan. Jean a fait preuve d’une conduite préventive exceptionnelle. Une sérénité totale.",
-          en: "Impeccable service under the torrential rain of Abidjan's wet season. Jean demonstrated exceptional preventive driving. Total peace of mind."
-        }),
-        author: translate({ fr: "M. Roland K. (Directeur d'Investissements)", en: "Mr. Roland K. (Investment Director)" })
-      }
     },
     {
-      id: "drv_2",
-      name: "Ibrahim Coulibaly",
-      photo: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=256&auto=format&fit=crop",
-      role: translate({ fr: "Chauffeur Premium", en: "Premium Chauffeur" }),
-      rating: 4.9,
-      skills: [
-        translate({ fr: "Gestion de Convoi", en: "Convoy Management" }),
-        translate({ fr: "Conduite en Saison des Pluies", en: "Wet Season Driving" }),
-        translate({ fr: "Protocole VIP", en: "VIP Protocol" })
-      ],
-      bio: translate({
-        fr: "Spécialiste de la sécurité routière et breveté en conduite préventive avancée, Ibrahim assure des liaisons fluides et discrètes pour les comités d'administration.",
-        en: "Road safety specialist and certified in advanced preventive driving, Ibrahim ensures smooth and discrete transit for corporate boards."
+      icon: <Gauge size={22} />,
+      t: translate({ fr: "Suivi en temps réel", en: "Real-time tracking" }),
+      d: translate({
+        fr: "Position du chauffeur et état de la course suivis en direct, pour une sérénité totale.",
+        en: "Driver location and ride status tracked live, for total peace of mind.",
       }),
-      review: {
-        text: translate({
-          fr: "Ibrahim incarne la discrétion et le professionnalisme. Sa capacité à anticiper les points de congestion et sa courtoisie font de chaque trajet un plaisir absolu.",
-          en: "Ibrahim embodies discretion and professionalism. His ability to anticipate congestion points and his courtesy make every trip an absolute pleasure."
-        }),
-        author: translate({ fr: "Mme Sarah D. (Directrice Générale, Cabinet Conseil)", en: "Mrs. Sarah D. (Managing Director, Consulting Firm)" })
-      }
     },
     {
-      id: "drv_3",
-      name: "Marc Yao",
-      photo: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=256&auto=format&fit=crop",
-      role: translate({ fr: "Chauffeur Prestige Executive", en: "Prestige Executive Chauffeur" }),
-      rating: 4.8,
-      skills: [
-        translate({ fr: "Chauffeur Protocolaire", en: "Protocol Chauffeur" }),
-        translate({ fr: "Régulation Éco-Conduite", en: "Eco-Drive Regulation" }),
-        translate({ fr: "Discrétion Absolue", en: "Absolute Discretion" })
-      ],
-      bio: translate({
-        fr: "Marc Yao possède une formation d'excellence en accueil VIP de haut rang. Sa spécialité réside dans l'intégration silencieuse des trajets d'affaires d'élite.",
-        en: "Marc Yao has top-tier training in high-ranking VIP hospitality. His specialty lies in the silent execution of elite business commutes."
+      icon: <ShieldCheck size={22} />,
+      t: translate({ fr: "Sécurité & discrétion", en: "Safety & discretion" }),
+      d: translate({
+        fr: "Conduite défensive, ponctualité et confidentialité à chaque trajet.",
+        en: "Defensive driving, punctuality and confidentiality on every trip.",
       }),
-      review: {
-        text: translate({
-          fr: "Marc a été d'un tact parfait lors de notre trajet vers Assinie. Costume impeccable, accueil chaleureux, et aucun bruit dans la berline électrique.",
-          en: "Marc had perfect tact during our journey to Assinie. Impeccable suit, warm welcome, and no noise in the electric sedan."
-        }),
-        author: translate({ fr: "Dr. Armand B. (Président de Fondation)", en: "Dr. Armand B. (Foundation President)" })
-      }
-    }
+    },
   ];
 
   return (
-    <div id={id} className="min-h-screen bg-black text-white relative">
-      
-      {/* 1. LARGE HERO COVER SECTION */}
-      <section className="relative w-full h-[85vh] min-h-[600px] flex items-center justify-center overflow-hidden">
-        {/* Background Image */}
-        <div className="absolute inset-0 z-0">
-          <img 
-            src={chauffeurHeroImg} 
-            alt="Executive Chauffeur" 
-            className="w-full h-full object-cover object-center"
-            referrerPolicy="no-referrer"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/70 to-black" />
-        </div>
-
-        {/* Hero Content */}
-        <div className="relative z-10 max-w-5xl mx-auto px-6 text-center space-y-6">
+    <div id={id} className="bg-white text-[#0B1F14] font-sans -mt-[69px] lg:-mt-[81px]">
+      {/* ====================== HERO ====================== */}
+      <section className="relative min-h-[78vh] flex items-end overflow-hidden">
+        <img src={heroImg} alt="" className="absolute inset-0 w-full h-full object-cover" />
+        <div
+          className="absolute inset-0"
+          style={{ background: "linear-gradient(90deg, rgba(5,20,12,0.85) 0%, rgba(5,20,12,0.55) 45%, rgba(5,20,12,0.15) 100%)" }}
+        />
+        <div className="relative z-10 max-w-6xl mx-auto w-full px-6 lg:px-8 pb-16 pt-28">
           <motion.div
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="inline-flex items-center gap-1.5 border border-gold-light/20 bg-black/40 backdrop-blur-md px-4 py-1.5 rounded-full"
+            className="inline-flex items-center gap-2 rounded-full bg-white/10 backdrop-blur-xl backdrop-saturate-150 px-4 py-1.5 ring-1 ring-white/20"
           >
-            <ShieldCheck size={14} className="text-gold-light" />
-            <span className="text-[10px] tracking-widest text-gold-light uppercase font-mono">
-              {translate({ fr: "EASY VIP CHAUFFEURS ✦ L'EXCELLENCE SUR MESURE", en: "EASY VIP CHAUFFEURS ✦ TAILORED EXCELLENCE" })}
+            <ShieldCheck size={14} className="text-white" />
+            <span className="text-[11px] font-semibold tracking-[0.15em] text-white uppercase">
+              {translate({ fr: "Une équipe, pas des inconnus", en: "A team, not strangers" })}
             </span>
           </motion.div>
 
@@ -144,21 +93,20 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.1 }}
-            className="text-4xl md:text-6xl font-sans font-light tracking-tight text-white leading-tight"
+            className="mt-5 max-w-3xl text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white leading-[1.05]"
           >
-            {translate({ fr: "Services de Chauffeur de Prestige", en: "Executive Chauffeur Services" })} <br className="hidden md:inline" />
-            <span className="text-gold-light font-normal">{translate({ fr: "pour Affaires & Loisirs", en: "for Business & Leisure" })}</span>
+            {translate({ fr: "Nos chauffeurs", en: "Our chauffeurs" })}
           </motion.h1>
 
           <motion.p
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="text-sm md:text-base text-neutral-300 font-light max-w-3xl mx-auto leading-relaxed"
+            className="mt-4 max-w-2xl text-base sm:text-lg text-white/85 leading-relaxed"
           >
             {translate({
-              fr: "Profitez des meilleurs services de chauffeur avec notre équipe de conducteurs chevronnés, dévoués à vous offrir un service exceptionnel, de la sécurité et une fiabilité absolue. Découvrez une sérénité totale à chaque trajet.",
-              en: "Enjoy the finest chauffeur services with our team of experienced drivers, committed to delivering exceptional service, security, and absolute reliability. Experience total peace of mind on every journey."
+              fr: "Des professionnels formés et identifiés, au volant d'une flotte 100 % électrique. Ponctualité, sécurité et discrétion à chaque trajet dans Abidjan.",
+              en: "Trained, identified professionals driving a 100% electric fleet. Punctuality, safety and discretion on every trip across Abidjan.",
             })}
           </motion.p>
 
@@ -166,251 +114,165 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.3 }}
-            className="pt-4"
+            className="mt-7 flex flex-col sm:flex-row gap-3"
           >
-            <a 
-              href="#reservation" 
-              className="inline-flex items-center gap-2 bg-gold hover:bg-gold-light text-black font-extrabold text-xs uppercase tracking-widest px-8 py-4 rounded-xl shadow-lg shadow-gold/10 transition-all duration-200"
+            <a
+              href="#contact"
+              className="inline-flex items-center justify-center gap-2 rounded-full px-7 py-3.5 text-sm font-semibold text-[#06140D] shadow-lg transition-transform active:scale-[0.98]"
+              style={{ background: GREEN }}
             >
-              {translate({ fr: "Contactez-Nous / Réserver", en: "Contact Us / Book Now" })}
-              <ChevronRight size={14} />
+              <PhoneCall size={18} /> {translate({ fr: "Nous contacter", en: "Contact us" })}
+            </a>
+            <a
+              href="#reservation"
+              className="inline-flex items-center justify-center gap-2 rounded-full px-7 py-3.5 text-sm font-semibold text-white ring-1 ring-white/40 hover:bg-white/10 transition-colors"
+            >
+              {translate({ fr: "Réserver une course", en: "Book a ride" })} <ArrowRight size={16} />
             </a>
           </motion.div>
         </div>
       </section>
 
-      {/* 2. CHAUFFEUR CORE BENEFITS SECTION */}
-      <section className="py-20 px-6 max-w-7xl mx-auto relative z-10 -mt-10">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          
-          {/* Card 1 */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="p-8 border border-neutral-800 bg-[#0A0A0F] rounded-2xl space-y-4 shadow-xl flex flex-col justify-between"
-          >
-            <div className="space-y-4">
-              <div className="w-12 h-12 rounded-full bg-gold-light/10 flex items-center justify-center text-gold-light border border-gold-light/20">
-                <UserCheck size={20} />
-              </div>
-              <h3 className="font-sans font-bold text-white text-base tracking-wide">
-                {translate({ fr: "Chauffeurs professionnels", en: "Professional Chauffeurs" })}
-              </h3>
-              <p className="text-xs text-neutral-400 font-light leading-relaxed">
-                {translate({
-                  fr: "Voyagez en toute confiance avec nos chauffeurs expérimentés qui vous offrent des services alliant qualité, fiabilité, discrétion, et bien plus encore.",
-                  en: "Travel in complete confidence with our highly trained drivers who provide exceptional quality, absolute reliability, discretion, and more."
-                })}
-              </p>
-            </div>
-          </motion.div>
-
-          {/* Card 2 */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: 0.1 }}
-            className="p-8 border border-neutral-800 bg-[#0A0A0F] rounded-2xl space-y-4 shadow-xl flex flex-col justify-between"
-          >
-            <div className="space-y-4">
-              <div className="w-12 h-12 rounded-full bg-gold-light/10 flex items-center justify-center text-gold-light border border-gold-light/20">
-                <CheckCircle2 size={20} />
-              </div>
-              <h3 className="font-sans font-bold text-white text-base tracking-wide">
-                {translate({ fr: "Fiabilité", en: "Reliability" })}
-              </h3>
-              <p className="text-xs text-neutral-400 font-light leading-relaxed">
-                {translate({
-                  fr: "Réservez avec certitude, puis restez informé grâce aux mises à jour en temps réel de l'état de la course et au suivi de la localisation du chauffeur.",
-                  en: "Book with certainty, and stay updated with real-time status notifications and live driver location tracking."
-                })}
-              </p>
-            </div>
-          </motion.div>
-
-          {/* Card 3 */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="p-8 border border-neutral-800 bg-[#0A0A0F] rounded-2xl space-y-4 shadow-xl flex flex-col justify-between"
-          >
-            <div className="space-y-4">
-              <div className="w-12 h-12 rounded-full bg-gold-light/10 flex items-center justify-center text-gold-light border border-gold-light/20">
-                <Coins size={20} />
-              </div>
-              <h3 className="font-sans font-bold text-white text-base tracking-wide">
-                {translate({ fr: "Prix compétitifs", en: "Competitive Prices" })}
-              </h3>
-              <p className="text-xs text-neutral-400 font-light leading-relaxed">
-                {translate({
-                  fr: "Accédez à un service haut de gamme à des prix basés sur la distance qui sont équitables pour vous et nos chauffeurs.",
-                  en: "Access a high-end service at distance-based rates that are fair for both you and our drivers."
-                })}
-              </p>
-            </div>
-          </motion.div>
-
-        </div>
-      </section>
-
-      {/* 3. SIDE BY SIDE INTRO SHOWCASE SECTION */}
-      <section className="py-16 px-6 max-w-7xl mx-auto relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-          
-          {/* Left: Image */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.7 }}
-            className="relative rounded-3xl overflow-hidden border border-neutral-800 shadow-2xl"
-          >
-            <img 
-              src={chauffeurPassengerImg} 
-              alt="Luxury Passenger Experience" 
-              className="w-full h-full object-cover object-center max-h-[450px]"
-              referrerPolicy="no-referrer"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-          </motion.div>
-
-          {/* Right: Text */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.7 }}
-            className="space-y-6"
-          >
-            <div className="inline-flex items-center gap-1.5 border border-gold-light/10 bg-gold-light/5 px-3 py-1 rounded-full">
-              <Award size={12} className="text-gold-light" />
-              <span className="text-[9px] tracking-wider text-gold-light uppercase font-mono">
-                {translate({ fr: "SÉCURITÉ & CONFIDENTIALITÉ", en: "SAFETY & PRIVACY" })}
-              </span>
-            </div>
-
-            <h2 className="text-2xl md:text-4xl font-sans font-light tracking-tight text-white leading-snug">
-              {translate({ fr: "Des trajets sûrs, privés, à la demande, ", en: "Safe, private rides on demand, " })}
-              <span className="text-gold-light font-normal">{translate({ fr: "en quelques minutes", en: "in just minutes" })}</span>
+      {/* ====================== VALEURS ====================== */}
+      <section className="bg-[#F4F8F5]">
+        <div className="max-w-6xl mx-auto px-6 lg:px-8 py-20">
+          <motion.div {...fade} className="max-w-2xl">
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
+              {translate({ fr: "Une conduite à la hauteur de la marque.", en: "Driving worthy of the brand." })}
             </h2>
-
-            <p className="text-sm text-neutral-400 font-light leading-relaxed">
-              {translate({
-                fr: "À la recherche d'un moyen sûr pour vous déplacer en ville ? Essayez EASY, avec son service de chauffeur privé à la demande. Vous pouvez réserver notre service de transport premium, pour un pick-up immédiat ou planifié.",
-                en: "Looking for a safe way to move around town? Try EASY, with its private on-demand chauffeur service. You can reserve our premium transport service for an immediate or planned pickup."
-              })}
+            <p className="mt-3 text-[#5B6B62] text-lg">
+              {translate({ fr: "Formés, identifiés et suivis — pour que chaque course inspire confiance.", en: "Trained, identified and monitored — so every ride inspires trust." })}
             </p>
-
-            <p className="text-xs text-neutral-500 font-light leading-relaxed">
-              {translate({
-                fr: "Nos chauffeurs d'élite maîtrisent parfaitement les protocoles d'accueil et la conduite défensive avancée pour assurer une quiétude parfaite à chaque déplacement.",
-                en: "Our elite drivers have perfect mastery of welcoming protocols and advanced defensive driving to ensure absolute tranquility on every trip."
-              })}
-            </p>
-
-            <div className="pt-2">
-              <a 
-                href="#devis" 
-                className="inline-flex items-center gap-1 text-xs font-mono text-gold-light hover:text-white transition-colors duration-200 uppercase tracking-wider"
-              >
-                {translate({ fr: "Estimer un tarif en ligne", en: "Estimate a rate online" })}
-                <ChevronRight size={14} />
-              </a>
-            </div>
           </motion.div>
 
-        </div>
-      </section>
-
-      {/* 4. CHAUFFEURS PROFILES GRID */}
-      <section className="py-20 px-6 max-w-7xl mx-auto relative z-10 border-t border-neutral-900">
-        <div className="space-y-12">
-          
-          <div className="text-center space-y-3">
-            <span className="text-[10px] tracking-[0.25em] text-gold-light uppercase font-mono block">
-              {translate({ fr: "NOTRE ÉQUIPAGE D'ÉLITE", en: "OUR ELITE CREW" })}
-            </span>
-            <h2 className="text-3xl font-sans font-light text-white tracking-tight">
-              {translate({ fr: "Découvrez la signature ", en: "Discover the signature " })}
-              <span className="text-gold-light font-normal">{translate({ fr: "de nos chauffeurs", en: "of our chauffeurs" })}</span>
-            </h2>
-            <div className="w-16 h-0.5 bg-gold-light mx-auto"></div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {drivers.map((drv) => (
-              <Card 
-                key={drv.id} 
-                id={`driver_profile_card_${drv.id}`}
-                className="border border-neutral-800 bg-[#07070B] rounded-2xl overflow-hidden shadow-2xl flex flex-col justify-between hover:border-neutral-700 transition-all duration-300"
+          <div className="mt-12 grid md:grid-cols-3 gap-5">
+            {values.map((v, i) => (
+              <motion.div
+                key={v.t}
+                {...fade}
+                transition={{ ...fade.transition, delay: i * 0.08 }}
+                className="rounded-2xl bg-white p-6 ring-1 ring-[#E6EBE8] shadow-[0_1px_0_rgba(0,0,0,0.02)] hover:shadow-lg transition-shadow"
               >
-                <div>
-                  {/* Driver Header Showcase photo */}
-                  <div className="relative h-48 bg-neutral-950 overflow-hidden">
-                    <img 
-                      src={drv.photo} 
-                      alt={drv.name}
-                      referrerPolicy="no-referrer"
-                      className="w-full h-full object-cover opacity-80"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#07070B] via-transparent to-transparent"></div>
-                    <div className="absolute bottom-4 left-4">
-                      <span className="text-[10px] font-mono text-gold-light uppercase tracking-wider block">
-                        {translate({ fr: "CERTIFICATION EASY VIP", en: "EASY VIP CERTIFICATION" })}
-                      </span>
-                      <h3 className="text-lg font-bold text-white">{drv.name}</h3>
-                    </div>
-                  </div>
-
-                  {/* Rating / Meta indicators */}
-                  <div className="p-6 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-mono text-neutral-400">{drv.role}</span>
-                      <div className="flex items-center gap-1 text-gold-light">
-                        <Star size={12} className="fill-gold-light text-gold-light" />
-                        <span className="text-xs font-mono font-bold">{drv.rating.toFixed(1)}</span>
-                      </div>
-                    </div>
-
-                    <p className="text-xs text-neutral-400 font-light leading-relaxed">
-                      {drv.bio}
-                    </p>
-
-                    {/* Skill Badges */}
-                    <div className="flex flex-wrap gap-1.5">
-                      {drv.skills.map((skill) => (
-                        <Badge id={`badge_skill_${drv.id}_${skill.replace(/\s+/g, '_')}`} key={skill} variant="slate" className="bg-neutral-900 border border-neutral-800 text-[9px] text-neutral-400 py-0.5 px-2">
-                          {skill}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
+                <div className="w-11 h-11 rounded-xl flex items-center justify-center text-[#06140D]" style={{ background: GREEN }}>
+                  {v.icon}
                 </div>
-
-                {/* Outstanding Client review block */}
-                <div className="p-6 bg-black/60 border-t border-neutral-850 mt-auto">
-                  <span className="text-[9px] font-mono tracking-widest text-gold-light block uppercase mb-1.5">
-                    {translate({ fr: "AVIS CLIENT ACCRÉDITÉ", en: "ACCREDITED CLIENT REVIEW" })}
-                  </span>
-                  <p className="text-[11px] text-neutral-300 italic font-light leading-relaxed mb-2">
-                    "{drv.review.text}"
-                  </p>
-                  <span className="text-[10px] font-mono text-neutral-500 block">
-                    — {drv.review.author}
-                  </span>
-                </div>
-              </Card>
+                <h3 className="mt-4 text-lg font-bold">{v.t}</h3>
+                <p className="mt-2 text-sm text-[#5B6B62] leading-relaxed">{v.d}</p>
+              </motion.div>
             ))}
           </div>
-
         </div>
       </section>
 
+      {/* ====================== L'ÉQUIPE ====================== */}
+      <section className="bg-white">
+        <div className="max-w-6xl mx-auto px-6 lg:px-8 py-20">
+          <motion.div {...fade} className="text-center max-w-2xl mx-auto">
+            <span className="inline-flex items-center gap-2 text-xs font-semibold tracking-wide" style={{ color: GREEN }}>
+              <Leaf size={14} /> {translate({ fr: "L'ÉQUIPE EASY", en: "THE EASY TEAM" })}
+            </span>
+            <h2 className="mt-3 text-3xl sm:text-4xl font-extrabold tracking-tight">
+              {translate({ fr: "Les visages au volant", en: "The faces behind the wheel" })}
+            </h2>
+            <p className="mt-3 text-[#5B6B62]">
+              {translate({ fr: "Des chauffeurs de confiance, identifiés par un badge officiel SAVER.", en: "Trusted chauffeurs, identified by an official SAVER badge." })}
+            </p>
+          </motion.div>
+
+          <div className="mt-12 grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {drivers.map((d, i) => (
+              <motion.div
+                key={d.id}
+                {...fade}
+                transition={{ ...fade.transition, delay: i * 0.08 }}
+                className="group rounded-3xl bg-white ring-1 ring-[#E6EBE8] overflow-hidden shadow-[0_1px_0_rgba(0,0,0,0.02)] hover:shadow-xl transition-shadow"
+              >
+                <div className="relative aspect-[4/5] overflow-hidden bg-[#F4F8F5]">
+                  <img
+                    src={d.photo}
+                    alt={d.name}
+                    className="absolute inset-0 w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-105"
+                  />
+                  <span className="absolute top-3 left-3 inline-flex items-center gap-1 rounded-full bg-white/90 backdrop-blur px-2.5 py-1 text-[11px] font-bold text-[#06140D] ring-1 ring-black/5">
+                    <BadgeCheck size={13} style={{ color: GREEN }} /> {translate({ fr: "Vérifié", en: "Verified" })}
+                  </span>
+                </div>
+                <div className="p-5">
+                  <h3 className="text-lg font-bold leading-tight">{d.name}</h3>
+                  <div className="mt-1 flex items-center justify-between">
+                    <span className="text-sm text-[#5B6B62]">{translate({ fr: "Chauffeur", en: "Chauffeur" })}</span>
+                    <span className="inline-flex items-center gap-1 text-xs text-[#5B6B62]">
+                      <MapPin size={13} style={{ color: GREEN }} /> Abidjan
+                    </span>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ====================== SHOWCASE (sécurité / confort) ====================== */}
+      <section className="bg-[#F4F8F5]">
+        <div className="max-w-6xl mx-auto px-6 lg:px-8 py-20 grid lg:grid-cols-2 gap-10 items-center">
+          <motion.div {...fade} className="relative order-2 lg:order-1">
+            <img src={showcaseImg} alt="" className="rounded-3xl w-full object-cover aspect-[4/3] shadow-xl" />
+          </motion.div>
+          <motion.div {...fade} className="order-1 lg:order-2">
+            <span className="inline-flex items-center gap-2 text-xs font-semibold tracking-wide" style={{ color: GREEN }}>
+              <ShieldCheck size={14} /> {translate({ fr: "SÉRÉNITÉ GARANTIE", en: "GUARANTEED SERENITY" })}
+            </span>
+            <h2 className="mt-3 text-3xl sm:text-4xl font-extrabold tracking-tight">
+              {translate({ fr: "Des trajets sûrs, silencieux et ponctuels.", en: "Safe, silent and punctual rides." })}
+            </h2>
+            <p className="mt-4 text-[#5B6B62] text-lg leading-relaxed">
+              {translate({
+                fr: "Nos chauffeurs maîtrisent les voies d'Abidjan et la conduite défensive. Au volant de véhicules 100 % électriques, ils vous offrent un confort absolu, sans bruit ni émission.",
+                en: "Our chauffeurs master Abidjan's roads and defensive driving. Behind the wheel of 100% electric vehicles, they deliver absolute comfort, with no noise or emissions.",
+              })}
+            </p>
+            <ul className="mt-6 space-y-3">
+              {[
+                translate({ fr: "Chauffeurs identifiés par badge officiel", en: "Chauffeurs identified by official badge" }),
+                translate({ fr: "Suivi GPS et statut de course en direct", en: "Live GPS tracking and ride status" }),
+                translate({ fr: "Discrétion et courtoisie garanties", en: "Guaranteed discretion and courtesy" }),
+              ].map((x) => (
+                <li key={x} className="flex items-center gap-3 text-[#0B1F14]">
+                  <BadgeCheck size={18} style={{ color: GREEN }} className="shrink-0" />
+                  <span className="text-sm">{x}</span>
+                </li>
+              ))}
+            </ul>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ====================== CTA ====================== */}
+      <section style={{ background: INK }}>
+        <div className="max-w-5xl mx-auto px-6 lg:px-8 py-20 text-center">
+          <motion.h2 {...fade} className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
+            {translate({ fr: "Besoin d'un chauffeur de confiance ?", en: "Need a trusted chauffeur?" })}
+          </motion.h2>
+          <motion.p {...fade} className="mt-3 text-white/70 text-lg">
+            {translate({ fr: "Réservez votre course ou parlez-nous de vos besoins.", en: "Book your ride or tell us about your needs." })}
+          </motion.p>
+          <motion.div {...fade} className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
+            <a
+              href="#reservation"
+              className="inline-flex items-center justify-center gap-2 rounded-full px-8 py-4 text-sm font-semibold text-[#06140D] shadow-lg transition-transform active:scale-[0.98]"
+              style={{ background: GREEN }}
+            >
+              {translate({ fr: "Réserver une course", en: "Book a ride" })} <ArrowRight size={16} />
+            </a>
+            <a
+              href="#contact"
+              className="inline-flex items-center justify-center gap-2 rounded-full px-8 py-4 text-sm font-semibold text-white ring-1 ring-white/25 hover:bg-white/10 transition-colors"
+            >
+              <PhoneCall size={18} /> {translate({ fr: "Nous contacter", en: "Contact us" })}
+            </a>
+          </motion.div>
+        </div>
+      </section>
     </div>
   );
 };
