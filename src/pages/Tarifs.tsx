@@ -302,19 +302,39 @@ export const Tarifs: React.FC<RatesProps> = ({ id, setCurrentPage }) => {
       {/* ====================== AVANTAGE PRIX STABLES ====================== */}
       <section className="bg-white">
         <div className="max-w-6xl mx-auto px-6 lg:px-8 py-14">
-          <motion.div {...fade} className="rounded-3xl p-8 sm:p-10 text-white relative overflow-hidden" style={{ background: INK }}>
-            <div className="pointer-events-none absolute -top-16 -right-10 h-56 w-56 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(0,200,83,0.25), transparent)" }} />
-            <div className="relative flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0" style={{ background: GREEN }}>
-                <ShieldCheck size={28} className="text-[#06140D]" />
+          <motion.div {...fade} className="rounded-3xl p-8 sm:p-12 text-white relative overflow-hidden" style={{ background: INK }}>
+            <div className="pointer-events-none absolute -top-20 -right-16 h-72 w-72 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(0,200,83,0.28), transparent)" }} />
+            <div className="pointer-events-none absolute -bottom-24 -left-10 h-64 w-64 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(0,200,83,0.10), transparent)" }} />
+            <div className="relative grid sm:grid-cols-[auto_1fr] items-center gap-8 sm:gap-12 text-center sm:text-left">
+              {/* Stat phare */}
+              <div className="sm:border-r sm:border-white/10 sm:pr-12">
+                <div className="text-6xl sm:text-7xl font-extrabold leading-none tracking-tight" style={{ color: GREEN }}>24/7</div>
+                <div className="mt-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/50">
+                  {translate({ fr: "Prix stables", en: "Stable pricing" })}
+                </div>
               </div>
+              {/* Texte */}
               <div>
-                <h3 className="text-xl sm:text-2xl font-extrabold tracking-tight">
-                  {translate({ fr: "Avantage Easy : prix stables 24h/24, 7j/7", en: "Easy Advantage: stable pricing 24/7" })}
+                <span className="text-xs font-semibold tracking-wide" style={{ color: GREEN }}>
+                  {translate({ fr: "AVANTAGE EASY", en: "EASY ADVANTAGE" })}
+                </span>
+                <h3 className="mt-2 text-2xl sm:text-3xl font-extrabold tracking-tight">
+                  {translate({ fr: "Un budget protégé, à toute heure.", en: "A protected budget, at any hour." })}
                 </h3>
-                <p className="mt-1 text-white/75 leading-relaxed">
-                  {translate({ fr: "Pluie, embouteillage, nuit… votre budget est protégé. Pas de majoration météo, pas de compteur qui s'emballe.", en: "Rain, traffic jams, night… your budget is protected. No weather surge, no runaway meter." })}
+                <p className="mt-2 text-white/70 leading-relaxed">
+                  {translate({ fr: "Pluie, embouteillage, nuit… pas de majoration météo, pas de compteur qui s'emballe. Vous payez le forfait, rien de plus.", en: "Rain, traffic, night… no weather surge, no runaway meter. You pay the flat rate, nothing more." })}
                 </p>
+                <div className="mt-5 flex flex-wrap justify-center sm:justify-start gap-2">
+                  {[
+                    translate({ fr: "Pas de majoration météo", en: "No weather surge" }),
+                    translate({ fr: "Pas de compteur", en: "No meter" }),
+                    translate({ fr: "Énergie incluse", en: "Energy included" }),
+                  ].map((c) => (
+                    <span key={c} className="inline-flex items-center gap-1.5 rounded-full bg-white/8 px-3 py-1.5 text-xs font-semibold text-white/85 ring-1 ring-white/15">
+                      <Check size={13} style={{ color: GREEN }} /> {c}
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
           </motion.div>
