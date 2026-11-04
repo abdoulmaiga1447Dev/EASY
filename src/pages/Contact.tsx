@@ -61,11 +61,7 @@ export const Contact: React.FC<ContactProps> = ({ id }) => {
   ];
 
   return (
-    <div id={id} className="relative overflow-hidden text-white font-sans" style={{ background: "linear-gradient(180deg,#0B1F14 0%,#06120C 100%)" }}>
-      {/* décor doux */}
-      <div className="pointer-events-none absolute -top-24 -left-24 h-96 w-96 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(0,200,83,0.18), transparent)" }} />
-      <div className="pointer-events-none absolute top-1/3 -right-24 h-96 w-96 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(255,122,26,0.10), transparent)" }} />
-
+    <div id={id} className="relative overflow-hidden text-white font-sans" style={{ background: "#15171A" }}>
       <div className="relative z-10 max-w-6xl mx-auto px-6 lg:px-8 py-16 lg:py-24 grid lg:grid-cols-2 gap-12 items-start">
         {/* ====== COLONNE GAUCHE ====== */}
         <div>
