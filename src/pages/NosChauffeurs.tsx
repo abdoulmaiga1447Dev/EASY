@@ -6,7 +6,7 @@
  */
 import React from "react";
 import { useLanguage } from "../context/LanguageContext";
-import { ShieldCheck, Gauge, UserCheck, BadgeCheck, MapPin, ArrowRight, PhoneCall, Leaf } from "lucide-react";
+import { ShieldCheck, Gauge, UserCheck, BadgeCheck, MapPin, ArrowRight, PhoneCall, Leaf, GraduationCap, Cpu, BookOpen, BatteryCharging } from "lucide-react";
 import { motion } from "motion/react";
 
 import showcaseImg from "../assets/saver/showcase-illustration.jpg";
@@ -373,6 +373,65 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
                     <span className="inline-flex items-center gap-1"><MapPin size={13} style={{ color: GREEN }} /> Abidjan</span>
                   </div>
                 </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ====================== FORMATION ====================== */}
+      <section className="relative overflow-hidden bg-white">
+        <SectionDecor id="dec-formation" />
+        <div className="relative z-10 max-w-6xl mx-auto px-6 lg:px-8 py-20">
+          <motion.div {...fade} className="max-w-2xl">
+            <span className="inline-flex items-center gap-2 text-xs font-semibold tracking-wide" style={{ color: GREEN }}>
+              <GraduationCap size={14} /> {translate({ fr: "FORMATION EASY", en: "EASY TRAINING" })}
+            </span>
+            <h2 className="mt-3 text-3xl sm:text-4xl font-extrabold tracking-tight">
+              {translate({ fr: "Des chauffeurs qui connaissent leur véhicule.", en: "Chauffeurs who truly know their vehicle." })}
+            </h2>
+            <p className="mt-3 text-[#5B6B62] text-lg">
+              {translate({
+                fr: "Chez EASY, nos chauffeurs ne se contentent pas de conduire : ils sont formés à la compréhension complète des véhicules — composants, contexte historique, moteur électrique et bien plus.",
+                en: "At EASY, our chauffeurs don't just drive: they are trained to fully understand the vehicles — components, historical context, electric motor and much more.",
+              })}
+            </p>
+          </motion.div>
+
+          <div className="mt-12 grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {[
+              {
+                icon: <Cpu size={22} />,
+                t: translate({ fr: "Composants & mécanique", en: "Components & mechanics" }),
+                d: translate({ fr: "Comprendre chaque pièce du véhicule, son rôle et son entretien.", en: "Understanding each part of the vehicle, its role and upkeep." }),
+              },
+              {
+                icon: <BookOpen size={22} />,
+                t: translate({ fr: "Contexte & histoire", en: "Context & history" }),
+                d: translate({ fr: "Connaître l'histoire et le contexte de chaque modèle de la flotte.", en: "Knowing the history and context of each model in the fleet." }),
+              },
+              {
+                icon: <BatteryCharging size={22} />,
+                t: translate({ fr: "Moteur & batterie", en: "Motor & battery" }),
+                d: translate({ fr: "Maîtriser le moteur électrique, la batterie et la recharge.", en: "Mastering the electric motor, the battery and charging." }),
+              },
+              {
+                icon: <Gauge size={22} />,
+                t: translate({ fr: "Conduite & autonomie", en: "Driving & range" }),
+                d: translate({ fr: "Éco-conduite et conduite défensive pour optimiser chaque trajet.", en: "Eco-driving and defensive driving to optimise every trip." }),
+              },
+            ].map((f, i) => (
+              <motion.div
+                key={f.t}
+                {...fade}
+                transition={{ ...fade.transition, delay: i * 0.08 }}
+                className="rounded-2xl bg-[#F4F8F5] p-6 ring-1 ring-[#E6EBE8] hover:-translate-y-1 hover:shadow-lg transition-all duration-300"
+              >
+                <div className="w-11 h-11 rounded-xl flex items-center justify-center text-[#06140D]" style={{ background: GREEN }}>
+                  {f.icon}
+                </div>
+                <h3 className="mt-4 text-base font-bold">{f.t}</h3>
+                <p className="mt-2 text-sm text-[#5B6B62] leading-relaxed">{f.d}</p>
               </motion.div>
             ))}
           </div>
