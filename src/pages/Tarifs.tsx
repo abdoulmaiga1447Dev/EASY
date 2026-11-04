@@ -3,13 +3,43 @@
  * Thème clair (charte vert/blanc), bandeau en haut, formules en cartes.
  * Tous les montants et textes FR/EN sont conservés à l'identique.
  */
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useLanguage } from "../context/LanguageContext";
 import {
-  Zap, ShoppingBag, Briefcase, Compass, Sparkles,
+  Plane, ShoppingBag, Briefcase, Compass, Gem,
   Check, ArrowRight, ShieldCheck, Moon, CalendarCheck,
-  MapPin, ChevronDown, ChevronUp, PhoneCall, Clock, HelpCircle, Star,
+  MapPin, ChevronDown, ChevronUp, PhoneCall, Clock, HelpCircle, Star, Sparkles, Zap,
 } from "lucide-react";
+
+// Prix animé : « compteur » qui monte, + fondu au changement.
+const AnimatedPrice: React.FC<{ value: string }> = ({ value }) => {
+  const m = value.match(/^([\d.,\s ]+)(.*)$/);
+  const hasNum = !!m && /\d/.test(m[1]);
+  const target = hasNum ? parseInt(m![1].replace(/[^\d]/g, ""), 10) : 0;
+  const suffix = hasNum ? m![2].trim() : value;
+  const sep = value.includes(",") ? "," : " ";
+  const [disp, setDisp] = useState(0);
+  useEffect(() => {
+    if (!hasNum) return;
+    let raf = 0;
+    const dur = 650;
+    const start = performance.now();
+    const tick = (now: number) => {
+      const p = Math.min(1, (now - start) / dur);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setDisp(Math.round(target * eased));
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, hasNum]);
+  const fmt = (n: number) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, sep);
+  return (
+    <motion.span key={value} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="inline-block">
+      {hasNum ? `${fmt(disp)} ${suffix}` : value}
+    </motion.span>
+  );
+};
 import { motion } from "motion/react";
 import heroImg from "../assets/saver/tarifs-hero.jpg";
 
@@ -53,7 +83,7 @@ export const Tarifs: React.FC<RatesProps> = ({ id, setCurrentPage }) => {
     {
       id: "flash_premium",
       duration: "1h",
-      icon: <Zap size={20} />,
+      icon: <Plane size={20} />,
       recommended: false,
       name: { fr: "Le Flash Premium", en: "Le Flash Premium" },
       desc: { fr: "Aéroport, restaurant, hôtel — 1 seul trajet. Jusqu'à 3 personnes", en: "Airport, restaurant, hotel — 1 single journey. Up to 3 passengers" },
@@ -93,7 +123,7 @@ export const Tarifs: React.FC<RatesProps> = ({ id, setCurrentPage }) => {
     {
       id: "evenement",
       duration: "16h",
-      icon: <Sparkles size={20} />,
+      icon: <Gem size={20} />,
       recommended: false,
       name: { fr: "L'Événement", en: "The Signature Event" },
       desc: { fr: "Mariage, séminaire, journée VIP", en: "Weddings, high-level seminars, private VIP days" },
@@ -231,11 +261,11 @@ export const Tarifs: React.FC<RatesProps> = ({ id, setCurrentPage }) => {
                     </span>
                   )}
 
-                  <div className="relative w-11 h-11 rounded-xl flex items-center justify-center text-white shadow" style={{ background: accent }}>{f.icon}</div>
+                  <div className="relative w-12 h-12 rounded-2xl flex items-center justify-center ring-1" style={{ background: `${accent}22`, borderColor: `${accent}55`, color: accent }}>{f.icon}</div>
 
                   <h3 className="relative mt-4 text-lg font-bold text-white">{translate(f.name)}</h3>
                   <div className="relative mt-2 flex items-end gap-2">
-                    <span className="text-3xl font-extrabold tracking-tight text-white">{priceStr}</span>
+                    <span className="text-3xl font-extrabold tracking-tight text-white"><AnimatedPrice value={priceStr} /></span>
                     <span className="mb-1 text-xs text-white/50">/ {f.duration}</span>
                   </div>
                   <div className="relative text-xs text-white/45">{translate({ fr: "à partir de · énergie incluse", en: "starting from · energy included" })}</div>
