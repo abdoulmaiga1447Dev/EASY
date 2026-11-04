@@ -15,6 +15,16 @@ import heroImg from "../assets/saver/tarifs-hero.jpg";
 
 const GREEN = "#00C853";
 const INK = "#0B1F14";
+const ORANGE = "#FF7A1A";
+
+// Couleur d'accent par formule (cohérent avec le bento de l'accueil).
+const ACCENTS: Record<string, string> = {
+  flash_premium: "#00C853",
+  courses_vip: "#FF7A1A",
+  rdv_image: "#00C853",
+  grande_journee: "#0EA5A5",
+  evenement: "#2563EB",
+};
 
 const fade = {
   initial: { opacity: 0, y: 20 },
@@ -199,41 +209,88 @@ export const Tarifs: React.FC<RatesProps> = ({ id, setCurrentPage }) => {
           </motion.div>
 
           {/* Cartes formules */}
-          <div className="mt-12 grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="mt-12 grid sm:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
             {formulas.map((f, i) => {
               const priceStr = translate(f.prices[activeVehicle]);
               const isQuote = activeVehicle === "n3" || /devis|request/i.test(priceStr);
+              const accent = ACCENTS[f.id] || GREEN;
+              const reco = f.recommended;
+
+              if (reco) {
+                // Carte « Recommandé » — pleine couleur, ressort du lot.
+                return (
+                  <motion.div
+                    key={f.id}
+                    {...fade}
+                    transition={{ ...fade.transition, delay: i * 0.07 }}
+                    className="group relative flex flex-col overflow-hidden rounded-3xl p-7 text-white shadow-2xl lg:-translate-y-3 hover:-translate-y-4 transition-all duration-300"
+                    style={{ background: "linear-gradient(160deg,#00C853,#00A846)" }}
+                  >
+                    <span className="pointer-events-none absolute -right-2 top-1 text-[7.5rem] font-black leading-none text-white/10 select-none">{f.duration}</span>
+                    <span className="self-start rounded-full bg-white px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider" style={{ color: "#00A846" }}>
+                      {translate({ fr: "Recommandé", en: "Recommended" })}
+                    </span>
+                    <div className="relative mt-4 flex items-center justify-between">
+                      <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-white/15 ring-1 ring-white/30">{f.icon}</div>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-3 py-1 text-xs font-bold ring-1 ring-white/25"><Clock size={12} /> {f.duration}</span>
+                    </div>
+                    <h3 className="relative mt-4 text-xl font-extrabold">{translate(f.name)}</h3>
+                    <p className="relative mt-1 text-sm text-white/85 leading-relaxed">{translate(f.desc)}</p>
+                    <div className="relative mt-5 rounded-2xl bg-white/12 ring-1 ring-white/20 px-4 py-3">
+                      <div className="text-3xl font-extrabold tracking-tight">{priceStr}</div>
+                      <div className="text-xs text-white/80">{translate({ fr: "à partir de · énergie incluse", en: "starting from · energy included" })}</div>
+                    </div>
+                    <ul className="relative mt-4 space-y-2 flex-1">
+                      {f.features.fr.map((_, idx) => (
+                        <li key={idx} className="flex items-start gap-2 text-sm">
+                          <Check size={16} className="mt-0.5 shrink-0 text-white" />
+                          <span className="text-white/95">{translate({ fr: f.features.fr[idx], en: f.features.en[idx] })}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <button
+                      onClick={() => (isQuote ? nav("devis") : handleBook(f.id))}
+                      className="relative mt-6 inline-flex items-center justify-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-bold shadow transition-transform active:scale-[0.98]"
+                      style={{ color: "#00A846" }}
+                    >
+                      {isQuote ? translate({ fr: "Demander un devis", en: "Request a quote" }) : translate({ fr: "Réserver", en: "Book" })}
+                      <ArrowRight size={16} />
+                    </button>
+                  </motion.div>
+                );
+              }
+
               return (
                 <motion.div
                   key={f.id}
                   {...fade}
                   transition={{ ...fade.transition, delay: i * 0.07 }}
-                  className={`group relative flex flex-col rounded-3xl bg-white p-6 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl ${f.recommended ? "ring-2 shadow-lg" : "ring-1 ring-[#E6EBE8]"}`}
-                  style={f.recommended ? { boxShadow: "0 12px 30px rgba(0,200,83,0.15)", borderColor: GREEN, ["--tw-ring-color" as any]: GREEN } : undefined}
+                  className="group relative flex flex-col overflow-hidden rounded-3xl bg-white p-6 ring-1 ring-[#E6EBE8] transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl"
                 >
-                  {f.recommended && (
-                    <span className="absolute -top-3 left-6 rounded-full px-3 py-1 text-[11px] font-bold text-[#06140D] shadow" style={{ background: GREEN }}>
-                      {translate({ fr: "Recommandé", en: "Recommended" })}
-                    </span>
-                  )}
-                  <div className="flex items-center justify-between">
-                    <div className="w-11 h-11 rounded-xl flex items-center justify-center text-[#06140D]" style={{ background: GREEN }}>{f.icon}</div>
-                    <span className="inline-flex items-center gap-1 rounded-full bg-[#F4F8F5] px-3 py-1 text-xs font-bold text-[#0B1F14] ring-1 ring-[#E6EBE8]">
-                      <Clock size={12} style={{ color: GREEN }} /> {f.duration}
+                  {/* barre + filigrane d'accent */}
+                  <div className="absolute inset-x-0 top-0 h-1.5" style={{ background: accent }} />
+                  <span className="pointer-events-none absolute -right-1 top-2 text-[6.5rem] font-black leading-none select-none" style={{ color: accent, opacity: 0.07 }}>{f.duration}</span>
+
+                  <div className="relative flex items-center justify-between">
+                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-sm" style={{ background: accent }}>{f.icon}</div>
+                    <span className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold ring-1" style={{ color: accent, background: `${accent}14`, borderColor: `${accent}33` }}>
+                      <Clock size={12} /> {f.duration}
                     </span>
                   </div>
-                  <h3 className="mt-4 text-lg font-extrabold">{translate(f.name)}</h3>
-                  <p className="mt-1 text-sm text-[#5B6B62] leading-relaxed">{translate(f.desc)}</p>
+                  <h3 className="relative mt-4 text-lg font-extrabold">{translate(f.name)}</h3>
+                  <p className="relative mt-1 text-sm text-[#5B6B62] leading-relaxed">{translate(f.desc)}</p>
 
-                  <div className="mt-4">
+                  <div className="relative mt-5 rounded-2xl bg-[#F7FAF8] ring-1 ring-[#EDF2EF] px-4 py-3">
                     <div className="text-2xl font-extrabold tracking-tight">{priceStr}</div>
                     <div className="text-xs text-[#5B6B62]">{translate({ fr: "à partir de · énergie incluse", en: "starting from · energy included" })}</div>
                   </div>
 
-                  <ul className="mt-4 space-y-2 flex-1">
-                    {f.features[/* langue gérée par translate ailleurs */ "fr"].map((_, idx) => (
+                  <ul className="relative mt-4 space-y-2 flex-1">
+                    {f.features.fr.map((_, idx) => (
                       <li key={idx} className="flex items-start gap-2 text-sm text-[#0B1F14]">
-                        <Check size={16} style={{ color: GREEN }} className="mt-0.5 shrink-0" />
+                        <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full" style={{ background: `${accent}1f` }}>
+                          <Check size={11} style={{ color: accent }} />
+                        </span>
                         <span>{translate({ fr: f.features.fr[idx], en: f.features.en[idx] })}</span>
                       </li>
                     ))}
@@ -241,8 +298,8 @@ export const Tarifs: React.FC<RatesProps> = ({ id, setCurrentPage }) => {
 
                   <button
                     onClick={() => (isQuote ? nav("devis") : handleBook(f.id))}
-                    className={`mt-6 inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold transition-transform active:scale-[0.98] ${isQuote ? "text-[#0B1F14] ring-1 ring-[#D7E0DA] hover:bg-[#F4F8F5]" : "text-[#06140D] shadow"}`}
-                    style={isQuote ? undefined : { background: GREEN }}
+                    className="relative mt-6 inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold text-white shadow transition-transform active:scale-[0.98]"
+                    style={{ background: accent }}
                   >
                     {isQuote ? translate({ fr: "Demander un devis", en: "Request a quote" }) : translate({ fr: "Réserver", en: "Book" })}
                     <ArrowRight size={16} />
