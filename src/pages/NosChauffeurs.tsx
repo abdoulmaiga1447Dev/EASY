@@ -191,16 +191,38 @@ const AnimTracking: React.FC = () => (
 );
 
 const AnimShield: React.FC = () => (
-  <svg viewBox="0 0 140 140" className="w-40 h-40" aria-hidden>
+  <svg viewBox="0 0 150 168" className="w-44 h-44" aria-hidden>
     <defs>
-      <clipPath id="nc-shield-clip"><path d="M70 22 L108 36 L108 70 C108 96 70 114 70 114 C70 114 32 96 32 70 L32 36 Z" /></clipPath>
+      <clipPath id="nc-shieldclip"><path d="M75 46 L112 58 L112 94 C112 122 75 142 75 142 C75 142 38 122 38 94 L38 58 Z" /></clipPath>
     </defs>
-    <g className="nc-breathe">
-      <path d="M70 22 L108 36 L108 70 C108 96 70 114 70 114 C70 114 32 96 32 70 L32 36 Z" fill="rgba(255,255,255,0.14)" stroke="#fff" strokeWidth="3" />
-      <g clipPath="url(#nc-shield-clip)">
-        <g transform="skewX(-20)"><rect className="nc-shine" x="0" y="10" width="26" height="120" fill="#fff" opacity="0.3" /></g>
+    {/* anneaux d'ancrage fixes */}
+    <circle cx="48" cy="14" r="5" fill="none" stroke="#fff" strokeWidth="3" />
+    <circle cx="102" cy="14" r="5" fill="none" stroke="#fff" strokeWidth="3" />
+    {/* ensemble suspendu qui se balance */}
+    <g className="nc-swing">
+      <g stroke="#fff" strokeWidth="4" strokeLinecap="round" opacity="0.9">
+        <line x1="48" y1="19" x2="60" y2="50" />
+        <line x1="102" y1="19" x2="90" y2="50" />
       </g>
-      <path className="nc-check" d="M55 68 L66 79 L88 52" fill="none" stroke="#fff" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
+      <g fill="#fff" opacity="0.85">
+        <ellipse cx="51" cy="29" rx="3.2" ry="4.6" />
+        <ellipse cx="55" cy="40" rx="3.2" ry="4.6" />
+        <ellipse cx="99" cy="29" rx="3.2" ry="4.6" />
+        <ellipse cx="95" cy="40" rx="3.2" ry="4.6" />
+      </g>
+      {/* bouclier */}
+      <path d="M75 46 L112 58 L112 94 C112 122 75 142 75 142 C75 142 38 122 38 94 L38 58 Z" fill="#0B1F14" stroke="#fff" strokeWidth="3" />
+      <path d="M75 54 L104 64 L104 92 C104 114 75 130 75 130 C75 130 46 114 46 92 L46 64 Z" fill="none" stroke="#fff" strokeWidth="1.5" opacity="0.5" />
+      {/* rivets */}
+      <circle cx="47" cy="63" r="2" fill="#fff" opacity="0.7" />
+      <circle cx="103" cy="63" r="2" fill="#fff" opacity="0.7" />
+      {/* reflet */}
+      <g clipPath="url(#nc-shieldclip)"><g transform="skewX(-20)"><rect className="nc-shine" x="0" y="40" width="22" height="130" fill="#fff" opacity="0.22" /></g></g>
+      {/* trou de serrure */}
+      <g className="nc-glow" fill="#fff">
+        <circle cx="75" cy="88" r="9" />
+        <path d="M71.5 93 L78.5 93 L81 109 L69 109 Z" />
+      </g>
     </g>
   </svg>
 );
@@ -260,6 +282,8 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
         @keyframes nc-move { 0%{offset-distance:0%;opacity:0} 10%{opacity:1} 70%{offset-distance:100%;opacity:1} 100%{offset-distance:100%;opacity:0} }
         @keyframes nc-shine { 0%{transform:translateX(-20px)} 55%,100%{transform:translateX(150px)} }
         @keyframes nc-twinkle { 0%,100%{transform:scale(.6);opacity:.3} 50%{transform:scale(1);opacity:1} }
+        @keyframes nc-swing { 0%,100%{transform:rotate(-3.5deg)} 50%{transform:rotate(3.5deg)} }
+        @keyframes nc-glow { 0%,100%{opacity:.7} 50%{opacity:1} }
         .nc-check{stroke-dasharray:70;animation:nc-check 3.4s ease-in-out infinite}
         .nc-ping{transform-box:fill-box;transform-origin:center;animation:nc-ping 2.4s ease-out infinite}
         .nc-breathe{transform-box:fill-box;transform-origin:center;animation:nc-breathe 3s ease-in-out infinite}
@@ -267,7 +291,9 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
         .nc-move{offset-path:path("M34 96 C54 60 86 104 110 50");animation:nc-move 3.4s ease-in-out infinite}
         .nc-shine{animation:nc-shine 3.6s ease-in-out infinite}
         .nc-twinkle{transform-box:fill-box;transform-origin:center;animation:nc-twinkle 2.6s ease-in-out infinite}
-        @media (prefers-reduced-motion: reduce){ .nc-check,.nc-ping,.nc-breathe,.nc-route,.nc-move,.nc-shine,.nc-twinkle{animation:none!important} .nc-check,.nc-route{stroke-dashoffset:0} }
+        .nc-swing{transform-box:fill-box;transform-origin:center top;animation:nc-swing 3.4s ease-in-out infinite}
+        .nc-glow{animation:nc-glow 2.2s ease-in-out infinite}
+        @media (prefers-reduced-motion: reduce){ .nc-check,.nc-ping,.nc-breathe,.nc-route,.nc-move,.nc-shine,.nc-twinkle,.nc-swing,.nc-glow{animation:none!important} .nc-check,.nc-route{stroke-dashoffset:0} }
       `}</style>
       {/* ====================== HERO (flat design) ====================== */}
       <section className="relative overflow-hidden bg-[#F4F8F5] lg:min-h-[88vh]">
