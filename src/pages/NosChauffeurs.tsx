@@ -130,12 +130,40 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
               {translate({ fr: "Réserver une course", en: "Book a ride" })} <ArrowRight size={16} />
             </a>
           </motion.div>
+
+          {/* Puces de confiance */}
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.4 }}
+            className="mt-8 flex flex-wrap gap-2.5"
+          >
+            {[
+              translate({ fr: "100 % électrique", en: "100% electric" }),
+              translate({ fr: "Chauffeurs badgés", en: "Badged chauffeurs" }),
+              translate({ fr: "Service à Abidjan", en: "Service in Abidjan" }),
+            ].map((c) => (
+              <span
+                key={c}
+                className="inline-flex items-center gap-2 rounded-full bg-white/10 backdrop-blur-xl backdrop-saturate-150 px-3.5 py-1.5 text-xs font-semibold text-white ring-1 ring-white/20"
+              >
+                <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: GREEN }} />
+                {c}
+              </span>
+            ))}
+          </motion.div>
         </div>
+
+        {/* Fondu vers la section suivante */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20" style={{ background: "linear-gradient(to top, #F4F8F5, transparent)" }} />
       </section>
 
       {/* ====================== VALEURS ====================== */}
-      <section className="bg-[#F4F8F5]">
-        <div className="max-w-6xl mx-auto px-6 lg:px-8 py-20">
+      <section className="relative overflow-hidden bg-[#F4F8F5]">
+        {/* accents décoratifs */}
+        <div className="pointer-events-none absolute -top-24 -right-24 w-80 h-80 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(0,200,83,0.16), transparent)" }} />
+        <div className="pointer-events-none absolute -bottom-28 -left-20 w-80 h-80 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(255,122,26,0.12), transparent)" }} />
+        <div className="relative z-10 max-w-6xl mx-auto px-6 lg:px-8 py-20">
           <motion.div {...fade} className="max-w-2xl">
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
               {translate({ fr: "Une conduite à la hauteur de la marque.", en: "Driving worthy of the brand." })}
@@ -185,25 +213,25 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
                 key={d.id}
                 {...fade}
                 transition={{ ...fade.transition, delay: i * 0.08 }}
-                className="group rounded-3xl bg-white ring-1 ring-[#E6EBE8] overflow-hidden shadow-[0_1px_0_rgba(0,0,0,0.02)] hover:shadow-xl transition-shadow"
+                className="group relative aspect-[4/5] rounded-3xl overflow-hidden ring-1 ring-black/5 shadow-md hover:shadow-2xl transition-all duration-300"
               >
-                <div className="relative aspect-[4/5] overflow-hidden bg-[#F4F8F5]">
-                  <img
-                    src={d.photo}
-                    alt={d.name}
-                    className="absolute inset-0 w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-105"
-                  />
-                  <span className="absolute top-3 left-3 inline-flex items-center gap-1 rounded-full bg-white/90 backdrop-blur px-2.5 py-1 text-[11px] font-bold text-[#06140D] ring-1 ring-black/5">
-                    <BadgeCheck size={13} style={{ color: GREEN }} /> {translate({ fr: "Vérifié", en: "Verified" })}
-                  </span>
-                </div>
-                <div className="p-5">
-                  <h3 className="text-lg font-bold leading-tight">{d.name}</h3>
-                  <div className="mt-1 flex items-center justify-between">
-                    <span className="text-sm text-[#5B6B62]">{translate({ fr: "Chauffeur", en: "Chauffeur" })}</span>
-                    <span className="inline-flex items-center gap-1 text-xs text-[#5B6B62]">
-                      <MapPin size={13} style={{ color: GREEN }} /> Abidjan
-                    </span>
+                <img
+                  src={d.photo}
+                  alt={d.name}
+                  className="absolute inset-0 w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-[1.06]"
+                />
+                <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(6,20,13,0.92) 0%, rgba(6,20,13,0.25) 45%, transparent 72%)" }} />
+                <span className="absolute top-3 left-3 inline-flex items-center gap-1 rounded-full bg-white/90 backdrop-blur px-2.5 py-1 text-[11px] font-bold text-[#06140D] ring-1 ring-black/5">
+                  <BadgeCheck size={13} style={{ color: GREEN }} /> {translate({ fr: "Vérifié", en: "Verified" })}
+                </span>
+                <span className="absolute top-3 right-4 text-sm font-extrabold text-white/55">0{i + 1}</span>
+                <div className="absolute left-5 right-5 bottom-5">
+                  <div className="h-1 w-10 rounded-full mb-3 transition-all duration-300 group-hover:w-16" style={{ background: GREEN }} />
+                  <h3 className="text-xl font-extrabold text-white leading-tight">{d.name}</h3>
+                  <div className="mt-1.5 flex items-center gap-2 text-sm text-white/80">
+                    <span>{translate({ fr: "Chauffeur", en: "Chauffeur" })}</span>
+                    <span className="opacity-40">•</span>
+                    <span className="inline-flex items-center gap-1"><MapPin size={13} style={{ color: GREEN }} /> Abidjan</span>
                   </div>
                 </div>
               </motion.div>
