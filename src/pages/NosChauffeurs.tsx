@@ -34,8 +34,10 @@ const HeroArt: React.FC = () => (
       {/* ciel */}
       <rect width="440" height="400" fill="#EAF9F1" />
       {/* soleil / halo */}
-      <circle cx="350" cy="80" r="46" fill="#00C853" opacity="0.16" />
-      <circle cx="350" cy="80" r="26" fill="#00C853" opacity="0.22" />
+      <g className="nc-pulse">
+        <circle cx="350" cy="80" r="46" fill="#00C853" opacity="0.16" />
+        <circle cx="350" cy="80" r="26" fill="#00C853" opacity="0.22" />
+      </g>
       {/* immeubles */}
       <g fill="#0B1F14" opacity="0.07">
         <rect x="30" y="150" width="46" height="110" rx="5" />
@@ -57,7 +59,7 @@ const HeroArt: React.FC = () => (
         <rect x="206" y="364" width="28" height="30" rx="8" />
       </g>
       {/* voiture (vue arrière) */}
-      <g>
+      <g className="nc-bob">
         <ellipse cx="220" cy="332" rx="92" ry="16" fill="#06140D" opacity="0.22" />
         <path d="M146 326 L146 292 C146 270 160 256 182 252 L258 252 C280 256 294 270 294 292 L294 326 C294 332 289 336 283 336 L157 336 C151 336 146 332 146 326 Z" fill="#ffffff" />
         <path d="M176 256 C182 240 192 232 208 232 L232 232 C248 232 258 240 264 256 Z" fill="#ffffff" />
@@ -72,7 +74,7 @@ const HeroArt: React.FC = () => (
         <rect x="254" y="332" width="26" height="10" rx="5" fill="#0B1F14" />
       </g>
       {/* badge éclair recharge */}
-      <g transform="translate(96 98)">
+      <g className="nc-pulse" transform="translate(96 98)">
         <circle r="22" fill="#ffffff" />
         <circle r="22" fill="none" stroke="#00C853" strokeWidth="3" />
         <path d="M2 -11 L-7 2 L-1 2 L-3 11 L7 -3 L1 -3 Z" fill="#00C853" />
@@ -83,6 +85,26 @@ const HeroArt: React.FC = () => (
       </g>
     </g>
   </svg>
+);
+
+// Motifs décoratifs animés (orange + vert) pour l'arrière-plan du hero.
+const HeroMotifs: React.FC = () => (
+  <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+    <div className="nc-float absolute top-28 left-[40%] h-16 w-16 rounded-full border-[6px]" style={{ borderColor: "rgba(255,122,26,0.22)" }} />
+    <div className="nc-floatx absolute top-44 left-[7%] h-4 w-4 rounded-full" style={{ background: "rgba(0,200,83,0.35)" }} />
+    <div className="nc-float absolute bottom-28 left-[44%] h-5 w-5 rotate-12 rounded-md" style={{ background: "rgba(255,122,26,0.22)" }} />
+    <svg className="nc-floatx absolute top-24 right-[3%]" width="88" height="90">
+      <g fill="#FF7A1A" opacity="0.4">
+        {[0, 1, 2, 3].map((r) => [0, 1, 2, 3, 4].map((c) => <circle key={`${r}-${c}`} cx={6 + c * 20} cy={6 + r * 20} r="3" />))}
+      </g>
+    </svg>
+    <svg className="nc-float absolute bottom-16 right-[40%]" width="120" height="24" fill="none">
+      <path d="M2 12 C20 2 30 22 48 12 C66 2 76 22 94 12 C104 7 112 10 118 12" stroke="#00C853" strokeWidth="3" strokeLinecap="round" opacity="0.35" />
+    </svg>
+    <svg className="nc-floatx absolute bottom-40 left-[12%]" width="22" height="22" stroke="#FF7A1A" strokeWidth="3" strokeLinecap="round" opacity="0.4">
+      <path d="M11 3 V19 M3 11 H19" />
+    </svg>
+  </div>
 );
 
 interface Driver {
@@ -129,10 +151,22 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
 
   return (
     <div id={id} className="bg-white text-[#0B1F14] font-sans -mt-[69px] lg:-mt-[81px]">
+      <style>{`
+        @keyframes nc-bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
+        @keyframes nc-pulse { 0%,100%{opacity:.55} 50%{opacity:1} }
+        @keyframes nc-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+        @keyframes nc-floatx { 0%,100%{transform:translateY(0)} 50%{transform:translateY(10px)} }
+        .nc-bob{animation:nc-bob 3.4s ease-in-out infinite}
+        .nc-pulse{animation:nc-pulse 2.8s ease-in-out infinite}
+        .nc-float{animation:nc-float 7s ease-in-out infinite}
+        .nc-floatx{animation:nc-floatx 9s ease-in-out infinite}
+        @media (prefers-reduced-motion: reduce){ .nc-bob,.nc-pulse,.nc-float,.nc-floatx{animation:none!important} }
+      `}</style>
       {/* ====================== HERO (flat design) ====================== */}
       <section className="relative overflow-hidden bg-[#F4F8F5] lg:min-h-[88vh]">
         <div className="pointer-events-none absolute -top-24 -right-24 w-96 h-96 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(0,200,83,0.16), transparent)" }} />
-        <div className="pointer-events-none absolute -bottom-28 -left-24 w-96 h-96 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(255,122,26,0.10), transparent)" }} />
+        <div className="pointer-events-none absolute -bottom-28 -left-24 w-96 h-96 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(255,122,26,0.14), transparent)" }} />
+        <HeroMotifs />
 
         <div className="relative z-10 max-w-6xl mx-auto px-6 lg:px-8 pt-28 lg:pt-36 pb-16 grid lg:grid-cols-2 gap-10 lg:gap-14 items-center">
           {/* Texte */}
@@ -240,7 +274,7 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
                 key={v.t}
                 {...fade}
                 transition={{ ...fade.transition, delay: i * 0.08 }}
-                className="rounded-2xl bg-[#F4F8F5] p-6 ring-1 ring-[#E6EBE8] hover:shadow-lg transition-shadow"
+                className="rounded-2xl bg-[#F4F8F5] p-6 ring-1 ring-[#E6EBE8] hover:-translate-y-1 hover:shadow-lg transition-all duration-300"
               >
                 <div className="w-11 h-11 rounded-xl flex items-center justify-center text-[#06140D]" style={{ background: GREEN }}>
                   {v.icon}
