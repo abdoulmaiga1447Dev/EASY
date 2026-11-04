@@ -9,7 +9,7 @@ import { useLanguage } from "../context/LanguageContext";
 import { ShieldCheck, Gauge, UserCheck, BadgeCheck, MapPin, ArrowRight, PhoneCall, Leaf } from "lucide-react";
 import { motion } from "motion/react";
 
-import showcaseImg from "../assets/saver/fleet-13.jpg";
+import showcaseImg from "../assets/saver/showcase-illustration.jpg";
 import jacquesImg from "../assets/saver/chauffeur-jacques.jpg";
 import yeoImg from "../assets/saver/chauffeur-yeo.jpg";
 import traoreImg from "../assets/saver/chauffeur-traore.jpg";
@@ -337,7 +337,7 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
       <section className="bg-white">
         <div className="max-w-6xl mx-auto px-6 lg:px-8 py-20 grid lg:grid-cols-2 gap-10 items-center">
           <motion.div {...fade} className="relative order-2 lg:order-1">
-            <img src={showcaseImg} alt="" className="rounded-3xl w-full object-cover aspect-[4/3] shadow-xl" />
+            <img src={showcaseImg} alt="Passager serein conduit par un chauffeur EASY dans Abidjan" className="rounded-3xl w-full h-auto shadow-xl ring-1 ring-black/5" />
           </motion.div>
           <motion.div {...fade} className="order-1 lg:order-2">
             <span className="inline-flex items-center gap-2 text-xs font-semibold tracking-wide" style={{ color: GREEN }}>
