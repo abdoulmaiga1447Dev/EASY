@@ -350,51 +350,52 @@ export const Tarifs: React.FC<RatesProps> = ({ id, setCurrentPage }) => {
             </p>
           </motion.div>
 
-          {/* Majorations en % */}
+          {/* Majorations en % — cartes colorées, sans logo */}
           <div className="mt-10 grid md:grid-cols-3 gap-5">
-            {adjustments.map((adj, i) => (
-              <motion.div
-                key={i}
-                {...fade}
-                transition={{ ...fade.transition, delay: i * 0.08 }}
-                className="rounded-2xl bg-white p-6 ring-1 ring-[#E6EBE8] hover:-translate-y-1 hover:shadow-lg transition-all duration-300"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="w-11 h-11 rounded-xl flex items-center justify-center text-[#06140D]" style={{ background: GREEN }}>{adj.icon}</div>
-                  <span className="rounded-full px-3 py-1 text-sm font-extrabold" style={{ background: "rgba(255,122,26,0.12)", color: "#C85A00" }}>{adj.value}</span>
-                </div>
-                <h3 className="mt-4 text-base font-bold">{adj.title}</h3>
-                <p className="mt-2 text-sm text-[#5B6B62] leading-relaxed">{adj.desc}</p>
-              </motion.div>
-            ))}
+            {adjustments.map((adj, i) => {
+              const grad = [
+                "linear-gradient(150deg,#243244,#0E1726)",
+                "linear-gradient(150deg,#FF7A1A,#E15A00)",
+                "linear-gradient(150deg,#0EA5A5,#0B7E7E)",
+              ][i];
+              return (
+                <motion.div
+                  key={i}
+                  {...fade}
+                  transition={{ ...fade.transition, delay: i * 0.08 }}
+                  className="relative overflow-hidden rounded-2xl p-6 text-white shadow-lg hover:-translate-y-1 transition-transform duration-300"
+                  style={{ background: grad }}
+                >
+                  <div className="pointer-events-none absolute -right-8 -bottom-10 h-28 w-28 rounded-full bg-white/10" />
+                  <div className="relative text-4xl font-extrabold tracking-tight">{adj.value}</div>
+                  <h3 className="relative mt-3 text-base font-bold">{adj.title}</h3>
+                  <p className="relative mt-2 text-sm text-white/80 leading-relaxed">{adj.desc}</p>
+                </motion.div>
+              );
+            })}
           </div>
 
-          {/* Suppléments fixes */}
-          <motion.div {...fade} className="mt-6 rounded-2xl bg-white ring-1 ring-[#E6EBE8] divide-y divide-[#EEF2EF]">
+          {/* Suppléments fixes — panneau sombre */}
+          <motion.div {...fade} className="mt-6 overflow-hidden rounded-2xl ring-1 ring-white/10 divide-y divide-white/10" style={{ background: INK }}>
             {supplements.map((s, i) => (
               <div key={i} className="flex items-center justify-between gap-4 px-6 py-4">
                 <div className="flex items-center gap-3">
                   <Check size={16} style={{ color: GREEN }} className="shrink-0" />
-                  <span className="text-sm font-medium text-[#0B1F14]">{s.t}</span>
+                  <span className="text-sm font-medium text-white/85">{s.t}</span>
                 </div>
-                <span className="text-sm font-bold text-[#0B1F14]">{s.v}</span>
+                <span className="text-sm font-bold text-white">{s.v}</span>
               </div>
             ))}
           </motion.div>
 
-          {/* Énergie incluse */}
-          <motion.div {...fade} className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 rounded-2xl bg-white ring-1 ring-[#E6EBE8] px-6 py-4 text-center sm:text-left">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(0,200,83,0.12)" }}>
-                <MapPin size={18} style={{ color: GREEN }} />
-              </div>
-              <div>
-                <p className="text-xs text-[#5B6B62]">{translate({ fr: "Trajets hors zone", en: "Trips outside area" })}</p>
-                <h4 className="text-sm font-bold">{translate({ fr: "Tarif km hors zone = 1 500 FCFA/km", en: "Out of zone km rate = 1,500 FCFA/km" })}</h4>
-              </div>
+          {/* Énergie incluse — carte verte teintée */}
+          <motion.div {...fade} className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 rounded-2xl px-6 py-5 text-center sm:text-left ring-1" style={{ background: "rgba(0,200,83,0.10)", borderColor: "rgba(0,200,83,0.25)" }}>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#00A846" }}>{translate({ fr: "Trajets hors zone", en: "Trips outside area" })}</p>
+              <h4 className="mt-0.5 text-lg font-extrabold">{translate({ fr: "Tarif km hors zone = 1 500 FCFA/km", en: "Out of zone km rate = 1,500 FCFA/km" })}</h4>
             </div>
-            <span className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider" style={{ background: "rgba(0,200,83,0.12)", color: GREEN }}>
-              <Zap size={12} /> {translate({ fr: "Énergie toujours incluse", en: "Energy always included" })}
+            <span className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-bold uppercase tracking-wider text-[#06140D]" style={{ background: GREEN }}>
+              <Zap size={13} /> {translate({ fr: "Énergie toujours incluse", en: "Energy always included" })}
             </span>
           </motion.div>
         </div>
