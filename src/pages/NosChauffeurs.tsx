@@ -9,7 +9,7 @@ import { useLanguage } from "../context/LanguageContext";
 import { ShieldCheck, Gauge, UserCheck, BadgeCheck, MapPin, ArrowRight, PhoneCall, Leaf } from "lucide-react";
 import { motion } from "motion/react";
 
-import heroImg from "../assets/saver/fleet-09.jpg";
+import heroImg from "../assets/saver/chauffeurs-hero.jpg";
 import showcaseImg from "../assets/saver/fleet-13.jpg";
 import jacquesImg from "../assets/saver/chauffeur-jacques.jpg";
 import yeoImg from "../assets/saver/chauffeur-yeo.jpg";
@@ -74,7 +74,7 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
         <img src={heroImg} alt="" className="absolute inset-0 w-full h-full object-cover" />
         <div
           className="absolute inset-0"
-          style={{ background: "linear-gradient(90deg, rgba(5,20,12,0.85) 0%, rgba(5,20,12,0.55) 45%, rgba(5,20,12,0.15) 100%)" }}
+          style={{ background: "linear-gradient(to top, rgba(5,20,12,0.92) 0%, rgba(5,20,12,0.5) 40%, rgba(5,20,12,0.25) 100%)" }}
         />
         <div className="relative z-10 max-w-6xl mx-auto w-full px-6 lg:px-8 pb-16 pt-28">
           <motion.div
