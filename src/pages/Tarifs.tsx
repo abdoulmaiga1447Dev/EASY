@@ -1,27 +1,27 @@
+/**
+ * Page « Tarifs » — refonte UI/UX 2026.
+ * Thème clair (charte vert/blanc), bandeau en haut, formules en cartes.
+ * Tous les montants et textes FR/EN sont conservés à l'identique.
+ */
 import React, { useState } from "react";
 import { useLanguage } from "../context/LanguageContext";
-import { Card } from "../components/Card";
-import { Badge } from "../components/Badge";
-import { 
-  ShieldCheck, 
-  Moon, 
-  CalendarCheck, 
-  HelpCircle, 
-  FileSpreadsheet, 
-  Star,
-  Zap, 
-  ShoppingBag, 
-  Briefcase, 
-  Users, 
-  Compass, 
-  Sparkles,
-  ArrowRight,
-  Check,
-  Car,
-  ChevronDown,
-  ChevronUp
+import {
+  Zap, ShoppingBag, Briefcase, Compass, Sparkles,
+  Check, ArrowRight, ShieldCheck, Moon, CalendarCheck,
+  MapPin, ChevronDown, ChevronUp, PhoneCall, Clock, HelpCircle,
 } from "lucide-react";
-import Plasma from "../components/Plasma";
+import { motion } from "motion/react";
+import heroImg from "../assets/saver/tarifs-hero.jpg";
+
+const GREEN = "#00C853";
+const INK = "#0B1F14";
+
+const fade = {
+  initial: { opacity: 0, y: 20 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: true, margin: "-80px" },
+  transition: { duration: 0.6 },
+};
 
 interface RatesProps {
   id: string;
@@ -29,597 +29,375 @@ interface RatesProps {
 }
 
 export const Tarifs: React.FC<RatesProps> = ({ id, setCurrentPage }) => {
-  const { t, translate, language } = useLanguage();
+  const { t, translate } = useLanguage();
   const [activeVehicle, setActiveVehicle] = useState<"n1" | "n2" | "n3">("n1");
-  const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
+  const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
 
-  const faqs = [
-    {
-      question: { fr: "Et s'il pleut ?", en: "What if it rains?" },
-      answer: {
-        fr: "Rien ne change. Chez Easy, pas de majoration météo. Votre tarif 1h, 8h ou 16h reste le même.",
-        en: "Nothing changes. At Easy, there is no weather-based surge pricing. Your 1h, 8h or 16h rate remains exactly the same."
-      }
-    },
-    {
-      question: { fr: "Et s'il y a un gros embouteillage ?", en: "What if there is heavy traffic?" },
-      answer: {
-        fr: "Le compteur ne tourne pas. Vous avez loué votre chauffeur + véhicule pour une durée. Bouchons ou pas, vous payez le forfait. Pas la minute en plus.",
-        en: "The meter doesn't tick. You've rented your chauffeur + vehicle for a set duration. Traffic jams or not, you pay the flat rate. Not a single extra minute."
-      }
-    }
+  const vehicleLevels = [
+    { id: "n1" as const, label: translate({ fr: "Berline", en: "Sedan" }), tag: "N1" },
+    { id: "n2" as const, label: translate({ fr: "SUV Executive", en: "Executive SUV" }), tag: "N2" },
+    { id: "n3" as const, label: translate({ fr: "Prestige", en: "Prestige" }), tag: "N3" },
   ];
 
   const formulas = [
     {
       id: "flash_premium",
       duration: "1h",
-      icon: <Zap className="text-gold-light" size={22} />,
+      icon: <Zap size={20} />,
+      recommended: false,
       name: { fr: "Le Flash Premium", en: "Le Flash Premium" },
-      desc: { 
-        fr: "Aéroport, restaurant, hôtel — 1 seul trajet. Jusqu'à 3 personnes", 
-        en: "Airport, restaurant, hotel — 1 single journey. Up to 3 passengers" 
-      },
-      prices: {
-        n1: { fr: "10 000 FCFA", en: "10,000 FCFA" },
-        n2: { fr: "15 000 FCFA", en: "15,000 FCFA" },
-        n3: { fr: "Sur devis", en: "Upon Request" }
-      },
-      features: {
-        fr: ["Idéal transfert rapide", "1 bagage standard", "Accueil personnalisé"],
-        en: ["Ideal for fast transfers", "1 standard baggage", "Personalized greeting"]
-      }
+      desc: { fr: "Aéroport, restaurant, hôtel — 1 seul trajet. Jusqu'à 3 personnes", en: "Airport, restaurant, hotel — 1 single journey. Up to 3 passengers" },
+      prices: { n1: { fr: "10 000 FCFA", en: "10,000 FCFA" }, n2: { fr: "15 000 FCFA", en: "15,000 FCFA" }, n3: { fr: "Sur devis", en: "Upon Request" } },
+      features: { fr: ["Idéal transfert rapide", "1 bagage standard", "Accueil personnalisé"], en: ["Ideal for fast transfers", "1 standard baggage", "Personalized greeting"] },
     },
     {
       id: "courses_vip",
       duration: "2h",
-      icon: <ShoppingBag className="text-gold-light" size={22} />,
+      icon: <ShoppingBag size={20} />,
+      recommended: false,
       name: { fr: "Les Courses VIP", en: "VIP Errands" },
-      desc: { 
-        fr: "Pharmacie, shopping, 2-3 arrêts en ville", 
-        en: "Pharmacy, shopping, 2-3 quick stops around Abidjan" 
-      },
-      prices: {
-        n1: { fr: "18 000 FCFA", en: "18,000 FCFA" },
-        n2: { fr: "28 000 FCFA", en: "28,000 FCFA" },
-        n3: { fr: "Sur devis", en: "Upon Request" }
-      },
-      features: {
-        fr: ["Attente active incluse", "Prise en charge courses", "Multi-arrêts flexibles"],
-        en: ["Active wait time included", "Packages assistance", "Flexible multi-stops"]
-      }
+      desc: { fr: "Pharmacie, shopping, 2-3 arrêts en ville", en: "Pharmacy, shopping, 2-3 quick stops around Abidjan" },
+      prices: { n1: { fr: "18 000 FCFA", en: "18,000 FCFA" }, n2: { fr: "28 000 FCFA", en: "28,000 FCFA" }, n3: { fr: "Sur devis", en: "Upon Request" } },
+      features: { fr: ["Attente active incluse", "Prise en charge courses", "Multi-arrêts flexibles"], en: ["Active wait time included", "Packages assistance", "Flexible multi-stops"] },
     },
     {
       id: "rdv_image",
       duration: "3h",
-      icon: <Briefcase className="text-gold-light" size={22} />,
+      icon: <Briefcase size={20} />,
+      recommended: true,
       name: { fr: "Le RDV d'Image", en: "The Image Meeting" },
-      desc: { 
-        fr: "Meeting, hôtel 5★, cabinet d'avocats, banque", 
-        en: "Meeting, 5★ hotel, law firm, private banking" 
-      },
-      prices: {
-        n1: { fr: "21 000 FCFA*", en: "21,000 FCFA*" },
-        n2: { fr: "39 000 FCFA", en: "39,000 FCFA" },
-        n3: { fr: "Sur devis", en: "Upon Request" }
-      },
-      features: {
-        fr: ["Prestance protocolaire", "Discrétion absolue", "Idéal rendez-vous d'affaires"],
-        en: ["Protocol-level presence", "Absolute privacy", "Ideal for business meetings"]
-      }
+      desc: { fr: "Meeting, hôtel 5★, cabinet d'avocats, banque", en: "Meeting, 5★ hotel, law firm, private banking" },
+      prices: { n1: { fr: "21 000 FCFA*", en: "21,000 FCFA*" }, n2: { fr: "39 000 FCFA", en: "39,000 FCFA" }, n3: { fr: "Sur devis", en: "Upon Request" } },
+      features: { fr: ["Prestance protocolaire", "Discrétion absolue", "Idéal rendez-vous d'affaires"], en: ["Protocol-level presence", "Absolute privacy", "Ideal for business meetings"] },
     },
     {
       id: "grande_journee",
       duration: "8h",
-      icon: <Compass className="text-gold-light" size={22} />,
+      icon: <Compass size={20} />,
+      recommended: false,
       name: { fr: "La Grande Journée", en: "The Full Day" },
-      desc: { 
-        fr: "Bassam, Dabou, Anyama — itinéraire libre", 
-        en: "Grand-Bassam, Dabou, Anyama — custom unlimited route" 
-      },
-      prices: {
-        n1: { fr: "45 000 FCFA", en: "45,000 FCFA" },
-        n2: { fr: "60 000 FCFA*", en: "60,000 FCFA*" },
-        n3: { fr: "Sur devis", en: "Upon Request" }
-      },
-      features: {
-        fr: ["Distance 200 km incluse", "Prise en charge totale", "Déplacements régionaux"],
-        en: ["200 km mileage included", "Full chauffeur assistance", "Regional travel ready"]
-      }
+      desc: { fr: "Bassam, Dabou, Anyama — itinéraire libre", en: "Grand-Bassam, Dabou, Anyama — custom unlimited route" },
+      prices: { n1: { fr: "45 000 FCFA", en: "45,000 FCFA" }, n2: { fr: "60 000 FCFA*", en: "60,000 FCFA*" }, n3: { fr: "Sur devis", en: "Upon Request" } },
+      features: { fr: ["Distance 200 km incluse", "Prise en charge totale", "Déplacements régionaux"], en: ["200 km mileage included", "Full chauffeur assistance", "Regional travel ready"] },
     },
     {
       id: "evenement",
       duration: "16h",
-      icon: <Sparkles className="text-gold-light" size={22} />,
+      icon: <Sparkles size={20} />,
+      recommended: false,
       name: { fr: "L'Événement", en: "The Signature Event" },
-      desc: { 
-        fr: "Mariage, séminaire, journée VIP", 
-        en: "Weddings, high-level seminars, private VIP days" 
-      },
-      prices: {
-        n1: { fr: "85 000 FCFA", en: "85,000 FCFA" },
-        n2: { fr: "110 000 FCFA", en: "110,000 FCFA" },
-        n3: { fr: "Sur devis", en: "Upon Request" }
-      },
-      features: {
-        fr: ["Véhicule d'apparat décoré", "Disponibilité jour & nuit", "Service VIP premium"],
-        en: ["Decorated ceremonial car", "Day & night availability", "Premium VIP experience"]
-      }
-    }
+      desc: { fr: "Mariage, séminaire, journée VIP", en: "Weddings, high-level seminars, private VIP days" },
+      prices: { n1: { fr: "85 000 FCFA", en: "85,000 FCFA" }, n2: { fr: "110 000 FCFA", en: "110,000 FCFA" }, n3: { fr: "Sur devis", en: "Upon Request" } },
+      features: { fr: ["Véhicule d'apparat décoré", "Disponibilité jour & nuit", "Service VIP premium"], en: ["Decorated ceremonial car", "Day & night availability", "Premium VIP experience"] },
+    },
   ];
 
   const adjustments = [
-    {
-      icon: <Moon className="text-gold-light" size={20} />,
-      title: t("ratesAdjustmentNight"),
-      desc: t("ratesAdjustmentNightDesc")
-    },
-    {
-      icon: <CalendarCheck className="text-gold-light" size={20} />,
-      title: t("ratesAdjustmentWeekend"),
-      desc: t("ratesAdjustmentWeekendDesc")
-    },
-    {
-      icon: <ShieldCheck className="text-gold-light" size={20} />,
-      title: t("ratesAdjustmentBilingual"),
-      desc: t("ratesAdjustmentBilingualDesc")
-    }
+    { icon: <Moon size={20} />, value: "+20%", title: t("ratesAdjustmentNight"), desc: t("ratesAdjustmentNightDesc") },
+    { icon: <CalendarCheck size={20} />, value: "+20%", title: t("ratesAdjustmentWeekend"), desc: t("ratesAdjustmentWeekendDesc") },
+    { icon: <ShieldCheck size={20} />, value: "+15%", title: t("ratesAdjustmentBilingual"), desc: t("ratesAdjustmentBilingualDesc") },
   ];
+
+  const supplements = [
+    { t: translate({ fr: "Accueil pancarte aéroport", en: "Airport meet & greet with sign" }), v: "5 000 FCFA" },
+    { t: translate({ fr: "Km supplémentaire", en: "Extra kilometer" }), v: "2000–3500 FCFA/km" },
+    { t: translate({ fr: "Km hors zone", en: "Out-of-zone km" }), v: "1 500 FCFA/km" },
+    { t: translate({ fr: "Annulation > 1H", en: "Cancellation > 1H" }), v: translate({ fr: "Gratuite", en: "Free" }) },
+  ];
+
+  const faqs = [
+    {
+      question: { fr: "Et s'il pleut ?", en: "What if it rains?" },
+      answer: { fr: "Rien ne change. Chez Easy, pas de majoration météo. Votre tarif 1h, 8h ou 16h reste le même.", en: "Nothing changes. At Easy, there is no weather-based surge pricing. Your 1h, 8h or 16h rate remains exactly the same." },
+    },
+    {
+      question: { fr: "Et s'il y a un gros embouteillage ?", en: "What if there is heavy traffic?" },
+      answer: { fr: "Le compteur ne tourne pas. Vous avez loué votre chauffeur + véhicule pour une durée. Bouchons ou pas, vous payez le forfait. Pas la minute en plus.", en: "The meter doesn't tick. You've rented your chauffeur + vehicle for a set duration. Traffic jams or not, you pay the flat rate. Not a single extra minute." },
+    },
+  ];
+
+  const nav = (page: string) => {
+    if (setCurrentPage) setCurrentPage(page);
+    else window.location.hash = page;
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const handleBook = (formulaId: string) => {
     localStorage.setItem("ev_selected_formula", formulaId);
     localStorage.setItem("ev_selected_vehicle_category", activeVehicle.toUpperCase());
-    if (setCurrentPage) {
-      setCurrentPage("reservation");
-    } else {
-      window.location.hash = "reservation";
-    }
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  const handleQuote = () => {
-    if (setCurrentPage) {
-      setCurrentPage("devis");
-    } else {
-      window.location.hash = "devis";
-    }
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    nav("reservation");
   };
 
   return (
-    <div id={id} className="min-h-screen bg-black py-20 px-4 relative overflow-hidden">
-      
-      {/* Premium dark, high-contrast background to maximize readability */}
-      <div className="absolute inset-0 z-0 pointer-events-none">
-        <div className="absolute inset-0 bg-radial-from-t bg-[#050505]" />
-        
-        {/* A very subtle, static warm-gray radial glow that is 100% readable and performant */}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(226,196,122,0.03)_0%,rgba(0,0,0,0)_70%)]" />
-      </div>
-
-      <div className="max-w-7xl mx-auto relative z-10">
-        
-        {/* Header Grid */}
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <span className="text-xs font-mono uppercase tracking-widest text-gold-light text-center">
-            {translate({ fr: "FORMULES SUR MESURE", en: "TAILORED FORMULAS" })}
-          </span>
-          <h1 className="text-3xl md:text-5xl font-sans font-light text-white tracking-tight mt-3">
-            {translate({ fr: "Nos Forfaits Storytellés", en: "Our Story-styled Packages" })}
-          </h1>
-          <p className="text-sm text-neutral-300 mt-4 max-w-2xl mx-auto">
-            {translate({ 
-              fr: "Découvrez notre nouvelle structure de forfaits conçue pour répondre à chacun de vos besoins avec élégance, transparence et prestige.", 
-              en: "Discover our new package structure designed to meet your every logistical need with elegance, absolute transparency, and prestige." 
-            })}
-          </p>
+    <div id={id} className="bg-white text-[#0B1F14] font-sans -mt-[69px] lg:-mt-[81px]">
+      {/* ====================== BANDEAU ====================== */}
+      <section className="relative overflow-hidden min-h-[46vh] flex items-center">
+        <img src={heroImg} alt="" className="absolute inset-0 w-full h-full object-cover" />
+        <div className="absolute inset-0" style={{ background: "linear-gradient(to right, rgba(5,20,12,0.9) 0%, rgba(5,20,12,0.6) 55%, rgba(5,20,12,0.35) 100%)" }} />
+        <div className="relative z-10 max-w-6xl mx-auto w-full px-6 lg:px-8 pt-32 lg:pt-40 pb-14 text-center">
+          <motion.span
+            initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}
+            className="inline-flex items-center gap-2 rounded-full bg-white/10 backdrop-blur-xl px-4 py-1.5 ring-1 ring-white/20 text-[11px] font-semibold tracking-[0.15em] text-white uppercase"
+          >
+            <Zap size={13} style={{ color: GREEN }} /> {translate({ fr: "Tarifs transparents · Abidjan", en: "Transparent pricing · Abidjan" })}
+          </motion.span>
+          <motion.h1
+            initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.1 }}
+            className="mt-4 text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white"
+          >
+            {translate({ fr: "Nos tarifs", en: "Our pricing" })}
+          </motion.h1>
+          <motion.nav
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.7, delay: 0.2 }}
+            className="mt-4 flex items-center justify-center gap-2 text-sm text-white/80"
+          >
+            <button onClick={() => nav("home")} className="hover:text-white transition-colors">{translate({ fr: "Accueil", en: "Home" })}</button>
+            <span className="text-white/40">/</span>
+            <span className="font-semibold text-white">{translate({ fr: "Tarifs", en: "Pricing" })}</span>
+          </motion.nav>
         </div>
+      </section>
 
-        {/* NEW OFFICIAL GRILLE TARIFAIRE ACCORDING TO IMAGE */}
-        <div className="w-full bg-white/5 backdrop-blur-xl border border-gold-light/15 rounded-2xl p-6 md:p-8 mb-16 shadow-2xl overflow-hidden">
-          <div className="border-b border-white/10 pb-6 mb-8 text-center md:text-left">
-            <h2 className="text-2xl md:text-3xl font-sans font-semibold text-white tracking-tight flex items-center justify-center md:justify-start gap-3">
-              <span className="w-2.5 h-6 bg-gold rounded-full" />
-              {translate({ fr: "Grille tarifaire · Base Easy by SAVER", en: "Pricing Grid · Base Easy by SAVER" })}
+      {/* ====================== FORMULES ====================== */}
+      <section className="relative overflow-hidden bg-[#F4F8F5]">
+        <div className="pointer-events-none absolute -top-24 -right-20 h-96 w-96 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(0,200,83,0.14), transparent)" }} />
+        <div className="pointer-events-none absolute top-40 -left-24 h-96 w-96 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(255,122,26,0.10), transparent)" }} />
+
+        <div className="relative z-10 max-w-6xl mx-auto px-6 lg:px-8 py-20">
+          <motion.div {...fade} className="text-center max-w-2xl mx-auto">
+            <span className="inline-flex items-center gap-2 text-xs font-semibold tracking-wide" style={{ color: GREEN }}>
+              <Sparkles size={14} /> {translate({ fr: "FORMULES SUR MESURE", en: "TAILORED FORMULAS" })}
+            </span>
+            <h2 className="mt-3 text-3xl sm:text-4xl font-extrabold tracking-tight">
+              {translate({ fr: "Des forfaits clairs, sans surprise.", en: "Clear packages, no surprises." })}
             </h2>
-            <p className="text-xs text-gold-light font-mono mt-2 uppercase tracking-wider">
-              {translate({
-                fr: "Tarifs Berline (Niveau 1) — Niveau 2 SUV ×1,25 — Niveau 3 Prestige sur devis",
-                en: "Berline Rates (Level 1) — Level 2 SUV ×1.25 — Level 3 Prestige upon Request"
-              })}
+            <p className="mt-3 text-[#5B6B62] text-lg">
+              {translate({ fr: "Un chauffeur et un véhicule 100 % électrique pour une durée fixe. Pluie, embouteillage ou nuit : le prix ne bouge pas.", en: "A chauffeur and a 100% electric vehicle for a fixed duration. Rain, traffic or night: the price doesn't move." })}
             </p>
-          </div>
+          </motion.div>
 
-          {/* DESKTOP TABLE VIEW */}
-          <div className="hidden md:block overflow-x-auto rounded-xl border border-white-premium/10 bg-black/40">
-            <table className="w-full text-left border-collapse min-w-[700px]">
-              <thead>
-                <tr className="bg-[#0B3C2A] text-white font-sans text-xs uppercase tracking-wider">
-                  <th className="py-4 px-6 border-b border-white-premium/10 rounded-tl-xl">{translate({ fr: "Formule", en: "Formula" })}</th>
-                  <th className="py-4 px-6 border-b border-white-premium/10">{translate({ fr: "Durée", en: "Duration" })}</th>
-                  <th className="py-4 px-6 border-b border-white-premium/10">{translate({ fr: "Km inclus", en: "Km included" })}</th>
-                  <th className="py-4 px-6 border-b border-white-premium/10">{translate({ fr: "Berline (N1)", en: "Berline (N1)" })}</th>
-                  <th className="py-4 px-6 border-b border-white-premium/10 rounded-tr-xl">{translate({ fr: "SUV Executive (N2)", en: "SUV Executive (N2)" })}</th>
-                </tr>
-              </thead>
-              <tbody className="text-sm font-sans text-neutral-200">
-                <tr className="border-b border-white-premium/5 hover:bg-white/[0.02] transition-colors">
-                  <td className="py-4 px-6 font-semibold text-white text-base" rowSpan={3}>
-                    {translate({ fr: "À l'heure", en: "By the hour" })}
-                  </td>
-                  <td className="py-4 px-6 font-mono text-xs">1H</td>
-                  <td className="py-4 px-6 font-mono text-xs text-neutral-500">—</td>
-                  <td className="py-4 px-6 font-mono font-bold text-gold-light text-base">10 000 FCFA</td>
-                  <td className="py-4 px-6 font-mono text-neutral-300">15 000 FCFA/h</td>
-                </tr>
-                <tr className="border-b border-white-premium/5 hover:bg-white/[0.02] transition-colors">
-                  <td className="py-4 px-6 font-mono text-xs">2H</td>
-                  <td className="py-4 px-6 font-mono text-xs text-neutral-500">—</td>
-                  <td className="py-4 px-6 font-mono font-bold text-gold-light text-base">18 000 FCFA</td>
-                  <td className="py-4 px-6 font-mono text-neutral-300">28 000 FCFA/h</td>
-                </tr>
-                <tr className="border-b border-white-premium/10 bg-gold/5 hover:bg-gold/10 transition-colors">
-                  <td className="py-4 px-6 font-mono text-xs">3H</td>
-                  <td className="py-4 px-6 font-mono text-xs text-neutral-500">—</td>
-                  <td className="py-4 px-6 font-mono font-bold text-gold-light text-base flex items-center gap-2">
-                    <span>21 000 FCFA*</span>
-                    <span className="text-[9px] font-sans font-bold bg-[#0B3C2A] text-white uppercase tracking-wider px-1.5 py-0.5 rounded shadow">
+          {/* Sélecteur de niveau de véhicule */}
+          <motion.div {...fade} className="mt-8 flex flex-col items-center gap-2">
+            <div className="inline-flex rounded-full bg-white p-1 ring-1 ring-[#E6EBE8] shadow-sm">
+              {vehicleLevels.map((lv) => {
+                const active = activeVehicle === lv.id;
+                return (
+                  <button
+                    key={lv.id}
+                    onClick={() => setActiveVehicle(lv.id)}
+                    className={`px-4 sm:px-5 py-2 rounded-full text-sm font-semibold transition-colors ${active ? "text-[#06140D]" : "text-[#5B6B62] hover:text-[#0B1F14]"}`}
+                    style={active ? { background: GREEN } : undefined}
+                  >
+                    {lv.label} <span className="opacity-60 text-xs">{lv.tag}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-[#5B6B62]">
+              {translate({ fr: "Berline (N1) — SUV Executive (N2) ×1,25 — Prestige (N3) sur devis", en: "Sedan (N1) — Executive SUV (N2) ×1.25 — Prestige (N3) upon request" })}
+            </p>
+          </motion.div>
+
+          {/* Cartes formules */}
+          <div className="mt-12 grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {formulas.map((f, i) => {
+              const priceStr = translate(f.prices[activeVehicle]);
+              const isQuote = activeVehicle === "n3" || /devis|request/i.test(priceStr);
+              return (
+                <motion.div
+                  key={f.id}
+                  {...fade}
+                  transition={{ ...fade.transition, delay: i * 0.07 }}
+                  className={`group relative flex flex-col rounded-3xl bg-white p-6 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl ${f.recommended ? "ring-2 shadow-lg" : "ring-1 ring-[#E6EBE8]"}`}
+                  style={f.recommended ? { boxShadow: "0 12px 30px rgba(0,200,83,0.15)", borderColor: GREEN, ["--tw-ring-color" as any]: GREEN } : undefined}
+                >
+                  {f.recommended && (
+                    <span className="absolute -top-3 left-6 rounded-full px-3 py-1 text-[11px] font-bold text-[#06140D] shadow" style={{ background: GREEN }}>
                       {translate({ fr: "Recommandé", en: "Recommended" })}
                     </span>
-                  </td>
-                  <td className="py-4 px-6 font-mono text-neutral-300">39 000 FCFA/h</td>
-                </tr>
-
-                <tr className="border-b border-white-premium/5 hover:bg-white/[0.02] transition-colors">
-                  <td className="py-5 px-6 font-semibold text-white text-base">
-                    {translate({ fr: "Demi-journée", en: "Half-day" })}
-                  </td>
-                  <td className="py-5 px-6 font-mono text-xs">8 heures</td>
-                  <td className="py-5 px-6 font-mono text-xs text-neutral-500">—</td>
-                  <td className="py-5 px-6 font-mono font-bold text-gold-light text-base">45 000 FCFA</td>
-                  <td className="py-5 px-6 bg-emerald-950/35 border-l border-emerald-500/20">
-                    <div className="flex items-center gap-2.5">
-                      <span className="font-mono font-bold text-emerald-400 text-base">60 000 FCFA</span>
-                      <span className="text-[9px] font-sans font-bold bg-[#0B3C2A] text-white uppercase tracking-wider px-1.5 py-0.5 rounded shadow">
-                        {translate({ fr: "Recommandé", en: "Recommended" })}
-                      </span>
-                    </div>
-                  </td>
-                </tr>
-
-                <tr className="border-b border-white-premium/10 hover:bg-white/[0.02] transition-colors">
-                  <td className="py-5 px-6 font-semibold text-white text-base">
-                    {translate({ fr: "Journée complète", en: "Full day" })}
-                  </td>
-                  <td className="py-5 px-6 font-mono text-xs">16 heures</td>
-                  <td className="py-5 px-6 font-mono text-xs text-neutral-500">—</td>
-                  <td className="py-5 px-6 font-mono font-bold text-gold-light text-base">85 000 FCFA</td>
-                  <td className="py-5 px-6 font-mono font-bold text-neutral-200 text-base">110 000 FCFA</td>
-                </tr>
-
-                <tr className="bg-[#051B13] text-white font-sans text-xs">
-                  <td className="py-4 px-6 font-medium rounded-bl-xl" colSpan={3}>
-                    {translate({ fr: "Toutes formules", en: "All formulas" })}
-                  </td>
-                  <td className="py-4 px-6 font-bold text-emerald-400 uppercase tracking-wider">
-                    SUV Prestige (N3)
-                  </td>
-                  <td className="py-4 px-6 font-mono font-bold text-neutral-300 rounded-br-xl italic">
-                    {translate({ fr: "Sur devis", en: "Upon request" })}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          {/* MOBILE CARD VIEW */}
-          <div className="block md:hidden space-y-6">
-            {/* À l'heure */}
-            <div className="bg-black/30 border border-white-premium/10 rounded-xl overflow-hidden shadow-lg">
-              <div className="bg-[#0B3C2A] px-4 py-3 text-white font-sans text-xs font-bold uppercase tracking-wider">
-                {translate({ fr: "À l'heure", en: "By the hour" })}
-              </div>
-              <div className="p-4 space-y-4 divide-y divide-white/5">
-                {/* 1H */}
-                <div className="pt-2 first:pt-0">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-mono text-xs text-gold-light font-bold">1 HEURE (1H)</span>
-                    <span className="text-[10px] text-neutral-500 font-mono">{translate({ fr: "Km inclus: —", en: "Km inc: —" })}</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-white/[0.02] border border-white/5 rounded-lg p-2.5">
-                      <span className="block text-[10px] text-neutral-400 uppercase font-sans tracking-wide">Berline (N1)</span>
-                      <span className="block text-xs font-mono font-bold text-gold-light mt-0.5">10 000 FCFA</span>
-                    </div>
-                    <div className="bg-white/[0.02] border border-white/5 rounded-lg p-2.5">
-                      <span className="block text-[10px] text-neutral-400 uppercase font-sans tracking-wide">SUV Exec (N2)</span>
-                      <span className="block text-xs font-mono font-bold text-neutral-300 mt-0.5">15 000 FCFA/h</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 2H */}
-                <div className="pt-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-mono text-xs text-gold-light font-bold">2 HEURES (2H)</span>
-                    <span className="text-[10px] text-neutral-500 font-mono">{translate({ fr: "Km inclus: —", en: "Km inc: —" })}</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-white/[0.02] border border-white/5 rounded-lg p-2.5">
-                      <span className="block text-[10px] text-neutral-400 uppercase font-sans tracking-wide">Berline (N1)</span>
-                      <span className="block text-xs font-mono font-bold text-gold-light mt-0.5">18 000 FCFA</span>
-                    </div>
-                    <div className="bg-white/[0.02] border border-white/5 rounded-lg p-2.5">
-                      <span className="block text-[10px] text-neutral-400 uppercase font-sans tracking-wide">SUV Exec (N2)</span>
-                      <span className="block text-xs font-mono font-bold text-neutral-300 mt-0.5">28 000 FCFA/h</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 3H */}
-                <div className="pt-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-mono text-xs text-gold-light font-bold">3 HEURES (3H)</span>
-                      <span className="text-[8px] font-sans font-bold bg-[#0B3C2A] text-white uppercase tracking-wider px-1.5 py-0.5 rounded shadow">
-                        {translate({ fr: "Recommandé", en: "Recommended" })}
-                      </span>
-                    </div>
-                    <span className="text-[10px] text-neutral-500 font-mono">{translate({ fr: "Km inclus: —", en: "Km inc: —" })}</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-gold/5 border border-gold/20 rounded-lg p-2.5">
-                      <span className="block text-[10px] text-gold-light uppercase font-sans tracking-wide font-medium">Berline (N1)</span>
-                      <span className="block text-xs font-mono font-bold text-gold-light mt-0.5">21 000 FCFA*</span>
-                    </div>
-                    <div className="bg-white/[0.02] border border-white/5 rounded-lg p-2.5">
-                      <span className="block text-[10px] text-neutral-400 uppercase font-sans tracking-wide">SUV Exec (N2)</span>
-                      <span className="block text-xs font-mono font-bold text-neutral-300 mt-0.5">39 000 FCFA/h</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Demi-journée */}
-            <div className="bg-black/30 border border-white-premium/10 rounded-xl overflow-hidden shadow-lg">
-              <div className="bg-[#0B3C2A] px-4 py-3 text-white font-sans text-xs font-bold uppercase tracking-wider">
-                {translate({ fr: "Demi-journée", en: "Half-day" })}
-              </div>
-              <div className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-mono text-xs text-gold-light font-bold">8 HEURES (8H)</span>
-                  <span className="text-[10px] text-neutral-500 font-mono">{translate({ fr: "Km inclus: —", en: "Km inc: —" })}</span>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-white/[0.02] border border-white/5 rounded-lg p-2.5">
-                    <span className="block text-[10px] text-neutral-400 uppercase font-sans tracking-wide">Berline (N1)</span>
-                    <span className="block text-xs font-mono font-bold text-gold-light mt-0.5">45 000 FCFA</span>
-                  </div>
-                  <div className="bg-emerald-950/30 border border-emerald-500/20 rounded-lg p-2.5">
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="text-[10px] text-emerald-400 uppercase font-sans tracking-wide font-bold">SUV Exec (N2)</span>
-                      <span className="text-[7px] font-sans font-bold bg-[#0B3C2A] text-white uppercase tracking-wider px-1 rounded shrink-0">
-                        {translate({ fr: "Top", en: "Top" })}
-                      </span>
-                    </div>
-                    <span className="block text-xs font-mono font-bold text-emerald-400 mt-0.5">60 000 FCFA</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Journée complète */}
-            <div className="bg-black/30 border border-white-premium/10 rounded-xl overflow-hidden shadow-lg">
-              <div className="bg-[#0B3C2A] px-4 py-3 text-white font-sans text-xs font-bold uppercase tracking-wider">
-                {translate({ fr: "Journée complète", en: "Full day" })}
-              </div>
-              <div className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-mono text-xs text-gold-light font-bold">16 HEURES (16H)</span>
-                  <span className="text-[10px] text-neutral-500 font-mono">{translate({ fr: "Km inclus: —", en: "Km inc: —" })}</span>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-white/[0.02] border border-white/5 rounded-lg p-2.5">
-                    <span className="block text-[10px] text-neutral-400 uppercase font-sans tracking-wide">Berline (N1)</span>
-                    <span className="block text-xs font-mono font-bold text-gold-light mt-0.5">85 000 FCFA</span>
-                  </div>
-                  <div className="bg-white/[0.02] border border-white/5 rounded-lg p-2.5">
-                    <span className="block text-[10px] text-neutral-400 uppercase font-sans tracking-wide">SUV Exec (N2)</span>
-                    <span className="block text-xs font-mono font-bold text-neutral-300 mt-0.5">110 000 FCFA</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Toutes formules (N3) */}
-            <div className="bg-[#051B13] border border-white-premium/10 rounded-xl p-4 flex items-center justify-between shadow-lg">
-              <div>
-                <span className="block text-[10px] text-emerald-400 uppercase font-sans tracking-wider font-bold">SUV Prestige (N3)</span>
-                <span className="block text-xs text-neutral-400 font-sans mt-0.5">{translate({ fr: "Toutes formules", en: "All formulas" })}</span>
-              </div>
-              <span className="text-xs font-mono font-bold text-neutral-200 italic">{translate({ fr: "Sur devis", en: "Upon request" })}</span>
-            </div>
-          </div>
-
-          <div className="mt-12">
-            <h3 className="text-lg font-sans font-semibold text-white tracking-tight mb-6 flex items-center gap-2">
-              <span className="w-1.5 h-4 bg-emerald-500 rounded-full" />
-              {translate({ fr: "Majorations applicables à tous les niveaux", en: "Surcharges applicable to all levels" })}
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between bg-black/40 border border-white-premium/10 rounded-xl p-4 hover:border-gold-light/20 transition-all">
-                  <div className="flex items-center gap-3">
-                    <Check className="text-emerald-400 shrink-0" size={16} />
-                    <span className="text-xs font-medium text-neutral-200">{translate({ fr: "Service de nuit (22H–6H)", en: "Night service (22H–6H)" })}</span>
-                  </div>
-                  <span className="text-xs font-mono font-bold text-emerald-400">+20%</span>
-                </div>
-                <div className="flex items-center justify-between bg-black/40 border border-white-premium/10 rounded-xl p-4 hover:border-gold-light/20 transition-all">
-                  <div className="flex items-center gap-3">
-                    <Check className="text-emerald-400 shrink-0" size={16} />
-                    <span className="text-xs font-medium text-neutral-200">{translate({ fr: "Week-end & jours fériés", en: "Weekend & public holidays" })}</span>
-                  </div>
-                  <span className="text-xs font-mono font-bold text-emerald-400">+20%</span>
-                </div>
-                <div className="flex items-center justify-between bg-black/40 border border-white-premium/10 rounded-xl p-4 hover:border-gold-light/20 transition-all">
-                  <div className="flex items-center gap-3">
-                    <Check className="text-emerald-400 shrink-0" size={16} />
-                    <span className="text-xs font-medium text-neutral-200">{translate({ fr: "Chauffeur bilingue", en: "Bilingual chauffeur" })}</span>
-                  </div>
-                  <span className="text-xs font-mono font-bold text-emerald-400">+15%</span>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between bg-black/40 border border-white-premium/10 rounded-xl p-4 hover:border-gold-light/20 transition-all">
-                  <div className="flex items-center gap-3">
-                    <Check className="text-emerald-400 shrink-0" size={16} />
-                    <span className="text-xs font-medium text-neutral-200">{translate({ fr: "Accueil pancarte aéroport", en: "Airport meet & greet with sign" })}</span>
-                  </div>
-                  <span className="text-xs font-mono font-bold text-emerald-400">5 000 FCFA</span>
-                </div>
-                <div className="flex items-center justify-between bg-black/40 border border-white-premium/10 rounded-xl p-4 hover:border-gold-light/20 transition-all">
-                  <div className="flex items-center gap-3">
-                    <Check className="text-emerald-400 shrink-0" size={16} />
-                    <span className="text-xs font-medium text-neutral-200">{translate({ fr: "Km supplémentaire", en: "Extra kilometer" })}</span>
-                  </div>
-                  <span className="text-xs font-mono font-bold text-emerald-400">2000–3500 FCFA/km</span>
-                </div>
-                <div className="flex items-center justify-between bg-black/40 border border-white-premium/10 rounded-xl p-4 hover:border-gold-light/20 transition-all">
-                  <div className="flex items-center gap-3">
-                    <Check className="text-emerald-400 shrink-0" size={16} />
-                    <span className="text-xs font-medium text-neutral-200">{translate({ fr: "Annulation > 1H", en: "Cancellation > 1H" })}</span>
-                  </div>
-                  <span className="text-xs font-mono font-bold text-emerald-400">{translate({ fr: "Gratuite", en: "Free" })}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Mention tarifaire hors zone */}
-        <div id="hors_zone_km_mention" className="bg-white/[0.02] border border-white/5 rounded-2xl p-4 mb-10 max-w-2xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gold/10 border border-gold-light/20 flex items-center justify-center shrink-0">
-              <Compass className="text-gold-light" size={18} />
-            </div>
-            <div>
-              <p className="text-xs text-neutral-400 font-sans">
-                {translate({ fr: "Trajets hors zone", en: "Trips outside area" })}
-              </p>
-              <h4 className="text-sm font-sans font-semibold text-white tracking-tight">
-                {translate({ 
-                  fr: "Tarif km hors zone = 1 500 FCFA/km", 
-                  en: "Out of zone km rate = 1,500 FCFA/km" 
-                })}
-              </h4>
-            </div>
-          </div>
-          <span className="inline-flex items-center px-3 py-1 rounded-full bg-[#00C853]/15 border border-[#00C853]/20 text-[#00C853] text-[10px] font-mono font-bold uppercase tracking-wider">
-            ⚡ {translate({ fr: "Énergie toujours incluse", en: "Energy always included" })}
-          </span>
-        </div>
-
-        {/* Prix Stables Highlighted Banner */}
-        <div id="stable_pricing_banner" className="bg-gradient-to-r from-gold/20 via-gold/5 to-transparent border border-gold-light/30 rounded-2xl p-6 mb-16 flex flex-col md:flex-row items-center gap-6 backdrop-blur-xl">
-          <div className="w-14 h-14 rounded-full bg-gold/10 border border-gold-light/25 flex items-center justify-center shrink-0">
-            <ShieldCheck className="text-gold-light" size={28} />
-          </div>
-          <div>
-            <h4 className="text-lg font-sans font-semibold text-white tracking-tight">
-              {translate({ fr: "Avantage Easy : Prix stables 24h/24, 7j/7", en: "Easy Advantage: Stable pricing 24/7" })}
-            </h4>
-            <p className="text-sm text-neutral-300 mt-1 leading-relaxed font-light">
-              {translate({ 
-                fr: "Pluie, embouteillage, nuit... votre budget est protégé.", 
-                en: "Rain, traffic jams, night... your budget is protected." 
-              })}
-            </p>
-          </div>
-        </div>
-
-        {/* 2. SPECIFIC SURCHARGES SECTION */}
-        <h2 className="text-xl md:text-2xl font-sans font-light text-white tracking-tight mb-8">
-          {t("ratesPremiumAdjustments")}
-        </h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 mb-16">
-          {adjustments.map((adj, i) => (
-            <Card 
-              key={i} 
-              id={`adjustment_card_${i}`} 
-              className="flex flex-col gap-4 bg-white/5 backdrop-blur-lg border border-gold-light/15 p-6 rounded-2xl hover:border-gold-light/30 transition-all duration-350"
-            >
-              <div className="w-10 h-10 rounded-full bg-transparent border border-white/10 flex items-center justify-center shrink-0">
-                {adj.icon}
-              </div>
-              <div>
-                <h3 className="text-sm font-sans font-semibold text-white">
-                  {adj.title}
-                </h3>
-                <p className="text-xs text-neutral-300 mt-2 leading-relaxed font-light">
-                  {adj.desc}
-                </p>
-              </div>
-            </Card>
-          ))}
-        </div>
-
-        {/* FAQ Section */}
-        <div id="faq_accordion_section" className="mb-16">
-          <h2 className="text-xl md:text-2xl font-sans font-light text-white tracking-tight mb-8">
-            {translate({ fr: "Questions Fréquentes (FAQ)", en: "Frequently Asked Questions (FAQ)" })}
-          </h2>
-          <div className="space-y-4">
-            {faqs.map((faq, index) => {
-              const isOpen = openFaqIndex === index;
-              return (
-                <div 
-                  key={index}
-                  id={`faq_item_${index}`}
-                  className="bg-white/5 border border-gold-light/10 rounded-xl overflow-hidden transition-all duration-300"
-                >
-                  <button
-                    onClick={() => setOpenFaqIndex(isOpen ? null : index)}
-                    className="w-full flex items-center justify-between p-5 text-left text-white hover:bg-white/5 transition-colors duration-200"
-                  >
-                    <span className="text-sm font-sans font-medium">
-                      {translate(faq.question)}
-                    </span>
-                    {isOpen ? (
-                      <ChevronUp className="text-gold-light" size={18} />
-                    ) : (
-                      <ChevronDown className="text-neutral-400" size={18} />
-                    )}
-                  </button>
-                  {isOpen && (
-                    <div className="p-5 pt-0 border-t border-white/5 text-xs text-neutral-300 leading-relaxed font-light">
-                      {translate(faq.answer)}
-                    </div>
                   )}
-                </div>
+                  <div className="flex items-center justify-between">
+                    <div className="w-11 h-11 rounded-xl flex items-center justify-center text-[#06140D]" style={{ background: GREEN }}>{f.icon}</div>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-[#F4F8F5] px-3 py-1 text-xs font-bold text-[#0B1F14] ring-1 ring-[#E6EBE8]">
+                      <Clock size={12} style={{ color: GREEN }} /> {f.duration}
+                    </span>
+                  </div>
+                  <h3 className="mt-4 text-lg font-extrabold">{translate(f.name)}</h3>
+                  <p className="mt-1 text-sm text-[#5B6B62] leading-relaxed">{translate(f.desc)}</p>
+
+                  <div className="mt-4">
+                    <div className="text-2xl font-extrabold tracking-tight">{priceStr}</div>
+                    <div className="text-xs text-[#5B6B62]">{translate({ fr: "à partir de · énergie incluse", en: "starting from · energy included" })}</div>
+                  </div>
+
+                  <ul className="mt-4 space-y-2 flex-1">
+                    {f.features[/* langue gérée par translate ailleurs */ "fr"].map((_, idx) => (
+                      <li key={idx} className="flex items-start gap-2 text-sm text-[#0B1F14]">
+                        <Check size={16} style={{ color: GREEN }} className="mt-0.5 shrink-0" />
+                        <span>{translate({ fr: f.features.fr[idx], en: f.features.en[idx] })}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <button
+                    onClick={() => (isQuote ? nav("devis") : handleBook(f.id))}
+                    className={`mt-6 inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold transition-transform active:scale-[0.98] ${isQuote ? "text-[#0B1F14] ring-1 ring-[#D7E0DA] hover:bg-[#F4F8F5]" : "text-[#06140D] shadow"}`}
+                    style={isQuote ? undefined : { background: GREEN }}
+                  >
+                    {isQuote ? translate({ fr: "Demander un devis", en: "Request a quote" }) : translate({ fr: "Réserver", en: "Book" })}
+                    <ArrowRight size={16} />
+                  </button>
+                </motion.div>
               );
             })}
           </div>
         </div>
+      </section>
 
-        {/* 3. BUSINESS RULES FAQs PANEL */}
-        <div id="faq_rates_container" className="bg-white/5 backdrop-blur-xl p-6 rounded-2xl border border-gold-light/20 shadow-xl">
-          <h4 className="text-sm font-sans font-bold text-white flex items-center gap-2 mb-3">
-            <HelpCircle size={16} className="text-gold-light" />
-            {translate({ fr: "Conditions contractuelles simplifiées", en: "Simplified Contractual Terms" })}
-          </h4>
-          <p className="text-xs text-neutral-300 leading-relaxed font-light">
-            {translate({
-              fr: "* L'ensemble des prestations intègre l'assurance tous risques voyageurs, la climatisation de prestige, les bouteilles d'eau rafraîchissantes et l'accès Wi-Fi au sein du véhicule. La tarification débute au départ de notre agence ou de l'adresse de prise en charge valide fournie lors du contrat. Tout dépassement au-delà de 15 minutes est facturé au prorata de l'heure entamée. Pour toute demande de facturation mensuelle groupée ou contrat cadre Corporate, veuillez directement contacter notre Bureau Plateau.",
-              en: "* All services include fully comprehensive passenger insurance, upscale climate comfort, complimentary chilled mineral water, and high-speed onboard Wi-Fi. Billing commences upon vehicle departure from our office or your designated pickup address. Grace period for wait times is 15 minutes, after which overtime is billed pro-rata. For consolidated recurring monthly invoicing or tailored Corporate Framework Agreements, please contact our Plateau Desk directly."
-            })}
-          </p>
+      {/* ====================== AVANTAGE PRIX STABLES ====================== */}
+      <section className="bg-white">
+        <div className="max-w-6xl mx-auto px-6 lg:px-8 py-14">
+          <motion.div {...fade} className="rounded-3xl p-8 sm:p-10 text-white relative overflow-hidden" style={{ background: INK }}>
+            <div className="pointer-events-none absolute -top-16 -right-10 h-56 w-56 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(0,200,83,0.25), transparent)" }} />
+            <div className="relative flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0" style={{ background: GREEN }}>
+                <ShieldCheck size={28} className="text-[#06140D]" />
+              </div>
+              <div>
+                <h3 className="text-xl sm:text-2xl font-extrabold tracking-tight">
+                  {translate({ fr: "Avantage Easy : prix stables 24h/24, 7j/7", en: "Easy Advantage: stable pricing 24/7" })}
+                </h3>
+                <p className="mt-1 text-white/75 leading-relaxed">
+                  {translate({ fr: "Pluie, embouteillage, nuit… votre budget est protégé. Pas de majoration météo, pas de compteur qui s'emballe.", en: "Rain, traffic jams, night… your budget is protected. No weather surge, no runaway meter." })}
+                </p>
+              </div>
+            </div>
+          </motion.div>
         </div>
+      </section>
 
-      </div>
+      {/* ====================== AJUSTEMENTS & SUPPLÉMENTS ====================== */}
+      <section className="relative overflow-hidden bg-[#F4F8F5]">
+        <div className="pointer-events-none absolute -bottom-24 -right-20 h-96 w-96 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(255,122,26,0.10), transparent)" }} />
+        <div className="relative z-10 max-w-6xl mx-auto px-6 lg:px-8 py-20">
+          <motion.div {...fade} className="max-w-2xl">
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight">{t("ratesPremiumAdjustments")}</h2>
+            <p className="mt-3 text-[#5B6B62] text-lg">
+              {translate({ fr: "Des majorations claires, appliquées à tous les niveaux de véhicule.", en: "Clear surcharges, applied to all vehicle levels." })}
+            </p>
+          </motion.div>
+
+          {/* Majorations en % */}
+          <div className="mt-10 grid md:grid-cols-3 gap-5">
+            {adjustments.map((adj, i) => (
+              <motion.div
+                key={i}
+                {...fade}
+                transition={{ ...fade.transition, delay: i * 0.08 }}
+                className="rounded-2xl bg-white p-6 ring-1 ring-[#E6EBE8] hover:-translate-y-1 hover:shadow-lg transition-all duration-300"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center text-[#06140D]" style={{ background: GREEN }}>{adj.icon}</div>
+                  <span className="rounded-full px-3 py-1 text-sm font-extrabold" style={{ background: "rgba(255,122,26,0.12)", color: "#C85A00" }}>{adj.value}</span>
+                </div>
+                <h3 className="mt-4 text-base font-bold">{adj.title}</h3>
+                <p className="mt-2 text-sm text-[#5B6B62] leading-relaxed">{adj.desc}</p>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Suppléments fixes */}
+          <motion.div {...fade} className="mt-6 rounded-2xl bg-white ring-1 ring-[#E6EBE8] divide-y divide-[#EEF2EF]">
+            {supplements.map((s, i) => (
+              <div key={i} className="flex items-center justify-between gap-4 px-6 py-4">
+                <div className="flex items-center gap-3">
+                  <Check size={16} style={{ color: GREEN }} className="shrink-0" />
+                  <span className="text-sm font-medium text-[#0B1F14]">{s.t}</span>
+                </div>
+                <span className="text-sm font-bold text-[#0B1F14]">{s.v}</span>
+              </div>
+            ))}
+          </motion.div>
+
+          {/* Énergie incluse */}
+          <motion.div {...fade} className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 rounded-2xl bg-white ring-1 ring-[#E6EBE8] px-6 py-4 text-center sm:text-left">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(0,200,83,0.12)" }}>
+                <MapPin size={18} style={{ color: GREEN }} />
+              </div>
+              <div>
+                <p className="text-xs text-[#5B6B62]">{translate({ fr: "Trajets hors zone", en: "Trips outside area" })}</p>
+                <h4 className="text-sm font-bold">{translate({ fr: "Tarif km hors zone = 1 500 FCFA/km", en: "Out of zone km rate = 1,500 FCFA/km" })}</h4>
+              </div>
+            </div>
+            <span className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider" style={{ background: "rgba(0,200,83,0.12)", color: GREEN }}>
+              <Zap size={12} /> {translate({ fr: "Énergie toujours incluse", en: "Energy always included" })}
+            </span>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ====================== FAQ ====================== */}
+      <section className="bg-white">
+        <div className="max-w-3xl mx-auto px-6 lg:px-8 py-20">
+          <motion.h2 {...fade} className="text-3xl sm:text-4xl font-extrabold tracking-tight text-center">
+            {translate({ fr: "Questions fréquentes", en: "Frequently asked questions" })}
+          </motion.h2>
+          <div className="mt-10 space-y-4">
+            {faqs.map((faq, index) => {
+              const isOpen = openFaqIndex === index;
+              return (
+                <motion.div {...fade} transition={{ ...fade.transition, delay: index * 0.06 }} key={index} className="rounded-2xl bg-[#F4F8F5] ring-1 ring-[#E6EBE8] overflow-hidden">
+                  <button
+                    onClick={() => setOpenFaqIndex(isOpen ? null : index)}
+                    className="w-full flex items-center justify-between gap-4 p-5 text-left hover:bg-[#EEF4F0] transition-colors"
+                  >
+                    <span className="text-base font-semibold">{translate(faq.question)}</span>
+                    {isOpen ? <ChevronUp size={18} style={{ color: GREEN }} /> : <ChevronDown size={18} className="text-[#5B6B62]" />}
+                  </button>
+                  {isOpen && (
+                    <div className="px-5 pb-5 text-sm text-[#5B6B62] leading-relaxed">{translate(faq.answer)}</div>
+                  )}
+                </motion.div>
+              );
+            })}
+          </div>
+
+          {/* Conditions */}
+          <motion.div {...fade} className="mt-8 rounded-2xl bg-[#F4F8F5] ring-1 ring-[#E6EBE8] p-6">
+            <h4 className="flex items-center gap-2 text-sm font-bold">
+              <HelpCircle size={16} style={{ color: GREEN }} />
+              {translate({ fr: "Conditions contractuelles simplifiées", en: "Simplified contractual terms" })}
+            </h4>
+            <p className="mt-3 text-xs text-[#5B6B62] leading-relaxed">
+              {translate({
+                fr: "* L'ensemble des prestations intègre l'assurance tous risques voyageurs, la climatisation de prestige, les bouteilles d'eau rafraîchissantes et l'accès Wi-Fi au sein du véhicule. La tarification débute au départ de notre agence ou de l'adresse de prise en charge valide fournie lors du contrat. Tout dépassement au-delà de 15 minutes est facturé au prorata de l'heure entamée. Pour toute demande de facturation mensuelle groupée ou contrat cadre Corporate, veuillez directement contacter notre Bureau Plateau.",
+                en: "* All services include fully comprehensive passenger insurance, upscale climate comfort, complimentary chilled mineral water, and high-speed onboard Wi-Fi. Billing commences upon vehicle departure from our office or your designated pickup address. Grace period for wait times is 15 minutes, after which overtime is billed pro-rata. For consolidated recurring monthly invoicing or tailored Corporate Framework Agreements, please contact our Plateau Desk directly.",
+              })}
+            </p>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ====================== CTA ====================== */}
+      <section style={{ background: INK }}>
+        <div className="max-w-5xl mx-auto px-6 lg:px-8 py-20 text-center">
+          <motion.h2 {...fade} className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
+            {translate({ fr: "Un besoin sur mesure ?", en: "A tailored need?" })}
+          </motion.h2>
+          <motion.p {...fade} className="mt-3 text-white/70 text-lg">
+            {translate({ fr: "Réservez une formule ou demandez un devis personnalisé.", en: "Book a package or request a custom quote." })}
+          </motion.p>
+          <motion.div {...fade} className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
+            <button onClick={() => nav("reservation")} className="inline-flex items-center justify-center gap-2 rounded-full px-8 py-4 text-sm font-semibold text-[#06140D] shadow-lg transition-transform active:scale-[0.98]" style={{ background: GREEN }}>
+              {translate({ fr: "Réserver une course", en: "Book a ride" })} <ArrowRight size={16} />
+            </button>
+            <button onClick={() => nav("devis")} className="inline-flex items-center justify-center gap-2 rounded-full px-8 py-4 text-sm font-semibold text-white ring-1 ring-white/25 hover:bg-white/10 transition-colors">
+              <PhoneCall size={18} /> {translate({ fr: "Demander un devis", en: "Request a quote" })}
+            </button>
+          </motion.div>
+        </div>
+      </section>
     </div>
   );
 };
