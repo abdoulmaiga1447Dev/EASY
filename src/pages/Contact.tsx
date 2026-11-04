@@ -1,9 +1,23 @@
+/**
+ * Page « Contact » — refonte UI/UX 2026.
+ * Thème clair (charte vert/blanc), 2 colonnes : infos + actions + formulaire
+ * à gauche, illustration à droite. Coordonnées et formulaire conservés.
+ */
 import React, { useState } from "react";
 import { useLanguage } from "../context/LanguageContext";
-import { Button } from "../components/Button";
-import { Card } from "../components/Card";
-import { Mail, Phone, MapPin, Send, MessageCircle, Clock, CheckCircle } from "lucide-react";
-import DotField from "../components/DotField";
+import { Mail, Phone, MapPin, Send, MessageCircle, Clock, CheckCircle, PhoneCall, ArrowRight } from "lucide-react";
+import { motion } from "motion/react";
+import illu from "../assets/saver/contact-illustration.jpg";
+
+const GREEN = "#00C853";
+const INK = "#0B1F14";
+
+const fade = {
+  initial: { opacity: 0, y: 20 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: true, margin: "-80px" },
+  transition: { duration: 0.6 },
+};
 
 interface ContactProps {
   id: string;
@@ -11,11 +25,7 @@ interface ContactProps {
 
 export const Contact: React.FC<ContactProps> = ({ id }) => {
   const { t, translate } = useLanguage();
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    message: ""
-  });
+  const [formData, setFormData] = useState({ name: "", email: "", message: "" });
   const [isSuccess, setIsSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorLocal, setErrorLocal] = useState<string | null>(null);
@@ -32,11 +42,8 @@ export const Contact: React.FC<ContactProps> = ({ id }) => {
       setErrorLocal(translate({ fr: "Tous les champs sont requis.", en: "All fields are required." }));
       return;
     }
-
     setIsLoading(true);
     console.log("Submitting contact requests payload:", formData);
-
-    // Dynamic mock api send
     setTimeout(() => {
       setIsLoading(false);
       setIsSuccess(true);
@@ -44,233 +51,145 @@ export const Contact: React.FC<ContactProps> = ({ id }) => {
     }, 1200);
   };
 
+  const inputCls =
+    "w-full rounded-xl bg-[#F4F8F5] border border-[#E6EBE8] focus:border-[#00C853] focus:ring-2 focus:ring-[#00C853]/20 rounded-xl p-3 text-sm text-[#0B1F14] placeholder-[#9BA8A0] outline-none transition-colors";
+
   return (
-    <div id={id} className="min-h-screen bg-black py-20 px-4 relative overflow-hidden">
-      
-      {/* Interactive DotField background */}
-      <div className="absolute inset-0 z-0 pointer-events-none">
-        <DotField
-          dotRadius={1.5}
-          dotSpacing={14}
-          bulgeStrength={67}
-          glowRadius={160}
-          sparkle={false}
-          waveAmplitude={0}
-          cursorRadius={500}
-          cursorForce={0.1}
-          bulgeOnly
-          gradientFrom="#84CC16"
-          gradientTo="#B497CF"
-          glowColor="#120F17"
-        />
-        {/* Soft vignette to blend content legibility */}
-        <div className="absolute inset-0 bg-black/40 pointer-events-none" />
-      </div>
+    <div id={id} className="relative overflow-hidden bg-white text-[#0B1F14] font-sans">
+      {/* décor doux */}
+      <div className="pointer-events-none absolute -top-24 -left-24 h-96 w-96 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(0,200,83,0.12), transparent)" }} />
+      <div className="pointer-events-none absolute top-1/3 -right-24 h-96 w-96 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(255,122,26,0.10), transparent)" }} />
 
-      <div className="max-w-7xl mx-auto relative z-10">
-        
-        {/* Underlines */}
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <span className="text-xs font-mono uppercase tracking-widest text-gold-light text-center">
-            {translate({ fr: "RÉSERVATION & ASSISTANCE", en: "RESERVATIONS & ASSISTANCE" })}
-          </span>
-          <h1 className="text-3xl md:text-5xl font-sans font-bold text-white-premium tracking-tight mt-3">
+      <div className="relative z-10 max-w-6xl mx-auto px-6 lg:px-8 py-16 lg:py-24 grid lg:grid-cols-2 gap-12 items-start">
+        {/* ====== COLONNE GAUCHE ====== */}
+        <div>
+          <motion.span {...fade} className="inline-flex items-center gap-2 text-xs font-semibold tracking-wide" style={{ color: GREEN }}>
+            <MessageCircle size={14} /> {translate({ fr: "RÉSERVATION & ASSISTANCE", en: "RESERVATIONS & ASSISTANCE" })}
+          </motion.span>
+          <motion.h1 {...fade} className="mt-3 text-4xl sm:text-5xl font-extrabold tracking-tight">
             {t("contactTitle")}
-          </h1>
-          <p className="text-sm text-muted-premium mt-4">
+          </motion.h1>
+          <motion.p {...fade} className="mt-4 text-[#5B6B62] text-lg leading-relaxed max-w-xl">
             {t("contactSubtitle")}
-          </p>
-        </div>
+          </motion.p>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-          
-          {/* 1. CONTACT INFORMATIONS & CORPORATE ADDRESS */}
-          <div className="lg:col-span-5 flex flex-col gap-6">
-            <Card id="info_card_top" className="flex flex-col gap-6 bg-white/5 backdrop-blur-xl border-gold-light/20 shadow-2xl p-8 rounded-2xl" glow={true}>
-              <div>
-                <span className="text-[10px] uppercase font-mono tracking-widest text-gold-light block mb-3">
-                  {translate({ fr: "SIÈGE SOCIAL & ADRESSE", en: "REGISTERED OFFICE & ADDRESS" })}
-                </span>
-                <h3 className="text-xl font-sans font-semibold text-white">
-                  EASY — By Saver
-                </h3>
-              </div>
+          {/* Actions rapides */}
+          <motion.div {...fade} className="mt-7 grid sm:grid-cols-2 gap-3">
+            <a
+              href="https://wa.me/2250797139787?text=Bonjour,%20je%20souhaite%20réserver%20un%20véhicule%20EASY"
+              target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3.5 text-sm font-semibold text-[#06140D] shadow-sm transition-transform active:scale-[0.98]"
+              style={{ background: GREEN }}
+            >
+              <MessageCircle size={17} /> {translate({ fr: "Via WhatsApp", en: "Via WhatsApp" })}
+            </a>
+            <a
+              href="tel:+2250170083681"
+              className="inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3.5 text-sm font-semibold text-white shadow-sm transition-transform active:scale-[0.98]"
+              style={{ background: INK }}
+            >
+              <PhoneCall size={17} /> {translate({ fr: "Via appel", en: "Via call" })}
+            </a>
+          </motion.div>
+          <motion.a
+            {...fade}
+            href="#contact_form"
+            onClick={() => document.getElementById("contact_form")?.scrollIntoView({ behavior: "smooth" })}
+            className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3.5 text-sm font-semibold text-[#0B1F14] ring-1 ring-[#D7E0DA] hover:bg-[#F4F8F5] transition-colors"
+          >
+            <Mail size={17} style={{ color: GREEN }} /> {translate({ fr: "Via formulaire e-mail", en: "Via email form" })}
+          </motion.a>
 
-              <div className="space-y-4">
-                <div className="flex items-start gap-3.5 text-xs">
-                  <div className="w-8 h-8 rounded-full bg-gold/10 border border-gold-light/20 flex items-center justify-center text-gold-light mt-1 shrink-0">
-                    <MapPin size={15} />
-                  </div>
-                  <div>
-                    <span className="text-white font-semibold block">{t("contactAddressTitle")}</span>
-                    <span className="text-neutral-300 block mt-1 leading-relaxed">
-                      Cocody Angré CNPS, Cité Star 12, Abidjan, Côte d'Ivoire
-                    </span>
-                  </div>
-                </div>
+          {/* Formulaire */}
+          <motion.div {...fade} id="contact_form" className="mt-8 rounded-3xl bg-white ring-1 ring-[#E6EBE8] shadow-[0_1px_0_rgba(0,0,0,0.02)] p-6 sm:p-8">
+            <h3 className="text-lg font-bold">{translate({ fr: "Envoyer une demande", en: "Send a request" })}</h3>
 
-                <div className="flex items-start gap-3.5 text-xs">
-                  <div className="w-8 h-8 rounded-full bg-gold/10 border border-gold-light/20 flex items-center justify-center text-gold-light mt-1 shrink-0">
-                    <Phone size={15} />
-                  </div>
-                  <div>
-                    <span className="text-white font-semibold block">
-                      {translate({ fr: "Contact Téléphonique Office", en: "Office Hotline Contact" })}
-                    </span>
-                    <span className="text-neutral-300 block mt-1">+225 01 70 08 36 81</span>
-                    <span className="text-neutral-300 block">+225 07 97 13 97 87</span>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3.5 text-xs">
-                  <div className="w-8 h-8 rounded-full bg-gold/10 border border-gold-light/20 flex items-center justify-center text-gold-light mt-1 shrink-0">
-                    <Mail size={15} />
-                  </div>
-                  <div>
-                    <span className="text-white font-semibold block">
-                      {translate({ fr: "Courriel Officiel", en: "Official Direct Email" })}
-                    </span>
-                    <span className="text-neutral-300 block mt-1">booking@easy-saver.ci</span>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3.5 text-xs">
-                  <div className="w-8 h-8 rounded-full bg-gold/10 border border-gold-light/20 flex items-center justify-center text-gold-light mt-1 shrink-0">
-                    <Clock size={15} />
-                  </div>
-                  <div>
-                    <span className="text-white font-semibold block">{t("contactScheduleTitle")}</span>
-                    <span className="text-neutral-300 block mt-1">{t("contactScheduleDesc")}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Direct WhatsApp Call */}
-              <div className="pt-4 border-t border-gold-light/10">
-                <p className="text-[11px] text-neutral-300 mb-3">
-                  {translate({
-                    fr: "Besoin d'une réponse instantanée d'un de nos conseillers ?",
-                    en: "Need an immediate answer from our chat specialists?"
-                  })}
-                </p>
-                
-                {/* Standard WhatsApp dynamic anchor link */}
-                <a
-                  id="direct_whatsapp_accent"
-                  href="https://wa.me/2250797139787?text=Bonjour,%20je%20souhaite%20réserver%20un%20véhicule%20EASY"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-white bg-emerald-600 font-medium hover:bg-emerald-700 shadow-sm transition-all duration-150 text-xs active:translate-y-[1px]"
+            {isSuccess ? (
+              <div className="mt-5 rounded-2xl bg-[#00C853]/10 ring-1 ring-[#00C853]/30 p-6 text-center">
+                <CheckCircle size={36} className="mx-auto mb-3" style={{ color: GREEN }} />
+                <p className="text-sm font-semibold text-[#0B1F14]">{t("contactSuccess")}</p>
+                <button
+                  onClick={() => setIsSuccess(false)}
+                  className="mt-4 inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold text-[#0B1F14] ring-1 ring-[#D7E0DA] hover:bg-[#F4F8F5]"
                 >
-                  <MessageCircle size={16} />
-                  {t("contactWhatsAppBtn")}
-                </a>
+                  {translate({ fr: "Nouveau message", en: "New message" })}
+                </button>
               </div>
-            </Card>
-          </div>
-
-          {/* 2. CONTACT REQUEST FORM */}
-          <div className="lg:col-span-7">
-            <Card id="form_card" className="p-8 bg-white/5 backdrop-blur-xl border-gold-light/20 shadow-2xl rounded-2xl">
-              <h3 className="text-xl font-sans font-semibold text-white mb-6">
-                {translate({ fr: "Envoyer une demande d'informations", en: "Submit an Information Request" })}
-              </h3>
-
-              {isSuccess ? (
-                <div id="contact_success_banner" className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-6 text-center text-emerald-400">
-                  <CheckCircle size={36} className="mx-auto mb-3" />
-                  <p className="text-sm font-semibold">{t("contactSuccess")}</p>
-                  <Button
-                    id="contact_send_again_btn"
-                    variant="outline"
-                    onClick={() => setIsSuccess(false)}
-                    className="mt-4 px-4 py-2 text-xs"
-                  >
-                    {translate({ fr: "Nouveau message", en: "New message" })}
-                  </Button>
+            ) : (
+              <form onSubmit={handleSubmit} className="mt-5 space-y-4" noValidate>
+                {errorLocal && (
+                  <div className="rounded-lg bg-red-50 ring-1 ring-red-200 p-3 text-xs text-red-600">{errorLocal}</div>
+                )}
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="contact_name" className="text-xs font-semibold text-[#5B6B62] uppercase tracking-wide">{t("contactLabelName")} *</label>
+                  <input id="contact_name" name="name" type="text" value={formData.name} onChange={handleChange} required
+                    placeholder={translate({ fr: "Ex : Jean Koffi", en: "e.g., John Doe" })} className={inputCls} />
                 </div>
-              ) : (
-                <form id="contact_actual_form" onSubmit={handleSubmit} className="space-y-5" noValidate>
-                  
-                  {/* Local error banner */}
-                  {errorLocal && (
-                    <div id="contact_error_banner" className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-xs text-red-400">
-                      {errorLocal}
-                    </div>
-                  )}
-                  
-                  {/* Name field */}
-                  <div className="flex flex-col gap-2">
-                    <label htmlFor="contact_name" className="text-xs font-mono text-neutral-300 uppercase">
-                      {t("contactLabelName")} *
-                    </label>
-                    <input
-                      type="text"
-                      id="contact_name"
-                      name="name"
-                      value={formData.name}
-                      onChange={handleChange}
-                      required
-                      placeholder={translate({ fr: "Ex: Jean Koffi", en: "e.g., John Doe" })}
-                      className="bg-black/60 border border-gold-light/10 focus:border-gold-light rounded-xl p-3 text-sm text-white placeholder-neutral-500 outline-none transition-colors"
-                    />
-                  </div>
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="contact_email" className="text-xs font-semibold text-[#5B6B62] uppercase tracking-wide">{t("contactLabelEmail")} *</label>
+                  <input id="contact_email" name="email" type="email" value={formData.email} onChange={handleChange} required
+                    placeholder={translate({ fr: "Ex : jean.koffi@gmail.com", en: "e.g., john.doe@example.com" })} className={inputCls} />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="contact_message" className="text-xs font-semibold text-[#5B6B62] uppercase tracking-wide">{t("contactLabelMessage")} *</label>
+                  <textarea id="contact_message" name="message" rows={5} value={formData.message} onChange={handleChange} required
+                    placeholder={translate({ fr: "Ex : Transfert hebdomadaire à l'Aéroport FHB pour nos cadres, majoritairement de nuit...", en: "e.g., Weekly pickup at FHB Airport for our corporate travelers, mostly late night..." })}
+                    className={`${inputCls} resize-none`} />
+                </div>
+                <button type="submit" disabled={isLoading}
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3.5 text-sm font-semibold text-[#06140D] shadow-sm transition-transform active:scale-[0.98] disabled:opacity-60"
+                  style={{ background: GREEN }}>
+                  {isLoading ? translate({ fr: "Envoi en cours...", en: "Sending message..." }) : t("contactSendBtn")}
+                  <Send size={15} />
+                </button>
+              </form>
+            )}
+          </motion.div>
 
-                  {/* Email field */}
-                  <div className="flex flex-col gap-2">
-                    <label htmlFor="contact_email" className="text-xs font-mono text-neutral-300 uppercase">
-                      {t("contactLabelEmail")} *
-                    </label>
-                    <input
-                      type="email"
-                      id="contact_email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleChange}
-                      required
-                      placeholder={translate({ fr: "Ex: jean.koffi@gmail.com", en: "e.g., john.doe@example.com" })}
-                      className="bg-black/60 border border-gold-light/10 focus:border-gold-light rounded-xl p-3 text-sm text-white placeholder-neutral-500 outline-none transition-colors"
-                    />
-                  </div>
-
-                  {/* Message field */}
-                  <div className="flex flex-col gap-2">
-                    <label htmlFor="contact_message" className="text-xs font-mono text-neutral-300 uppercase">
-                      {t("contactLabelMessage")} *
-                    </label>
-                    <textarea
-                      id="contact_message"
-                      name="message"
-                      rows={5}
-                      value={formData.message}
-                      onChange={handleChange}
-                      required
-                      placeholder={translate({
-                        fr: "Ex : Transfert hebdomadaire à l'Aéroport FHB pour nos cadres, majoritairement de nuit...",
-                        en: "e.g., Weekly pickup at FHB Airport for our corporate travelers, mostly late night..."
-                      })}
-                      className="bg-black/60 border border-gold-light/10 focus:border-gold-light rounded-xl p-3 text-sm text-white placeholder-neutral-500 outline-none transition-colors resize-none"
-                    ></textarea>
-                  </div>
-
-                  {/* Button Submission */}
-                  <Button
-                    id="contact_submit_btn"
-                    variant="primary"
-                    type="submit"
-                    disabled={isLoading}
-                    className="w-full mt-2 rounded-xl py-3 text-xs tracking-wider uppercase font-bold"
-                  >
-                    {isLoading ? translate({ fr: "Envoi en cours...", en: "Sending message..." }) : t("contactSendBtn")}
-                    <Send size={15} />
-                  </Button>
-                </form>
-              )}
-            </Card>
-          </div>
-
+          {/* Coordonnées */}
+          <motion.div {...fade} className="mt-8 grid sm:grid-cols-2 gap-4 text-sm">
+            <div className="flex items-start gap-3">
+              <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ background: "rgba(0,200,83,0.12)" }}><MapPin size={16} style={{ color: GREEN }} /></span>
+              <div>
+                <div className="font-semibold">{t("contactAddressTitle")}</div>
+                <div className="text-[#5B6B62]">Cocody Angré CNPS, Cité Star 12, Abidjan</div>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ background: "rgba(0,200,83,0.12)" }}><Phone size={16} style={{ color: GREEN }} /></span>
+              <div>
+                <div className="font-semibold">+225 01 70 08 36 81</div>
+                <div className="text-[#5B6B62]">+225 07 97 13 97 87 · WhatsApp</div>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ background: "rgba(0,200,83,0.12)" }}><Mail size={16} style={{ color: GREEN }} /></span>
+              <div>
+                <div className="font-semibold">booking@easy-saver.ci</div>
+                <div className="text-[#5B6B62]">{translate({ fr: "Courriel officiel", en: "Official email" })}</div>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ background: "rgba(0,200,83,0.12)" }}><Clock size={16} style={{ color: GREEN }} /></span>
+              <div>
+                <div className="font-semibold">{t("contactScheduleTitle")}</div>
+                <div className="text-[#5B6B62]">{t("contactScheduleDesc")}</div>
+              </div>
+            </div>
+          </motion.div>
         </div>
 
+        {/* ====== COLONNE DROITE (illustration) ====== */}
+        <motion.div {...fade} className="hidden lg:block lg:sticky lg:top-28">
+          <div className="relative rounded-3xl overflow-hidden bg-[#F4F8F5] ring-1 ring-[#E6EBE8]">
+            <img src={illu} alt="Contactez l'équipe EASY" className="w-full h-auto object-cover" />
+          </div>
+          <div className="mt-4 flex items-center justify-center gap-2 text-sm text-[#5B6B62]">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F4F8F5] px-3 py-1.5 ring-1 ring-[#E6EBE8] font-semibold text-[#0B1F14]">
+              <span className="h-1.5 w-1.5 rounded-full" style={{ background: GREEN }} /> {translate({ fr: "Réponse rapide, 7j/7", en: "Fast reply, 7 days a week" })}
+            </span>
+          </div>
+        </motion.div>
       </div>
     </div>
   );
