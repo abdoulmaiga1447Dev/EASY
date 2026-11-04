@@ -116,26 +116,48 @@ const HeroMotifs: React.FC = () => (
   </div>
 );
 
-// Décor d'arrière-plan réutilisable : grille de points + halos vert/orange + motifs.
-const SectionDecor: React.FC<{ motifs?: boolean }> = ({ motifs = false }) => (
-  <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-    <div className="absolute inset-0" style={{ backgroundImage: "radial-gradient(rgba(11,31,20,0.05) 1px, transparent 1px)", backgroundSize: "22px 22px" }} />
-    <div className="absolute -top-24 -right-16 h-80 w-80 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(0,200,83,0.13), transparent)" }} />
-    <div className="absolute -bottom-24 -left-16 h-80 w-80 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(255,122,26,0.09), transparent)" }} />
-    {motifs && (
-      <>
-        <div className="absolute top-12 right-[12%] h-12 w-12 rounded-full border-4" style={{ borderColor: "rgba(255,122,26,0.28)" }} />
-        <svg className="absolute bottom-10 left-[8%]" width="70" height="70">
-          <g fill="#00C853" opacity="0.28">
-            {[0, 1, 2].map((r) => [0, 1, 2].map((c) => <circle key={`${r}-${c}`} cx={6 + c * 18} cy={6 + r * 18} r="3" />))}
-          </g>
-        </svg>
-        <svg className="absolute top-16 left-[6%]" width="20" height="20" stroke="#FF7A1A" strokeWidth="3" strokeLinecap="round" opacity="0.4">
-          <path d="M10 2 V18 M2 10 H18" />
-        </svg>
-      </>
-    )}
-  </div>
+// Décor d'arrière-plan « coloré » (style TOUT EASY) adapté au fond clair :
+// blobs vert/orange, hachures, amas de points, ondulations, squiggle.
+const SectionDecor: React.FC<{ id: string }> = ({ id }) => (
+  <svg aria-hidden className="pointer-events-none absolute inset-0 w-full h-full" viewBox="0 0 1200 600" preserveAspectRatio="xMidYMid slice">
+    <defs>
+      <pattern id={`${id}-hatch`} width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+        <line x1="0" y1="0" x2="0" y2="14" stroke="#0B1F14" strokeWidth="1.5" />
+      </pattern>
+      <pattern id={`${id}-dots`} width="26" height="26" patternUnits="userSpaceOnUse">
+        <circle cx="4" cy="4" r="3" fill="#00A846" />
+      </pattern>
+      <clipPath id={`${id}-blob`}>
+        <path d="M150 300 C120 180 250 90 420 110 C600 130 650 60 820 120 C980 175 1000 330 880 420 C760 510 560 470 400 500 C230 530 170 430 150 300 Z" />
+      </clipPath>
+    </defs>
+
+    {/* blob vert + hachures */}
+    <path d="M150 300 C120 180 250 90 420 110 C600 130 650 60 820 120 C980 175 1000 330 880 420 C760 510 560 470 400 500 C230 530 170 430 150 300 Z" fill="#00C853" opacity="0.09" />
+    <g clipPath={`url(#${id}-blob)`} opacity="0.07">
+      <rect x="150" y="60" width="760" height="320" fill={`url(#${id}-hatch)`} />
+    </g>
+
+    {/* blob orange */}
+    <path d="M820 380 C900 320 1050 330 1080 420 C1110 510 1000 560 900 540 C800 520 760 440 820 380 Z" fill="#FF7A1A" opacity="0.10" />
+
+    {/* amas de points */}
+    <rect x="985" y="55" width="170" height="120" fill={`url(#${id}-dots)`} opacity="0.4" />
+
+    {/* ondulations orange */}
+    <path d="M60 470 C140 450 200 500 280 480 C360 460 420 510 500 490" fill="none" stroke="#FF7A1A" strokeWidth="2.5" opacity="0.28" />
+    <path d="M60 500 C140 480 200 530 280 510 C360 490 420 540 500 520" fill="none" stroke="#FF7A1A" strokeWidth="2.5" opacity="0.2" />
+
+    {/* faisceau de lignes */}
+    <g stroke="#0B1F14" strokeWidth="2" opacity="0.1">
+      <line x1="40" y1="90" x2="130" y2="60" />
+      <line x1="45" y1="110" x2="135" y2="80" />
+      <line x1="50" y1="130" x2="140" y2="100" />
+    </g>
+
+    {/* squiggle pointillé */}
+    <path d="M560 150 C600 120 620 180 660 150 C700 120 720 180 760 150" fill="none" stroke="#0B1F14" strokeWidth="2" strokeDasharray="5 6" opacity="0.14" />
+  </svg>
 );
 
 interface Driver {
@@ -278,7 +300,7 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
 
       {/* ====================== VALEURS ====================== */}
       <section className="relative overflow-hidden bg-white">
-        <SectionDecor motifs />
+        <SectionDecor id="dec-valeurs" />
         <div className="relative z-10 max-w-6xl mx-auto px-6 lg:px-8 py-20">
           <motion.div {...fade} className="max-w-2xl">
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
@@ -310,7 +332,7 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
 
       {/* ====================== L'ÉQUIPE ====================== */}
       <section className="relative overflow-hidden bg-[#F4F8F5]">
-        <SectionDecor motifs />
+        <SectionDecor id="dec-equipe" />
         <div className="relative z-10 max-w-6xl mx-auto px-6 lg:px-8 py-20">
           <motion.div {...fade} className="text-center max-w-2xl mx-auto">
             <span className="inline-flex items-center gap-2 text-xs font-semibold tracking-wide" style={{ color: GREEN }}>
@@ -359,7 +381,7 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
 
       {/* ====================== SHOWCASE (sécurité / confort) ====================== */}
       <section className="relative overflow-hidden bg-white">
-        <SectionDecor />
+        <SectionDecor id="dec-showcase" />
         <div className="relative z-10 max-w-6xl mx-auto px-6 lg:px-8 py-20 grid lg:grid-cols-2 gap-10 items-center">
           <motion.div {...fade} className="relative order-2 lg:order-1">
             <img src={showcaseImg} alt="Passager serein conduit par un chauffeur EASY dans Abidjan" className="rounded-3xl w-full h-auto shadow-xl ring-1 ring-black/5" />
