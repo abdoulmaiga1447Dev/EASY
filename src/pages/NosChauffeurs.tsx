@@ -116,6 +116,28 @@ const HeroMotifs: React.FC = () => (
   </div>
 );
 
+// Décor d'arrière-plan réutilisable : grille de points + halos vert/orange + motifs.
+const SectionDecor: React.FC<{ motifs?: boolean }> = ({ motifs = false }) => (
+  <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+    <div className="absolute inset-0" style={{ backgroundImage: "radial-gradient(rgba(11,31,20,0.05) 1px, transparent 1px)", backgroundSize: "22px 22px" }} />
+    <div className="absolute -top-24 -right-16 h-80 w-80 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(0,200,83,0.13), transparent)" }} />
+    <div className="absolute -bottom-24 -left-16 h-80 w-80 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(255,122,26,0.09), transparent)" }} />
+    {motifs && (
+      <>
+        <div className="absolute top-12 right-[12%] h-12 w-12 rounded-full border-4" style={{ borderColor: "rgba(255,122,26,0.28)" }} />
+        <svg className="absolute bottom-10 left-[8%]" width="70" height="70">
+          <g fill="#00C853" opacity="0.28">
+            {[0, 1, 2].map((r) => [0, 1, 2].map((c) => <circle key={`${r}-${c}`} cx={6 + c * 18} cy={6 + r * 18} r="3" />))}
+          </g>
+        </svg>
+        <svg className="absolute top-16 left-[6%]" width="20" height="20" stroke="#FF7A1A" strokeWidth="3" strokeLinecap="round" opacity="0.4">
+          <path d="M10 2 V18 M2 10 H18" />
+        </svg>
+      </>
+    )}
+  </div>
+);
+
 interface Driver {
   id: string;
   name: string;
@@ -256,6 +278,7 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
 
       {/* ====================== VALEURS ====================== */}
       <section className="relative overflow-hidden bg-white">
+        <SectionDecor motifs />
         <div className="relative z-10 max-w-6xl mx-auto px-6 lg:px-8 py-20">
           <motion.div {...fade} className="max-w-2xl">
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
@@ -286,8 +309,9 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
       </section>
 
       {/* ====================== L'ÉQUIPE ====================== */}
-      <section className="bg-[#F4F8F5]">
-        <div className="max-w-6xl mx-auto px-6 lg:px-8 py-20">
+      <section className="relative overflow-hidden bg-[#F4F8F5]">
+        <SectionDecor motifs />
+        <div className="relative z-10 max-w-6xl mx-auto px-6 lg:px-8 py-20">
           <motion.div {...fade} className="text-center max-w-2xl mx-auto">
             <span className="inline-flex items-center gap-2 text-xs font-semibold tracking-wide" style={{ color: GREEN }}>
               <Leaf size={14} /> {translate({ fr: "L'ÉQUIPE EASY", en: "THE EASY TEAM" })}
@@ -334,8 +358,9 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
       </section>
 
       {/* ====================== SHOWCASE (sécurité / confort) ====================== */}
-      <section className="bg-white">
-        <div className="max-w-6xl mx-auto px-6 lg:px-8 py-20 grid lg:grid-cols-2 gap-10 items-center">
+      <section className="relative overflow-hidden bg-white">
+        <SectionDecor />
+        <div className="relative z-10 max-w-6xl mx-auto px-6 lg:px-8 py-20 grid lg:grid-cols-2 gap-10 items-center">
           <motion.div {...fade} className="relative order-2 lg:order-1">
             <img src={showcaseImg} alt="Passager serein conduit par un chauffeur EASY dans Abidjan" className="rounded-3xl w-full h-auto shadow-xl ring-1 ring-black/5" />
           </motion.div>
