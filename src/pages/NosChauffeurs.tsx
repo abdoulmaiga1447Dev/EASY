@@ -14,6 +14,10 @@ import jacquesImg from "../assets/saver/chauffeur-jacques.jpg";
 import yeoImg from "../assets/saver/chauffeur-yeo.jpg";
 import traoreImg from "../assets/saver/chauffeur-traore.jpg";
 import heroIllu from "../assets/saver/chauffeur-illustration.png";
+import fComposants from "../assets/saver/formation-composants.jpg";
+import fHistoire from "../assets/saver/formation-histoire.jpg";
+import fMoteur from "../assets/saver/formation-moteur.jpg";
+import fConduite from "../assets/saver/formation-conduite.jpg";
 
 const GREEN = "#00C853";
 const INK = "#0B1F14";
@@ -493,22 +497,22 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
           <div className="mt-12 grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {[
               {
-                icon: <Cpu size={22} />,
+                img: fComposants,
                 t: translate({ fr: "Composants & mécanique", en: "Components & mechanics" }),
                 d: translate({ fr: "Comprendre chaque pièce du véhicule, son rôle et son entretien.", en: "Understanding each part of the vehicle, its role and upkeep." }),
               },
               {
-                icon: <BookOpen size={22} />,
+                img: fHistoire,
                 t: translate({ fr: "Contexte & histoire", en: "Context & history" }),
                 d: translate({ fr: "Connaître l'histoire et le contexte de chaque modèle de la flotte.", en: "Knowing the history and context of each model in the fleet." }),
               },
               {
-                icon: <BatteryCharging size={22} />,
+                img: fMoteur,
                 t: translate({ fr: "Moteur & batterie", en: "Motor & battery" }),
                 d: translate({ fr: "Maîtriser le moteur électrique, la batterie et la recharge.", en: "Mastering the electric motor, the battery and charging." }),
               },
               {
-                icon: <Gauge size={22} />,
+                img: fConduite,
                 t: translate({ fr: "Conduite & autonomie", en: "Driving & range" }),
                 d: translate({ fr: "Éco-conduite et conduite défensive pour optimiser chaque trajet.", en: "Eco-driving and defensive driving to optimise every trip." }),
               },
@@ -517,13 +521,13 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
                 key={f.t}
                 {...fade}
                 transition={{ ...fade.transition, delay: i * 0.08 }}
-                className="rounded-2xl bg-white p-6 ring-1 ring-[#E6EBE8] hover:-translate-y-1 hover:shadow-lg transition-all duration-300"
+                className="group rounded-2xl bg-white ring-1 ring-[#E6EBE8] overflow-hidden hover:-translate-y-1 hover:shadow-lg transition-all duration-300"
               >
-                <div className="w-11 h-11 rounded-xl flex items-center justify-center text-[#06140D]" style={{ background: GREEN }}>
-                  {f.icon}
+                <img src={f.img} alt={f.t} className="w-full aspect-[4/3] object-cover transition-transform duration-500 group-hover:scale-[1.04]" />
+                <div className="p-5">
+                  <h3 className="text-base font-bold">{f.t}</h3>
+                  <p className="mt-2 text-sm text-[#5B6B62] leading-relaxed">{f.d}</p>
                 </div>
-                <h3 className="mt-4 text-base font-bold">{f.t}</h3>
-                <p className="mt-2 text-sm text-[#5B6B62] leading-relaxed">{f.d}</p>
               </motion.div>
             ))}
           </div>
