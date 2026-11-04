@@ -238,18 +238,19 @@ export const Tarifs: React.FC<RatesProps> = ({ id, setCurrentPage }) => {
           </motion.div>
 
           {/* Cartes formules */}
-          <div className="mt-12 grid sm:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
+          <div className="mt-12 grid sm:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
             {formulas.map((f, i) => {
               const priceStr = translate(f.prices[activeVehicle]);
               const isQuote = activeVehicle === "n3" || /devis|request/i.test(priceStr);
               const accent = ACCENTS[f.id] || GREEN;
               const reco = f.recommended;
+              const offset = reco ? "lg:mt-0" : i % 2 === 0 ? "lg:mt-10" : "lg:mt-20";
               return (
                 <motion.div
                   key={f.id}
                   {...fade}
                   transition={{ ...fade.transition, delay: i * 0.07 }}
-                  className={`group relative flex flex-col overflow-hidden rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1.5 ${reco ? "bg-white/[0.08] ring-1 lg:-translate-y-3" : "bg-white/[0.04] ring-1 ring-white/10 hover:ring-white/20"}`}
+                  className={`group relative flex flex-col overflow-hidden rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1.5 ${offset} ${reco ? "bg-white/[0.08] ring-1 lg:-translate-y-4" : "bg-white/[0.04] ring-1 ring-white/10 hover:ring-white/20"}`}
                   style={reco ? { ["--tw-ring-color" as any]: accent, boxShadow: `0 24px 60px ${accent}2b` } : undefined}
                 >
                   {/* halo d'accent */}
@@ -261,9 +262,7 @@ export const Tarifs: React.FC<RatesProps> = ({ id, setCurrentPage }) => {
                     </span>
                   )}
 
-                  <div className="relative w-12 h-12 rounded-2xl flex items-center justify-center ring-1" style={{ background: `${accent}22`, borderColor: `${accent}55`, color: accent }}>{f.icon}</div>
-
-                  <h3 className="relative mt-4 text-lg font-bold text-white">{translate(f.name)}</h3>
+                  <h3 className="relative text-lg font-bold text-white pr-20">{translate(f.name)}</h3>
                   <div className="relative mt-2 flex items-end gap-2">
                     <span className="text-3xl font-extrabold tracking-tight text-white"><AnimatedPrice value={priceStr} /></span>
                     <span className="mb-1 text-xs text-white/50">/ {f.duration}</span>
