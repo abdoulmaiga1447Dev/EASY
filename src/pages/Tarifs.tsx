@@ -8,7 +8,7 @@ import { useLanguage } from "../context/LanguageContext";
 import {
   Zap, ShoppingBag, Briefcase, Compass, Sparkles,
   Check, ArrowRight, ShieldCheck, Moon, CalendarCheck,
-  MapPin, ChevronDown, ChevronUp, PhoneCall, Clock, HelpCircle,
+  MapPin, ChevronDown, ChevronUp, PhoneCall, Clock, HelpCircle, Star,
 } from "lucide-react";
 import { motion } from "motion/react";
 import heroImg from "../assets/saver/tarifs-hero.jpg";
@@ -169,33 +169,32 @@ export const Tarifs: React.FC<RatesProps> = ({ id, setCurrentPage }) => {
       </section>
 
       {/* ====================== FORMULES ====================== */}
-      <section className="relative overflow-hidden bg-[#F4F8F5]">
-        <div className="pointer-events-none absolute -top-24 -right-20 h-96 w-96 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(0,200,83,0.14), transparent)" }} />
-        <div className="pointer-events-none absolute top-40 -left-24 h-96 w-96 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(255,122,26,0.10), transparent)" }} />
+      <section className="relative overflow-hidden" style={{ background: "linear-gradient(180deg,#0B1F14 0%,#06120C 100%)" }}>
+        <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(70% 45% at 50% -5%, rgba(0,200,83,0.12), transparent)" }} />
 
         <div className="relative z-10 max-w-6xl mx-auto px-6 lg:px-8 py-20">
           <motion.div {...fade} className="text-center max-w-2xl mx-auto">
             <span className="inline-flex items-center gap-2 text-xs font-semibold tracking-wide" style={{ color: GREEN }}>
               <Sparkles size={14} /> {translate({ fr: "FORMULES SUR MESURE", en: "TAILORED FORMULAS" })}
             </span>
-            <h2 className="mt-3 text-3xl sm:text-4xl font-extrabold tracking-tight">
+            <h2 className="mt-3 text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
               {translate({ fr: "Des forfaits clairs, sans surprise.", en: "Clear packages, no surprises." })}
             </h2>
-            <p className="mt-3 text-[#5B6B62] text-lg">
+            <p className="mt-3 text-white/65 text-lg">
               {translate({ fr: "Un chauffeur et un véhicule 100 % électrique pour une durée fixe. Pluie, embouteillage ou nuit : le prix ne bouge pas.", en: "A chauffeur and a 100% electric vehicle for a fixed duration. Rain, traffic or night: the price doesn't move." })}
             </p>
           </motion.div>
 
           {/* Sélecteur de niveau de véhicule */}
           <motion.div {...fade} className="mt-8 flex flex-col items-center gap-2">
-            <div className="inline-flex rounded-full bg-white p-1 ring-1 ring-[#E6EBE8] shadow-sm">
+            <div className="inline-flex rounded-full bg-white/10 p-1 ring-1 ring-white/15 backdrop-blur">
               {vehicleLevels.map((lv) => {
                 const active = activeVehicle === lv.id;
                 return (
                   <button
                     key={lv.id}
                     onClick={() => setActiveVehicle(lv.id)}
-                    className={`px-4 sm:px-5 py-2 rounded-full text-sm font-semibold transition-colors ${active ? "text-[#06140D]" : "text-[#5B6B62] hover:text-[#0B1F14]"}`}
+                    className={`px-4 sm:px-5 py-2 rounded-full text-sm font-semibold transition-colors ${active ? "text-[#06140D]" : "text-white/70 hover:text-white"}`}
                     style={active ? { background: GREEN } : undefined}
                   >
                     {lv.label} <span className="opacity-60 text-xs">{lv.tag}</span>
@@ -203,7 +202,7 @@ export const Tarifs: React.FC<RatesProps> = ({ id, setCurrentPage }) => {
                 );
               })}
             </div>
-            <p className="text-xs text-[#5B6B62]">
+            <p className="text-xs text-white/45">
               {translate({ fr: "Berline (N1) — SUV Executive (N2) ×1,25 — Prestige (N3) sur devis", en: "Sedan (N1) — Executive SUV (N2) ×1.25 — Prestige (N3) upon request" })}
             </p>
           </motion.div>
@@ -215,95 +214,55 @@ export const Tarifs: React.FC<RatesProps> = ({ id, setCurrentPage }) => {
               const isQuote = activeVehicle === "n3" || /devis|request/i.test(priceStr);
               const accent = ACCENTS[f.id] || GREEN;
               const reco = f.recommended;
-
-              if (reco) {
-                // Carte « Recommandé » — pleine couleur, ressort du lot.
-                return (
-                  <motion.div
-                    key={f.id}
-                    {...fade}
-                    transition={{ ...fade.transition, delay: i * 0.07 }}
-                    className="group relative flex flex-col overflow-hidden rounded-3xl p-7 text-white shadow-2xl lg:-translate-y-3 hover:-translate-y-4 transition-all duration-300"
-                    style={{ background: "linear-gradient(160deg,#00C853,#00A846)" }}
-                  >
-                    <span className="pointer-events-none absolute -right-2 top-1 text-[7.5rem] font-black leading-none text-white/10 select-none">{f.duration}</span>
-                    <span className="self-start rounded-full bg-white px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider" style={{ color: "#00A846" }}>
-                      {translate({ fr: "Recommandé", en: "Recommended" })}
-                    </span>
-                    <div className="relative mt-4 flex items-center justify-between">
-                      <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-white/15 ring-1 ring-white/30">{f.icon}</div>
-                      <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-3 py-1 text-xs font-bold ring-1 ring-white/25"><Clock size={12} /> {f.duration}</span>
-                    </div>
-                    <h3 className="relative mt-4 text-xl font-extrabold">{translate(f.name)}</h3>
-                    <p className="relative mt-1 text-sm text-white/85 leading-relaxed">{translate(f.desc)}</p>
-                    <div className="relative mt-5 rounded-2xl bg-white/12 ring-1 ring-white/20 px-4 py-3">
-                      <div className="text-3xl font-extrabold tracking-tight">{priceStr}</div>
-                      <div className="text-xs text-white/80">{translate({ fr: "à partir de · énergie incluse", en: "starting from · energy included" })}</div>
-                    </div>
-                    <ul className="relative mt-4 space-y-2 flex-1">
-                      {f.features.fr.map((_, idx) => (
-                        <li key={idx} className="flex items-start gap-2 text-sm">
-                          <Check size={16} className="mt-0.5 shrink-0 text-white" />
-                          <span className="text-white/95">{translate({ fr: f.features.fr[idx], en: f.features.en[idx] })}</span>
-                        </li>
-                      ))}
-                    </ul>
-                    <button
-                      onClick={() => (isQuote ? nav("devis") : handleBook(f.id))}
-                      className="relative mt-6 inline-flex items-center justify-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-bold shadow transition-transform active:scale-[0.98]"
-                      style={{ color: "#00A846" }}
-                    >
-                      {isQuote ? translate({ fr: "Demander un devis", en: "Request a quote" }) : translate({ fr: "Réserver", en: "Book" })}
-                      <ArrowRight size={16} />
-                    </button>
-                  </motion.div>
-                );
-              }
-
               return (
                 <motion.div
                   key={f.id}
                   {...fade}
                   transition={{ ...fade.transition, delay: i * 0.07 }}
-                  className="group relative flex flex-col overflow-hidden rounded-3xl bg-white p-6 ring-1 ring-[#E6EBE8] transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl"
+                  className={`group relative flex flex-col overflow-hidden rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1.5 ${reco ? "bg-white/[0.08] ring-1 lg:-translate-y-3" : "bg-white/[0.04] ring-1 ring-white/10 hover:ring-white/20"}`}
+                  style={reco ? { ["--tw-ring-color" as any]: accent, boxShadow: `0 24px 60px ${accent}2b` } : undefined}
                 >
-                  {/* barre + filigrane d'accent */}
-                  <div className="absolute inset-x-0 top-0 h-1.5" style={{ background: accent }} />
-                  <span className="pointer-events-none absolute -right-1 top-2 text-[6.5rem] font-black leading-none select-none" style={{ color: accent, opacity: 0.07 }}>{f.duration}</span>
+                  {/* halo d'accent */}
+                  <div className="pointer-events-none absolute -right-10 -top-10 h-44 w-44 rounded-full" style={{ background: `radial-gradient(closest-side, ${accent}2e, transparent)` }} />
 
-                  <div className="relative flex items-center justify-between">
-                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-sm" style={{ background: accent }}>{f.icon}</div>
-                    <span className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold ring-1" style={{ color: accent, background: `${accent}14`, borderColor: `${accent}33` }}>
-                      <Clock size={12} /> {f.duration}
+                  {reco && (
+                    <span className="absolute right-5 top-5 inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white ring-1 ring-white/20">
+                      <Star size={11} style={{ color: accent }} /> {translate({ fr: "Populaire", en: "Popular" })}
                     </span>
-                  </div>
-                  <h3 className="relative mt-4 text-lg font-extrabold">{translate(f.name)}</h3>
-                  <p className="relative mt-1 text-sm text-[#5B6B62] leading-relaxed">{translate(f.desc)}</p>
+                  )}
 
-                  <div className="relative mt-5 rounded-2xl bg-[#F7FAF8] ring-1 ring-[#EDF2EF] px-4 py-3">
-                    <div className="text-2xl font-extrabold tracking-tight">{priceStr}</div>
-                    <div className="text-xs text-[#5B6B62]">{translate({ fr: "à partir de · énergie incluse", en: "starting from · energy included" })}</div>
-                  </div>
+                  <div className="relative w-11 h-11 rounded-xl flex items-center justify-center text-white shadow" style={{ background: accent }}>{f.icon}</div>
 
-                  <ul className="relative mt-4 space-y-2 flex-1">
-                    {f.features.fr.map((_, idx) => (
-                      <li key={idx} className="flex items-start gap-2 text-sm text-[#0B1F14]">
-                        <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full" style={{ background: `${accent}1f` }}>
-                          <Check size={11} style={{ color: accent }} />
-                        </span>
-                        <span>{translate({ fr: f.features.fr[idx], en: f.features.en[idx] })}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  <h3 className="relative mt-4 text-lg font-bold text-white">{translate(f.name)}</h3>
+                  <div className="relative mt-2 flex items-end gap-2">
+                    <span className="text-3xl font-extrabold tracking-tight text-white">{priceStr}</span>
+                    <span className="mb-1 text-xs text-white/50">/ {f.duration}</span>
+                  </div>
+                  <div className="relative text-xs text-white/45">{translate({ fr: "à partir de · énergie incluse", en: "starting from · energy included" })}</div>
+                  <p className="relative mt-3 text-sm text-white/65 leading-relaxed">{translate(f.desc)}</p>
 
                   <button
                     onClick={() => (isQuote ? nav("devis") : handleBook(f.id))}
-                    className="relative mt-6 inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold text-white shadow transition-transform active:scale-[0.98]"
-                    style={{ background: accent }}
+                    className={`relative mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition-colors active:scale-[0.98] ${reco ? "bg-white text-[#06140D] hover:bg-white/90" : "bg-white/[0.06] text-white ring-1 ring-white/15 hover:bg-white/10"}`}
                   >
                     {isQuote ? translate({ fr: "Demander un devis", en: "Request a quote" }) : translate({ fr: "Réserver", en: "Book" })}
                     <ArrowRight size={16} />
                   </button>
+
+                  <div className="relative mt-6 flex items-center gap-3">
+                    <span className="h-px flex-1 bg-white/10" />
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-white/40">{translate({ fr: "Prestations incluses", en: "Included features" })}</span>
+                    <span className="h-px flex-1 bg-white/10" />
+                  </div>
+
+                  <ul className="relative mt-4 space-y-3 flex-1">
+                    {f.features.fr.map((_, idx) => (
+                      <li key={idx} className="flex items-center gap-2.5 text-sm text-white/75">
+                        <Check size={15} style={{ color: accent }} className="shrink-0" />
+                        <span>{translate({ fr: f.features.fr[idx], en: f.features.en[idx] })}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </motion.div>
               );
             })}
