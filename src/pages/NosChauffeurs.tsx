@@ -160,33 +160,47 @@ const SectionDecor: React.FC<{ id: string }> = ({ id }) => (
   </svg>
 );
 
-// Mini-illustrations animées pour les 3 valeurs.
+// Grandes illustrations animées (trait blanc) pour les 3 tuiles de valeurs.
 const AnimVerified: React.FC = () => (
-  <svg viewBox="0 0 96 96" className="w-24 h-24" aria-hidden>
-    <circle cx="40" cy="36" r="12" fill="#0B1F14" />
-    <path d="M20 70 C20 55 32 49 40 49 C48 49 60 55 60 70 Z" fill="#0B1F14" />
-    <g className="nc-pop">
-      <circle cx="67" cy="63" r="16" fill="#00C853" />
-      <path className="nc-check" d="M59 63 L65 69 L76 55" fill="none" stroke="#fff" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
-    </g>
+  <svg viewBox="0 0 140 140" className="w-40 h-40" aria-hidden>
+    <circle className="nc-ping" cx="70" cy="62" r="34" fill="none" stroke="#fff" strokeWidth="2" />
+    {/* rubans */}
+    <path d="M56 92 L50 126 L64 115 L70 130 L70 92 Z" fill="#fff" opacity="0.85" />
+    <path d="M84 92 L90 126 L76 115 L70 130 L70 92 Z" fill="#fff" opacity="0.6" />
+    {/* badge */}
+    <circle cx="70" cy="62" r="34" fill="rgba(255,255,255,0.14)" stroke="#fff" strokeWidth="3" />
+    <circle cx="70" cy="62" r="25" fill="none" stroke="#fff" strokeWidth="1.5" opacity="0.6" />
+    <path className="nc-check" d="M57 63 L67 73 L85 50" fill="none" stroke="#fff" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+    {/* étincelle */}
+    <g className="nc-twinkle"><path d="M110 34 l2.5 7 7 2.5 -7 2.5 -2.5 7 -2.5 -7 -7 -2.5 7 -2.5 z" fill="#fff" /></g>
   </svg>
 );
 
 const AnimTracking: React.FC = () => (
-  <svg viewBox="0 0 96 96" className="w-24 h-24" aria-hidden>
-    <circle className="nc-ping" cx="48" cy="54" r="12" fill="none" stroke="#00C853" strokeWidth="3" />
-    <circle className="nc-ping nc-ping-b" cx="48" cy="54" r="12" fill="none" stroke="#00C853" strokeWidth="3" />
-    <path d="M48 20 C37 20 28 29 28 40 C28 55 48 74 48 74 C48 74 68 55 68 40 C68 29 59 20 48 20 Z" fill="#00C853" />
-    <circle cx="48" cy="40" r="8" fill="#fff" />
+  <svg viewBox="0 0 140 140" className="w-40 h-40" aria-hidden>
+    <rect x="16" y="22" width="108" height="94" rx="14" fill="rgba(255,255,255,0.08)" stroke="#fff" strokeWidth="1.5" opacity="0.6" />
+    <path className="nc-route" d="M34 96 C54 60 86 104 110 50" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" />
+    <circle cx="34" cy="96" r="5" fill="#fff" />
+    {/* pin arrivée */}
+    <circle className="nc-ping" cx="110" cy="52" r="13" fill="none" stroke="#fff" strokeWidth="2" />
+    <path d="M110 32 C103 32 97 38 97 45 C97 56 110 70 110 70 C110 70 123 56 123 45 C123 38 117 32 110 32 Z" fill="#fff" />
+    <circle cx="110" cy="45" r="4.5" fill="#0B1F14" />
+    {/* voiture qui avance */}
+    <circle className="nc-move" cx="0" cy="0" r="6" fill="#00C853" stroke="#fff" strokeWidth="2.5" />
   </svg>
 );
 
 const AnimShield: React.FC = () => (
-  <svg viewBox="0 0 96 96" className="w-24 h-24" aria-hidden>
+  <svg viewBox="0 0 140 140" className="w-40 h-40" aria-hidden>
+    <defs>
+      <clipPath id="nc-shield-clip"><path d="M70 22 L108 36 L108 70 C108 96 70 114 70 114 C70 114 32 96 32 70 L32 36 Z" /></clipPath>
+    </defs>
     <g className="nc-breathe">
-      <path d="M48 18 L74 28 L74 50 C74 67 48 80 48 80 C48 80 22 67 22 50 L22 28 Z" fill="#00C853" opacity="0.15" />
-      <path d="M48 18 L74 28 L74 50 C74 67 48 80 48 80 C48 80 22 67 22 50 L22 28 Z" fill="none" stroke="#00C853" strokeWidth="3" />
-      <path className="nc-check" d="M38 49 L46 57 L60 40" fill="none" stroke="#00C853" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M70 22 L108 36 L108 70 C108 96 70 114 70 114 C70 114 32 96 32 70 L32 36 Z" fill="rgba(255,255,255,0.14)" stroke="#fff" strokeWidth="3" />
+      <g clipPath="url(#nc-shield-clip)">
+        <g transform="skewX(-20)"><rect className="nc-shine" x="0" y="10" width="26" height="120" fill="#fff" opacity="0.3" /></g>
+      </g>
+      <path className="nc-check" d="M55 68 L66 79 L88 52" fill="none" stroke="#fff" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
     </g>
   </svg>
 );
@@ -209,6 +223,7 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
   const values = [
     {
       art: <AnimVerified />,
+      grad: "linear-gradient(135deg,#00C853,#00A846)",
       t: translate({ fr: "Chauffeurs vérifiés", en: "Verified chauffeurs" }),
       d: translate({
         fr: "Chaque chauffeur EASY est formé, identifié et porteur d'un badge officiel SAVER.",
@@ -217,6 +232,7 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
     },
     {
       art: <AnimTracking />,
+      grad: "linear-gradient(135deg,#0B1F14,#15402b)",
       t: translate({ fr: "Suivi en temps réel", en: "Real-time tracking" }),
       d: translate({
         fr: "Position du chauffeur et état de la course suivis en direct, pour une sérénité totale.",
@@ -225,6 +241,7 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
     },
     {
       art: <AnimShield />,
+      grad: "linear-gradient(135deg,#FF7A1A,#E15A00)",
       t: translate({ fr: "Sécurité & discrétion", en: "Safety & discretion" }),
       d: translate({
         fr: "Conduite défensive, ponctualité et confidentialité à chaque trajet.",
@@ -236,16 +253,21 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
   return (
     <div id={id} className="bg-white text-[#0B1F14] font-sans -mt-[69px] lg:-mt-[81px]">
       <style>{`
-        @keyframes nc-check { 0%{stroke-dashoffset:60} 45%{stroke-dashoffset:0} 82%{stroke-dashoffset:0} 100%{stroke-dashoffset:60} }
-        @keyframes nc-ping { 0%{transform:scale(.55);opacity:.7} 100%{transform:scale(1.9);opacity:0} }
-        @keyframes nc-breathe { 0%,100%{transform:scale(1)} 50%{transform:scale(1.07)} }
-        @keyframes nc-pop { 0%,100%{transform:scale(1)} 50%{transform:scale(1.12)} }
-        .nc-check{stroke-dasharray:60;animation:nc-check 3.2s ease-in-out infinite}
-        .nc-ping{transform-box:fill-box;transform-origin:center;animation:nc-ping 2.2s ease-out infinite}
-        .nc-ping-b{animation-delay:1.1s}
+        @keyframes nc-check { 0%{stroke-dashoffset:70} 45%{stroke-dashoffset:0} 82%{stroke-dashoffset:0} 100%{stroke-dashoffset:70} }
+        @keyframes nc-ping { 0%{transform:scale(.5);opacity:.7} 100%{transform:scale(2);opacity:0} }
+        @keyframes nc-breathe { 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
+        @keyframes nc-route { 0%{stroke-dashoffset:200} 55%{stroke-dashoffset:0} 100%{stroke-dashoffset:0} }
+        @keyframes nc-move { 0%{offset-distance:0%;opacity:0} 10%{opacity:1} 70%{offset-distance:100%;opacity:1} 100%{offset-distance:100%;opacity:0} }
+        @keyframes nc-shine { 0%{transform:translateX(-20px)} 55%,100%{transform:translateX(150px)} }
+        @keyframes nc-twinkle { 0%,100%{transform:scale(.6);opacity:.3} 50%{transform:scale(1);opacity:1} }
+        .nc-check{stroke-dasharray:70;animation:nc-check 3.4s ease-in-out infinite}
+        .nc-ping{transform-box:fill-box;transform-origin:center;animation:nc-ping 2.4s ease-out infinite}
         .nc-breathe{transform-box:fill-box;transform-origin:center;animation:nc-breathe 3s ease-in-out infinite}
-        .nc-pop{transform-box:fill-box;transform-origin:center;animation:nc-pop 3.2s ease-in-out infinite}
-        @media (prefers-reduced-motion: reduce){ .nc-check,.nc-ping,.nc-breathe,.nc-pop{animation:none!important} .nc-check{stroke-dashoffset:0} }
+        .nc-route{stroke-dasharray:200;animation:nc-route 3.4s ease-in-out infinite}
+        .nc-move{offset-path:path("M34 96 C54 60 86 104 110 50");animation:nc-move 3.4s ease-in-out infinite}
+        .nc-shine{animation:nc-shine 3.6s ease-in-out infinite}
+        .nc-twinkle{transform-box:fill-box;transform-origin:center;animation:nc-twinkle 2.6s ease-in-out infinite}
+        @media (prefers-reduced-motion: reduce){ .nc-check,.nc-ping,.nc-breathe,.nc-route,.nc-move,.nc-shine,.nc-twinkle{animation:none!important} .nc-check,.nc-route{stroke-dashoffset:0} }
       `}</style>
       {/* ====================== HERO (flat design) ====================== */}
       <section className="relative overflow-hidden bg-[#F4F8F5] lg:min-h-[88vh]">
@@ -354,17 +376,20 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
             </p>
           </motion.div>
 
-          <div className="mt-14 grid md:grid-cols-3 gap-10">
+          <div className="mt-14 grid md:grid-cols-3 gap-6">
             {values.map((v, i) => (
               <motion.div
                 key={v.t}
                 {...fade}
                 transition={{ ...fade.transition, delay: i * 0.1 }}
-                className="text-center px-2"
+                className="group relative overflow-hidden rounded-3xl p-8 text-white shadow-xl hover:-translate-y-1.5 transition-transform duration-300"
+                style={{ background: v.grad }}
               >
-                <div className="mx-auto mb-4 flex h-24 items-center justify-center">{v.art}</div>
-                <h3 className="text-lg font-bold">{v.t}</h3>
-                <p className="mt-2 text-sm text-[#5B6B62] leading-relaxed max-w-xs mx-auto">{v.d}</p>
+                <div className="pointer-events-none absolute -top-10 -right-10 h-32 w-32 rounded-full bg-white/10" />
+                <div className="pointer-events-none absolute -bottom-12 -left-8 h-28 w-28 rounded-full bg-white/[0.06]" />
+                <div className="relative flex h-44 items-center justify-center">{v.art}</div>
+                <h3 className="relative text-xl font-extrabold">{v.t}</h3>
+                <p className="relative mt-2 text-sm leading-relaxed text-white/85">{v.d}</p>
               </motion.div>
             ))}
           </div>
