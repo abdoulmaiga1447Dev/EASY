@@ -13,6 +13,7 @@ import showcaseImg from "../assets/saver/fleet-13.jpg";
 import jacquesImg from "../assets/saver/chauffeur-jacques.jpg";
 import yeoImg from "../assets/saver/chauffeur-yeo.jpg";
 import traoreImg from "../assets/saver/chauffeur-traore.jpg";
+import heroIllu from "../assets/saver/chauffeur-illustration.png";
 
 const GREEN = "#00C853";
 const INK = "#0B1F14";
@@ -159,17 +160,6 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
 
   return (
     <div id={id} className="bg-white text-[#0B1F14] font-sans -mt-[69px] lg:-mt-[81px]">
-      <style>{`
-        @keyframes nc-bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
-        @keyframes nc-pulse { 0%,100%{opacity:.55} 50%{opacity:1} }
-        @keyframes nc-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
-        @keyframes nc-floatx { 0%,100%{transform:translateY(0)} 50%{transform:translateY(10px)} }
-        .nc-bob{animation:nc-bob 3.4s ease-in-out infinite}
-        .nc-pulse{animation:nc-pulse 2.8s ease-in-out infinite}
-        .nc-float{animation:nc-float 7s ease-in-out infinite}
-        .nc-floatx{animation:nc-floatx 9s ease-in-out infinite}
-        @media (prefers-reduced-motion: reduce){ .nc-bob,.nc-pulse,.nc-float,.nc-floatx{animation:none!important} }
-      `}</style>
       {/* ====================== HERO (flat design) ====================== */}
       <section className="relative overflow-hidden bg-[#F4F8F5] lg:min-h-[88vh]">
         <div className="pointer-events-none absolute -top-24 -right-24 w-96 h-96 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(0,200,83,0.16), transparent)" }} />
@@ -259,7 +249,7 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
             transition={{ duration: 0.7, delay: 0.15 }}
             className="relative mx-auto w-full max-w-md"
           >
-            <HeroArt />
+            <img src={heroIllu} alt="Chauffeur EASY et passagère dans un véhicule électrique" className="w-full h-auto drop-shadow-[0_18px_40px_rgba(0,0,0,0.12)]" />
           </motion.div>
         </div>
       </section>
