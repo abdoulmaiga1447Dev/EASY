@@ -302,9 +302,7 @@ export const Tarifs: React.FC<RatesProps> = ({ id, setCurrentPage }) => {
       {/* ====================== AVANTAGE PRIX STABLES ====================== */}
       <section className="bg-white">
         <div className="max-w-6xl mx-auto px-6 lg:px-8 py-14">
-          <motion.div {...fade} className="rounded-3xl p-8 sm:p-12 text-white relative overflow-hidden" style={{ background: INK }}>
-            <div className="pointer-events-none absolute -top-20 -right-16 h-72 w-72 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(0,200,83,0.28), transparent)" }} />
-            <div className="pointer-events-none absolute -bottom-24 -left-10 h-64 w-64 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(0,200,83,0.10), transparent)" }} />
+          <motion.div {...fade} className="rounded-3xl p-8 sm:p-12 text-white relative overflow-hidden ring-1 ring-white/10" style={{ background: INK }}>
             <div className="relative grid sm:grid-cols-[auto_1fr] items-center gap-8 sm:gap-12 text-center sm:text-left">
               {/* Stat phare */}
               <div className="sm:border-r sm:border-white/10 sm:pr-12">
