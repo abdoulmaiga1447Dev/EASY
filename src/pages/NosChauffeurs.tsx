@@ -160,6 +160,37 @@ const SectionDecor: React.FC<{ id: string }> = ({ id }) => (
   </svg>
 );
 
+// Mini-illustrations animées pour les 3 valeurs.
+const AnimVerified: React.FC = () => (
+  <svg viewBox="0 0 96 96" className="w-24 h-24" aria-hidden>
+    <circle cx="40" cy="36" r="12" fill="#0B1F14" />
+    <path d="M20 70 C20 55 32 49 40 49 C48 49 60 55 60 70 Z" fill="#0B1F14" />
+    <g className="nc-pop">
+      <circle cx="67" cy="63" r="16" fill="#00C853" />
+      <path className="nc-check" d="M59 63 L65 69 L76 55" fill="none" stroke="#fff" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+    </g>
+  </svg>
+);
+
+const AnimTracking: React.FC = () => (
+  <svg viewBox="0 0 96 96" className="w-24 h-24" aria-hidden>
+    <circle className="nc-ping" cx="48" cy="54" r="12" fill="none" stroke="#00C853" strokeWidth="3" />
+    <circle className="nc-ping nc-ping-b" cx="48" cy="54" r="12" fill="none" stroke="#00C853" strokeWidth="3" />
+    <path d="M48 20 C37 20 28 29 28 40 C28 55 48 74 48 74 C48 74 68 55 68 40 C68 29 59 20 48 20 Z" fill="#00C853" />
+    <circle cx="48" cy="40" r="8" fill="#fff" />
+  </svg>
+);
+
+const AnimShield: React.FC = () => (
+  <svg viewBox="0 0 96 96" className="w-24 h-24" aria-hidden>
+    <g className="nc-breathe">
+      <path d="M48 18 L74 28 L74 50 C74 67 48 80 48 80 C48 80 22 67 22 50 L22 28 Z" fill="#00C853" opacity="0.15" />
+      <path d="M48 18 L74 28 L74 50 C74 67 48 80 48 80 C48 80 22 67 22 50 L22 28 Z" fill="none" stroke="#00C853" strokeWidth="3" />
+      <path className="nc-check" d="M38 49 L46 57 L60 40" fill="none" stroke="#00C853" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+    </g>
+  </svg>
+);
+
 interface Driver {
   id: string;
   name: string;
@@ -177,7 +208,7 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
 
   const values = [
     {
-      icon: <UserCheck size={22} />,
+      art: <AnimVerified />,
       t: translate({ fr: "Chauffeurs vérifiés", en: "Verified chauffeurs" }),
       d: translate({
         fr: "Chaque chauffeur EASY est formé, identifié et porteur d'un badge officiel SAVER.",
@@ -185,7 +216,7 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
       }),
     },
     {
-      icon: <Gauge size={22} />,
+      art: <AnimTracking />,
       t: translate({ fr: "Suivi en temps réel", en: "Real-time tracking" }),
       d: translate({
         fr: "Position du chauffeur et état de la course suivis en direct, pour une sérénité totale.",
@@ -193,7 +224,7 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
       }),
     },
     {
-      icon: <ShieldCheck size={22} />,
+      art: <AnimShield />,
       t: translate({ fr: "Sécurité & discrétion", en: "Safety & discretion" }),
       d: translate({
         fr: "Conduite défensive, ponctualité et confidentialité à chaque trajet.",
@@ -204,6 +235,18 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
 
   return (
     <div id={id} className="bg-white text-[#0B1F14] font-sans -mt-[69px] lg:-mt-[81px]">
+      <style>{`
+        @keyframes nc-check { 0%{stroke-dashoffset:60} 45%{stroke-dashoffset:0} 82%{stroke-dashoffset:0} 100%{stroke-dashoffset:60} }
+        @keyframes nc-ping { 0%{transform:scale(.55);opacity:.7} 100%{transform:scale(1.9);opacity:0} }
+        @keyframes nc-breathe { 0%,100%{transform:scale(1)} 50%{transform:scale(1.07)} }
+        @keyframes nc-pop { 0%,100%{transform:scale(1)} 50%{transform:scale(1.12)} }
+        .nc-check{stroke-dasharray:60;animation:nc-check 3.2s ease-in-out infinite}
+        .nc-ping{transform-box:fill-box;transform-origin:center;animation:nc-ping 2.2s ease-out infinite}
+        .nc-ping-b{animation-delay:1.1s}
+        .nc-breathe{transform-box:fill-box;transform-origin:center;animation:nc-breathe 3s ease-in-out infinite}
+        .nc-pop{transform-box:fill-box;transform-origin:center;animation:nc-pop 3.2s ease-in-out infinite}
+        @media (prefers-reduced-motion: reduce){ .nc-check,.nc-ping,.nc-breathe,.nc-pop{animation:none!important} .nc-check{stroke-dashoffset:0} }
+      `}</style>
       {/* ====================== HERO (flat design) ====================== */}
       <section className="relative overflow-hidden bg-[#F4F8F5] lg:min-h-[88vh]">
         <div className="pointer-events-none absolute -top-24 -right-24 w-96 h-96 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(0,200,83,0.16), transparent)" }} />
@@ -311,19 +354,17 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
             </p>
           </motion.div>
 
-          <div className="mt-12 grid md:grid-cols-3 gap-5">
+          <div className="mt-14 grid md:grid-cols-3 gap-10">
             {values.map((v, i) => (
               <motion.div
                 key={v.t}
                 {...fade}
-                transition={{ ...fade.transition, delay: i * 0.08 }}
-                className="rounded-2xl bg-white p-6 ring-1 ring-[#E6EBE8] hover:-translate-y-1 hover:shadow-lg transition-all duration-300"
+                transition={{ ...fade.transition, delay: i * 0.1 }}
+                className="text-center px-2"
               >
-                <div className="w-11 h-11 rounded-xl flex items-center justify-center text-[#06140D]" style={{ background: GREEN }}>
-                  {v.icon}
-                </div>
-                <h3 className="mt-4 text-lg font-bold">{v.t}</h3>
-                <p className="mt-2 text-sm text-[#5B6B62] leading-relaxed">{v.d}</p>
+                <div className="mx-auto mb-4 flex h-24 items-center justify-center">{v.art}</div>
+                <h3 className="text-lg font-bold">{v.t}</h3>
+                <p className="mt-2 text-sm text-[#5B6B62] leading-relaxed max-w-xs mx-auto">{v.d}</p>
               </motion.div>
             ))}
           </div>
