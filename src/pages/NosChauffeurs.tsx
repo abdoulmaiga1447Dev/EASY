@@ -1,15 +1,14 @@
 /**
  * Page « Nos chauffeurs » — refonte UI/UX 2026.
  * Thème clair aligné sur l'accueil (charte vert/blanc), premium & moderne.
- * Vraies photos de l'équipe (badges SAVER recadrés) + vraies photos de la flotte.
- * Aucune donnée inventée : seuls nom + rôle réels sont affichés par chauffeur.
+ * Hero en illustration plate (flat design, pas de photo de personnes).
+ * Vrais portraits de l'équipe (badges SAVER) ; aucune donnée inventée.
  */
 import React from "react";
 import { useLanguage } from "../context/LanguageContext";
 import { ShieldCheck, Gauge, UserCheck, BadgeCheck, MapPin, ArrowRight, PhoneCall, Leaf } from "lucide-react";
 import { motion } from "motion/react";
 
-import heroImg from "../assets/saver/chauffeurs-hero.jpg";
 import showcaseImg from "../assets/saver/fleet-13.jpg";
 import jacquesImg from "../assets/saver/chauffeur-jacques.jpg";
 import yeoImg from "../assets/saver/chauffeur-yeo.jpg";
@@ -24,6 +23,67 @@ const fade = {
   viewport: { once: true, margin: "-80px" },
   transition: { duration: 0.6 },
 };
+
+// Illustration plate (flat design) : berline électrique sur la route, charte verte.
+const HeroArt: React.FC = () => (
+  <svg viewBox="0 0 440 400" className="w-full h-auto" role="img" aria-label="Mobilité électrique">
+    <defs>
+      <clipPath id="nc-panel"><rect x="0" y="0" width="440" height="400" rx="28" /></clipPath>
+    </defs>
+    <g clipPath="url(#nc-panel)">
+      {/* ciel */}
+      <rect width="440" height="400" fill="#EAF9F1" />
+      {/* soleil / halo */}
+      <circle cx="350" cy="80" r="46" fill="#00C853" opacity="0.16" />
+      <circle cx="350" cy="80" r="26" fill="#00C853" opacity="0.22" />
+      {/* immeubles */}
+      <g fill="#0B1F14" opacity="0.07">
+        <rect x="30" y="150" width="46" height="110" rx="5" />
+        <rect x="84" y="118" width="34" height="142" rx="5" />
+        <rect x="300" y="138" width="40" height="122" rx="5" />
+        <rect x="348" y="166" width="30" height="94" rx="5" />
+      </g>
+      {/* sol */}
+      <rect x="0" y="250" width="440" height="150" fill="#D7F2E3" />
+      {/* route */}
+      <path d="M150 250 L290 250 L400 400 L40 400 Z" fill="#0B1F14" />
+      <path d="M150 250 L140 250 L20 400 L40 400 Z" fill="#00C853" opacity="0.85" />
+      <path d="M290 250 L300 250 L420 400 L400 400 Z" fill="#00C853" opacity="0.85" />
+      {/* pointillés */}
+      <g fill="#ffffff" opacity="0.85">
+        <rect x="216" y="258" width="8" height="16" rx="4" />
+        <rect x="214" y="286" width="12" height="20" rx="5" />
+        <rect x="211" y="322" width="18" height="26" rx="6" />
+        <rect x="206" y="364" width="28" height="30" rx="8" />
+      </g>
+      {/* voiture (vue arrière) */}
+      <g>
+        <ellipse cx="220" cy="332" rx="92" ry="16" fill="#06140D" opacity="0.22" />
+        <path d="M146 326 L146 292 C146 270 160 256 182 252 L258 252 C280 256 294 270 294 292 L294 326 C294 332 289 336 283 336 L157 336 C151 336 146 332 146 326 Z" fill="#ffffff" />
+        <path d="M176 256 C182 240 192 232 208 232 L232 232 C248 232 258 240 264 256 Z" fill="#ffffff" />
+        <path d="M186 254 C190 242 198 237 210 237 L230 237 C242 237 250 242 254 254 Z" fill="#0B1F14" opacity="0.85" />
+        <path d="M196 252 C199 244 205 241 212 241 L228 241 C235 241 241 244 244 252 Z" fill="#2b5d47" opacity="0.5" />
+        <rect x="150" y="300" width="140" height="3" rx="1.5" fill="#E3E8E5" />
+        <rect x="152" y="292" width="26" height="12" rx="6" fill="#00C853" />
+        <rect x="262" y="292" width="26" height="12" rx="6" fill="#FF7A1A" />
+        <rect x="150" y="318" width="140" height="14" rx="7" fill="#EDF1EE" />
+        <rect x="198" y="319" width="44" height="12" rx="2" fill="#ffffff" stroke="#00C853" strokeWidth="1.5" />
+        <rect x="160" y="332" width="26" height="10" rx="5" fill="#0B1F14" />
+        <rect x="254" y="332" width="26" height="10" rx="5" fill="#0B1F14" />
+      </g>
+      {/* badge éclair recharge */}
+      <g transform="translate(96 98)">
+        <circle r="22" fill="#ffffff" />
+        <circle r="22" fill="none" stroke="#00C853" strokeWidth="3" />
+        <path d="M2 -11 L-7 2 L-1 2 L-3 11 L7 -3 L1 -3 Z" fill="#00C853" />
+      </g>
+      {/* feuille */}
+      <g transform="translate(372 304)">
+        <path d="M0 0 C18 -22 44 -20 54 -4 C40 14 14 14 0 0 Z" fill="#00C853" opacity="0.28" />
+      </g>
+    </g>
+  </svg>
+);
 
 interface Driver {
   id: string;
@@ -69,100 +129,101 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
 
   return (
     <div id={id} className="bg-white text-[#0B1F14] font-sans -mt-[69px] lg:-mt-[81px]">
-      {/* ====================== HERO ====================== */}
-      <section className="relative min-h-[78vh] flex items-end overflow-hidden">
-        <img src={heroImg} alt="" className="absolute inset-0 w-full h-full object-cover" />
-        <div
-          className="absolute inset-0"
-          style={{ background: "linear-gradient(to top, rgba(5,20,12,0.92) 0%, rgba(5,20,12,0.5) 40%, rgba(5,20,12,0.25) 100%)" }}
-        />
-        <div className="relative z-10 max-w-6xl mx-auto w-full px-6 lg:px-8 pb-16 pt-28">
-          <motion.div
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="inline-flex items-center gap-2 rounded-full bg-white/10 backdrop-blur-xl backdrop-saturate-150 px-4 py-1.5 ring-1 ring-white/20"
-          >
-            <ShieldCheck size={14} className="text-white" />
-            <span className="text-[11px] font-semibold tracking-[0.15em] text-white uppercase">
-              {translate({ fr: "Une équipe, pas des inconnus", en: "A team, not strangers" })}
-            </span>
-          </motion.div>
+      {/* ====================== HERO (flat design) ====================== */}
+      <section className="relative overflow-hidden bg-[#F4F8F5] lg:min-h-[88vh]">
+        <div className="pointer-events-none absolute -top-24 -right-24 w-96 h-96 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(0,200,83,0.16), transparent)" }} />
+        <div className="pointer-events-none absolute -bottom-28 -left-24 w-96 h-96 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(255,122,26,0.10), transparent)" }} />
 
-          <motion.h1
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.1 }}
-            className="mt-5 max-w-3xl text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white leading-[1.05]"
-          >
-            {translate({ fr: "Nos chauffeurs", en: "Our chauffeurs" })}
-          </motion.h1>
-
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="mt-4 max-w-2xl text-base sm:text-lg text-white/85 leading-relaxed"
-          >
-            {translate({
-              fr: "Des professionnels formés et identifiés, au volant d'une flotte 100 % électrique. Ponctualité, sécurité et discrétion à chaque trajet dans Abidjan.",
-              en: "Trained, identified professionals driving a 100% electric fleet. Punctuality, safety and discretion on every trip across Abidjan.",
-            })}
-          </motion.p>
-
-          <motion.div
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.3 }}
-            className="mt-7 flex flex-col sm:flex-row gap-3"
-          >
-            <a
-              href="#contact"
-              className="inline-flex items-center justify-center gap-2 rounded-full px-7 py-3.5 text-sm font-semibold text-[#06140D] shadow-lg transition-transform active:scale-[0.98]"
-              style={{ background: GREEN }}
+        <div className="relative z-10 max-w-6xl mx-auto px-6 lg:px-8 pt-28 lg:pt-36 pb-16 grid lg:grid-cols-2 gap-10 lg:gap-14 items-center">
+          {/* Texte */}
+          <div>
+            <motion.div
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-1.5 ring-1 ring-[#E6EBE8] shadow-sm"
             >
-              <PhoneCall size={18} /> {translate({ fr: "Nous contacter", en: "Contact us" })}
-            </a>
-            <a
-              href="#reservation"
-              className="inline-flex items-center justify-center gap-2 rounded-full px-7 py-3.5 text-sm font-semibold text-white ring-1 ring-white/40 hover:bg-white/10 transition-colors"
-            >
-              {translate({ fr: "Réserver une course", en: "Book a ride" })} <ArrowRight size={16} />
-            </a>
-          </motion.div>
-
-          {/* Puces de confiance */}
-          <motion.div
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.4 }}
-            className="mt-8 flex flex-wrap gap-2.5"
-          >
-            {[
-              translate({ fr: "100 % électrique", en: "100% electric" }),
-              translate({ fr: "Chauffeurs badgés", en: "Badged chauffeurs" }),
-              translate({ fr: "Service à Abidjan", en: "Service in Abidjan" }),
-            ].map((c) => (
-              <span
-                key={c}
-                className="inline-flex items-center gap-2 rounded-full bg-white/10 backdrop-blur-xl backdrop-saturate-150 px-3.5 py-1.5 text-xs font-semibold text-white ring-1 ring-white/20"
-              >
-                <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: GREEN }} />
-                {c}
+              <ShieldCheck size={14} style={{ color: GREEN }} />
+              <span className="text-[11px] font-semibold tracking-[0.15em] text-[#0B1F14] uppercase">
+                {translate({ fr: "Une équipe, pas des inconnus", en: "A team, not strangers" })}
               </span>
-            ))}
+            </motion.div>
+
+            <motion.h1
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.1 }}
+              className="mt-5 text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.05]"
+            >
+              {translate({ fr: "Nos chauffeurs", en: "Our chauffeurs" })}
+            </motion.h1>
+
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+              className="mt-4 max-w-xl text-base sm:text-lg text-[#5B6B62] leading-relaxed"
+            >
+              {translate({
+                fr: "Des professionnels formés et identifiés, au volant d'une flotte 100 % électrique. Ponctualité, sécurité et discrétion à chaque trajet dans Abidjan.",
+                en: "Trained, identified professionals driving a 100% electric fleet. Punctuality, safety and discretion on every trip across Abidjan.",
+              })}
+            </motion.p>
+
+            <motion.div
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.3 }}
+              className="mt-7 flex flex-col sm:flex-row gap-3"
+            >
+              <a
+                href="#contact"
+                className="inline-flex items-center justify-center gap-2 rounded-full px-7 py-3.5 text-sm font-semibold text-[#06140D] shadow-lg transition-transform active:scale-[0.98]"
+                style={{ background: GREEN }}
+              >
+                <PhoneCall size={18} /> {translate({ fr: "Nous contacter", en: "Contact us" })}
+              </a>
+              <a
+                href="#reservation"
+                className="inline-flex items-center justify-center gap-2 rounded-full px-7 py-3.5 text-sm font-semibold text-[#0B1F14] ring-1 ring-[#D7E0DA] hover:bg-white transition-colors"
+              >
+                {translate({ fr: "Réserver une course", en: "Book a ride" })} <ArrowRight size={16} />
+              </a>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.4 }}
+              className="mt-8 flex flex-wrap gap-2.5"
+            >
+              {[
+                translate({ fr: "100 % électrique", en: "100% electric" }),
+                translate({ fr: "Chauffeurs badgés", en: "Badged chauffeurs" }),
+                translate({ fr: "Service à Abidjan", en: "Service in Abidjan" }),
+              ].map((c) => (
+                <span key={c} className="inline-flex items-center gap-2 rounded-full bg-white px-3.5 py-1.5 text-xs font-semibold text-[#0B1F14] ring-1 ring-[#E6EBE8]">
+                  <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: GREEN }} />
+                  {c}
+                </span>
+              ))}
+            </motion.div>
+          </div>
+
+          {/* Illustration */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.7, delay: 0.15 }}
+            className="relative mx-auto w-full max-w-md"
+          >
+            <HeroArt />
           </motion.div>
         </div>
-
-        {/* Fondu vers la section suivante */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20" style={{ background: "linear-gradient(to top, #F4F8F5, transparent)" }} />
       </section>
 
       {/* ====================== VALEURS ====================== */}
-      <section className="relative overflow-hidden bg-[#F4F8F5]">
-        {/* accents décoratifs */}
-        <div className="pointer-events-none absolute -top-24 -right-24 w-80 h-80 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(0,200,83,0.16), transparent)" }} />
-        <div className="pointer-events-none absolute -bottom-28 -left-20 w-80 h-80 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(255,122,26,0.12), transparent)" }} />
+      <section className="relative overflow-hidden bg-white">
         <div className="relative z-10 max-w-6xl mx-auto px-6 lg:px-8 py-20">
           <motion.div {...fade} className="max-w-2xl">
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
@@ -179,7 +240,7 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
                 key={v.t}
                 {...fade}
                 transition={{ ...fade.transition, delay: i * 0.08 }}
-                className="rounded-2xl bg-white p-6 ring-1 ring-[#E6EBE8] shadow-[0_1px_0_rgba(0,0,0,0.02)] hover:shadow-lg transition-shadow"
+                className="rounded-2xl bg-[#F4F8F5] p-6 ring-1 ring-[#E6EBE8] hover:shadow-lg transition-shadow"
               >
                 <div className="w-11 h-11 rounded-xl flex items-center justify-center text-[#06140D]" style={{ background: GREEN }}>
                   {v.icon}
@@ -193,7 +254,7 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
       </section>
 
       {/* ====================== L'ÉQUIPE ====================== */}
-      <section className="bg-white">
+      <section className="bg-[#F4F8F5]">
         <div className="max-w-6xl mx-auto px-6 lg:px-8 py-20">
           <motion.div {...fade} className="text-center max-w-2xl mx-auto">
             <span className="inline-flex items-center gap-2 text-xs font-semibold tracking-wide" style={{ color: GREEN }}>
@@ -241,7 +302,7 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
       </section>
 
       {/* ====================== SHOWCASE (sécurité / confort) ====================== */}
-      <section className="bg-[#F4F8F5]">
+      <section className="bg-white">
         <div className="max-w-6xl mx-auto px-6 lg:px-8 py-20 grid lg:grid-cols-2 gap-10 items-center">
           <motion.div {...fade} className="relative order-2 lg:order-1">
             <img src={showcaseImg} alt="" className="rounded-3xl w-full object-cover aspect-[4/3] shadow-xl" />
