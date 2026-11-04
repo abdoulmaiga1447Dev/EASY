@@ -299,7 +299,7 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
       </section>
 
       {/* ====================== VALEURS ====================== */}
-      <section className="relative overflow-hidden bg-white">
+      <section className="relative overflow-hidden bg-[#F4F8F5]">
         <SectionDecor id="dec-valeurs" />
         <div className="relative z-10 max-w-6xl mx-auto px-6 lg:px-8 py-20">
           <motion.div {...fade} className="max-w-2xl">
@@ -317,7 +317,7 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
                 key={v.t}
                 {...fade}
                 transition={{ ...fade.transition, delay: i * 0.08 }}
-                className="rounded-2xl bg-[#F4F8F5] p-6 ring-1 ring-[#E6EBE8] hover:-translate-y-1 hover:shadow-lg transition-all duration-300"
+                className="rounded-2xl bg-white p-6 ring-1 ring-[#E6EBE8] hover:-translate-y-1 hover:shadow-lg transition-all duration-300"
               >
                 <div className="w-11 h-11 rounded-xl flex items-center justify-center text-[#06140D]" style={{ background: GREEN }}>
                   {v.icon}
@@ -380,7 +380,7 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
       </section>
 
       {/* ====================== FORMATION ====================== */}
-      <section className="relative overflow-hidden bg-white">
+      <section className="relative overflow-hidden bg-[#F4F8F5]">
         <SectionDecor id="dec-formation" />
         <div className="relative z-10 max-w-6xl mx-auto px-6 lg:px-8 py-20">
           <motion.div {...fade} className="max-w-2xl">
@@ -425,7 +425,7 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
                 key={f.t}
                 {...fade}
                 transition={{ ...fade.transition, delay: i * 0.08 }}
-                className="rounded-2xl bg-[#F4F8F5] p-6 ring-1 ring-[#E6EBE8] hover:-translate-y-1 hover:shadow-lg transition-all duration-300"
+                className="rounded-2xl bg-white p-6 ring-1 ring-[#E6EBE8] hover:-translate-y-1 hover:shadow-lg transition-all duration-300"
               >
                 <div className="w-11 h-11 rounded-xl flex items-center justify-center text-[#06140D]" style={{ background: GREEN }}>
                   {f.icon}
@@ -439,7 +439,7 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
       </section>
 
       {/* ====================== SHOWCASE (sécurité / confort) ====================== */}
-      <section className="relative overflow-hidden bg-white">
+      <section className="relative overflow-hidden bg-[#F4F8F5]">
         <SectionDecor id="dec-showcase" />
         <div className="relative z-10 max-w-6xl mx-auto px-6 lg:px-8 py-20 grid lg:grid-cols-2 gap-10 items-center">
           <motion.div {...fade} className="relative order-2 lg:order-1">
