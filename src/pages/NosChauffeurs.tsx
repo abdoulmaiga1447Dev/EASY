@@ -62,9 +62,17 @@ const HeroArt: React.FC = () => (
       <g className="nc-bob">
         <ellipse cx="220" cy="332" rx="92" ry="16" fill="#06140D" opacity="0.22" />
         <path d="M146 326 L146 292 C146 270 160 256 182 252 L258 252 C280 256 294 270 294 292 L294 326 C294 332 289 336 283 336 L157 336 C151 336 146 332 146 326 Z" fill="#ffffff" />
-        <path d="M176 256 C182 240 192 232 208 232 L232 232 C248 232 258 240 264 256 Z" fill="#ffffff" />
-        <path d="M186 254 C190 242 198 237 210 237 L230 237 C242 237 250 242 254 254 Z" fill="#0B1F14" opacity="0.85" />
-        <path d="M196 252 C199 244 205 241 212 241 L228 241 C235 241 241 244 244 252 Z" fill="#2b5d47" opacity="0.5" />
+        {/* toit */}
+        <path d="M170 254 C176 230 190 222 208 222 L232 222 C250 222 264 230 270 254 Z" fill="#ffffff" />
+        {/* vitre arrière (claire) */}
+        <path d="M182 252 C187 234 198 228 210 228 L230 228 C242 228 253 234 258 252 Z" fill="#D7E8EA" />
+        {/* appuis-tête */}
+        <rect x="193" y="236" width="14" height="18" rx="6" fill="#0B1F14" opacity="0.85" />
+        <rect x="233" y="236" width="14" height="18" rx="6" fill="#0B1F14" opacity="0.85" />
+        {/* chauffeur noir (vu de dos) */}
+        <path d="M202 252 C204 243 211 239 220 239 C229 239 236 243 238 252 Z" fill="#0B1F14" />
+        <circle cx="220" cy="240" r="9" fill="#5A3B23" />
+        <path d="M211 240 C211 232 229 232 229 240 C229 235 225 233 220 233 C215 233 211 235 211 240 Z" fill="#141414" />
         <rect x="150" y="300" width="140" height="3" rx="1.5" fill="#E3E8E5" />
         <rect x="152" y="292" width="26" height="12" rx="6" fill="#00C853" />
         <rect x="262" y="292" width="26" height="12" rx="6" fill="#FF7A1A" />
@@ -87,21 +95,21 @@ const HeroArt: React.FC = () => (
   </svg>
 );
 
-// Motifs décoratifs animés (orange + vert) pour l'arrière-plan du hero.
+// Motifs décoratifs (orange + vert), statiques, en arrière-plan du hero.
 const HeroMotifs: React.FC = () => (
   <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-    <div className="nc-float absolute top-28 left-[40%] h-16 w-16 rounded-full border-[6px]" style={{ borderColor: "rgba(255,122,26,0.22)" }} />
-    <div className="nc-floatx absolute top-44 left-[7%] h-4 w-4 rounded-full" style={{ background: "rgba(0,200,83,0.35)" }} />
-    <div className="nc-float absolute bottom-28 left-[44%] h-5 w-5 rotate-12 rounded-md" style={{ background: "rgba(255,122,26,0.22)" }} />
-    <svg className="nc-floatx absolute top-24 right-[3%]" width="88" height="90">
-      <g fill="#FF7A1A" opacity="0.4">
+    <div className="absolute top-28 left-[40%] h-16 w-16 rounded-full border-[6px]" style={{ borderColor: "rgba(255,122,26,0.35)" }} />
+    <div className="absolute top-44 left-[7%] h-4 w-4 rounded-full" style={{ background: "rgba(0,200,83,0.45)" }} />
+    <div className="absolute bottom-28 left-[44%] h-5 w-5 rotate-12 rounded-md" style={{ background: "rgba(255,122,26,0.35)" }} />
+    <svg className="absolute top-24 right-[3%]" width="88" height="90">
+      <g fill="#FF7A1A" opacity="0.5">
         {[0, 1, 2, 3].map((r) => [0, 1, 2, 3, 4].map((c) => <circle key={`${r}-${c}`} cx={6 + c * 20} cy={6 + r * 20} r="3" />))}
       </g>
     </svg>
-    <svg className="nc-float absolute bottom-16 right-[40%]" width="120" height="24" fill="none">
-      <path d="M2 12 C20 2 30 22 48 12 C66 2 76 22 94 12 C104 7 112 10 118 12" stroke="#00C853" strokeWidth="3" strokeLinecap="round" opacity="0.35" />
+    <svg className="absolute bottom-16 right-[40%]" width="120" height="24" fill="none">
+      <path d="M2 12 C20 2 30 22 48 12 C66 2 76 22 94 12 C104 7 112 10 118 12" stroke="#00C853" strokeWidth="3" strokeLinecap="round" opacity="0.45" />
     </svg>
-    <svg className="nc-floatx absolute bottom-40 left-[12%]" width="22" height="22" stroke="#FF7A1A" strokeWidth="3" strokeLinecap="round" opacity="0.4">
+    <svg className="absolute bottom-40 left-[12%]" width="22" height="22" stroke="#FF7A1A" strokeWidth="3" strokeLinecap="round" opacity="0.5">
       <path d="M11 3 V19 M3 11 H19" />
     </svg>
   </div>
