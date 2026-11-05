@@ -441,7 +441,7 @@ export const Reservation: React.FC<ReservationProps> = ({ setCurrentPage, id }) 
                 <option value="" disabled>{translate({ fr: "Choisissez une formule…", en: "Choose a package…" })}</option>
                 {FORMULAS.map((f) => {
                   const price = selectedVehicle === "N3" ? translate({ fr: "Sur devis", en: "On quote" }) : PRICE_MAP[f.id]?.[selectedVehicle as "N1" | "N2"] || "";
-                  return <option key={f.id} value={f.id}>{f.duration} · {translate(f.name)}{price ? ` — ${price}` : ""}</option>;
+                  return <option key={f.id} value={f.id}>{f.duration}{price ? ` — ${price}` : ""}</option>;
                 })}
               </select>
               <ChevronDown size={18} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#5B6B62]" />
@@ -454,14 +454,8 @@ export const Reservation: React.FC<ReservationProps> = ({ setCurrentPage, id }) 
               const price = selectedVehicle === "N3" ? translate({ fr: "Sur devis", en: "On quote" }) : PRICE_MAP[f.id]?.[selectedVehicle as "N1" | "N2"] || "—";
               return (
                 <div className="mt-3 flex items-center justify-between gap-4 rounded-2xl bg-[#F4F8F5] ring-1 ring-[#E6EBE8] p-4">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-white ring-1 ring-[#E6EBE8] px-2 py-0.5 text-xs font-bold"><Clock size={11} style={{ color: GREEN }} /> {f.duration}</span>
-                      <span className="font-bold">{translate(f.name)}</span>
-                    </div>
-                    <p className="text-xs text-[#5B6B62] mt-1.5 leading-relaxed">{translate(f.desc)}</p>
-                  </div>
-                  <div className="text-lg font-extrabold shrink-0">{price}</div>
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-white ring-1 ring-[#E6EBE8] px-3 py-1 text-sm font-bold"><Clock size={14} style={{ color: GREEN }} /> {f.duration}</span>
+                  <div className="text-2xl font-extrabold shrink-0">{price}</div>
                 </div>
               );
             })()}
