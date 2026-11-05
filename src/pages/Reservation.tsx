@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { MapSelectorModal } from "../components/MapSelectorModal";
 import { MyBookingsModal } from "../components/MyBookingsModal";
+import reservationIllu from "../assets/saver/reservation-illustration.jpg";
 
 const GREEN = "#00C853";
 const INK = "#0B1F14";
@@ -340,8 +341,21 @@ export const Reservation: React.FC<ReservationProps> = ({ setCurrentPage, id }) 
   return (
     <div id={id} className="bg-white text-[#0B1F14] font-sans">
       <div className="max-w-6xl mx-auto px-6 lg:px-8 pt-12 lg:pt-16 pb-28 lg:pb-16 grid lg:grid-cols-12 gap-8 items-start">
-        {/* ===================== COLONNE CONTENU ===================== */}
-        <div className="lg:col-span-8 space-y-6">
+        {/* ===================== ILLUSTRATION (gauche) ===================== */}
+        <div className="hidden lg:block lg:col-span-5 lg:sticky lg:top-24">
+          <div className="rounded-3xl overflow-hidden ring-1 ring-[#E6EBE8] bg-[#F4F8F5] shadow-sm">
+            <img src={reservationIllu} alt="Réservez votre course EASY" className="w-full h-auto object-cover" />
+          </div>
+          <div className="mt-4 rounded-2xl bg-[#F4F8F5] ring-1 ring-[#E6EBE8] p-4 text-xs text-[#5B6B62] space-y-1.5">
+            <span className="text-[10px] font-bold uppercase block" style={{ color: GREEN }}>{translate({ fr: "Garanties EASY", en: "EASY guarantees" })}</span>
+            <p>✔ {translate({ fr: "Annulation gratuite jusqu'à 1h avant.", en: "Free cancellation up to 1h before." })}</p>
+            <p>✔ {translate({ fr: "Flotte 100 % électrique.", en: "100% electric fleet." })}</p>
+            <p>✔ {translate({ fr: "Facturation par e-mail.", en: "Instant email invoice." })}</p>
+          </div>
+        </div>
+
+        {/* ===================== FLUX (droite) ===================== */}
+        <div className="lg:col-span-7 space-y-6">
           {/* En-tête */}
           <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
             <div>
@@ -492,8 +506,14 @@ export const Reservation: React.FC<ReservationProps> = ({ setCurrentPage, id }) 
             </div>
           </section>
 
-          {/* Terminer → écran de confirmation */}
-          <div className="space-y-2">
+          {/* Total + Terminer → écran de confirmation */}
+          <div className="space-y-3">
+            {priceResult && selectedVehicle && selectedFormulaId && (
+              <div className="flex items-center justify-between rounded-2xl bg-[#F4F8F5] ring-1 ring-[#E6EBE8] px-5 py-3">
+                <span className="text-sm font-semibold text-[#5B6B62]">{translate({ fr: "Total estimé", en: "Estimated total" })}</span>
+                <span className="text-xl font-extrabold">{selectedVehicle === "N3" ? translate({ fr: "Sur devis", en: "On quote" }) : priceResult.totalPrice ? `${priceResult.totalPrice.toLocaleString()} FCFA` : "—"}</span>
+              </div>
+            )}
             <button onClick={goToRecap} disabled={!canConfirm}
               className="w-full inline-flex items-center justify-center gap-2 rounded-full px-6 py-4 text-sm font-extrabold text-[#06140D] shadow-lg transition-transform active:scale-[0.98] disabled:opacity-50"
               style={{ background: GREEN }}>
@@ -501,11 +521,7 @@ export const Reservation: React.FC<ReservationProps> = ({ setCurrentPage, id }) 
             </button>
             {!canConfirm && <p className="text-center text-xs text-[#5B6B62]">{translate({ fr: "Complétez le trajet, le véhicule et la formule pour continuer.", en: "Complete the ride, vehicle and package to continue." })}</p>}
           </div>
-        </div>
 
-        {/* ===================== COLONNE RÉSUMÉ (collant) ===================== */}
-        <div className="lg:col-span-4 space-y-6 lg:sticky lg:top-24">
-          {SummaryPanel}
           {/* Support */}
           <div className="rounded-3xl bg-white ring-1 ring-[#E6EBE8] shadow-sm p-6">
             <div className="flex items-center gap-2 mb-3"><span className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: "rgba(0,200,83,0.12)", color: GREEN }}><HelpCircle size={16} /></span><h4 className="text-sm font-bold">{translate({ fr: "Besoin d'aide ?", en: "Need help?" })}</h4></div>
