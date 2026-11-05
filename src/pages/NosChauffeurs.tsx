@@ -13,6 +13,7 @@ import showcaseImg from "../assets/saver/showcase-illustration.jpg";
 import jacquesImg from "../assets/saver/chauffeur-jacques.jpg";
 import yeoImg from "../assets/saver/chauffeur-yeo.jpg";
 import traoreImg from "../assets/saver/chauffeur-traore.jpg";
+import femmeImg from "../assets/saver/chauffeur-femme.jpg";
 import heroIllu from "../assets/saver/chauffeur-illustration.png";
 import fComposants from "../assets/saver/formation-composants.jpg";
 import fHistoire from "../assets/saver/formation-histoire.jpg";
@@ -244,6 +245,7 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
     { id: "drv_jacques", name: "Gbemonto Jacques", photo: jacquesImg },
     { id: "drv_yeo", name: "Yeo Navigue Abou", photo: yeoImg },
     { id: "drv_traore", name: "Traore Abdoul", photo: traoreImg },
+    { id: "drv_femme", name: "Nom à préciser", photo: femmeImg },
   ];
 
   const values = [
@@ -442,7 +444,7 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
             </p>
           </motion.div>
 
-          <div className="mt-12 grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="mt-12 grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {drivers.map((d, i) => (
               <motion.div
                 key={d.id}
