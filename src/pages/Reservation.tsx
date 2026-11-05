@@ -82,7 +82,7 @@ export const Reservation: React.FC<ReservationProps> = ({ setCurrentPage, id }) 
   const [showMapModal, setShowMapModal] = useState(false);
   const [showBookingsModal, setShowBookingsModal] = useState(false);
 
-  const [selectedVehicle, setSelectedVehicle] = useState<"N1" | "N2" | "N3" | null>(null);
+  const [selectedVehicle, setSelectedVehicle] = useState<"N1" | "N2" | "N3" | null>("N1");
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [selectedVehicleDetail, setSelectedVehicleDetail] = useState<any | null>(null);
 
@@ -118,7 +118,6 @@ export const Reservation: React.FC<ReservationProps> = ({ setCurrentPage, id }) 
 
   useEffect(() => {
     const savedFormula = localStorage.getItem("ev_selected_formula");
-    const savedVehicleCategory = localStorage.getItem("ev_selected_vehicle_category");
     if (savedFormula) {
       const matched = FORMULAS.find((f) => f.id === savedFormula);
       if (matched) {
@@ -128,10 +127,8 @@ export const Reservation: React.FC<ReservationProps> = ({ setCurrentPage, id }) 
       }
       localStorage.removeItem("ev_selected_formula");
     }
-    if (savedVehicleCategory === "N1" || savedVehicleCategory === "N2" || savedVehicleCategory === "N3") {
-      setSelectedVehicle(savedVehicleCategory);
-      localStorage.removeItem("ev_selected_vehicle_category");
-    }
+    // Un seul véhicule disponible (Berline N1) → sélection automatique.
+    localStorage.removeItem("ev_selected_vehicle_category");
   }, [vehicles]);
 
   // Date par défaut : demain
@@ -351,98 +348,78 @@ export const Reservation: React.FC<ReservationProps> = ({ setCurrentPage, id }) 
             </div>
           </section>
 
-          {/* 2 · Véhicule */}
+          {/* 2 · Formule & options */}
           <section className={sectionCls}>
-            <div className="flex items-center gap-3 mb-5">
+            <div className="flex items-center gap-3 mb-4">
               <span className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold text-[#06140D]" style={{ background: GREEN }}>2</span>
-              <h2 className="text-lg font-bold">{translate({ fr: "Votre véhicule", en: "Your vehicle" })}</h2>
-            </div>
-            <div className="grid sm:grid-cols-3 gap-4">
-              <button type="button" onClick={() => setSelectedVehicle("N1")}
-                className={`text-left rounded-2xl p-5 ring-1 transition-all ${selectedVehicle === "N1" ? "ring-2 bg-[#F4F8F5]" : "ring-[#E6EBE8] hover:ring-[#C9D6CE]"}`}
-                style={selectedVehicle === "N1" ? { ["--tw-ring-color" as any]: GREEN } : undefined}>
-                <div className="flex items-center justify-between"><span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full text-[#06140D]" style={{ background: GREEN }}>{translate({ fr: "Disponible", en: "Available" })}</span><Car size={22} style={{ color: GREEN }} /></div>
-                <h4 className="mt-4 font-bold">{translate({ fr: "Berline Premium (N1)", en: "Premium Sedan (N1)" })}</h4>
-                <p className="text-xs text-[#5B6B62]">{translate({ fr: "Berline électrique", en: "Electric sedan" })}</p>
-                <div className="mt-4 pt-3 border-t border-[#E6EBE8] flex justify-between text-xs"><span className="text-[#5B6B62]">{translate({ fr: "À partir de", en: "From" })}</span><span className="font-extrabold">10 000 FCFA</span></div>
-              </button>
-              {[{ tag: "N2", t: "SUV Executive (N2)", p: "15 000 FCFA" }, { tag: "N3", t: "SUV Prestige (N3)", p: translate({ fr: "Sur devis", en: "On quote" }) }].map((v) => (
-                <div key={v.tag} className="rounded-2xl p-5 ring-1 ring-[#E6EBE8] bg-[#F4F8F5] opacity-70 cursor-not-allowed select-none">
-                  <div className="flex items-center justify-between"><span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full text-[#C85A00]" style={{ background: "rgba(255,122,26,0.14)" }}>{translate({ fr: "Bientôt", en: "Soon" })}</span><Car size={22} className="text-[#9BA8A0]" /></div>
-                  <h4 className="mt-4 font-bold text-[#5B6B62]">{v.t}</h4>
-                  <p className="text-xs text-[#9BA8A0]">{translate({ fr: "Prochainement", en: "Coming soon" })}</p>
-                  <div className="mt-4 pt-3 border-t border-[#E6EBE8] flex justify-between text-xs"><span className="text-[#9BA8A0]">{translate({ fr: "À partir de", en: "From" })}</span><span className="font-bold text-[#5B6B62]">{v.p}</span></div>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {/* 3 · Formule */}
-          <section className={sectionCls}>
-            <div className="flex items-center gap-3 mb-5">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold text-[#06140D]" style={{ background: GREEN }}>3</span>
               <h2 className="text-lg font-bold">{translate({ fr: "Votre formule", en: "Your package" })}</h2>
             </div>
-            {!selectedVehicle ? (
-              <div className="rounded-2xl bg-[#F4F8F5] p-4 text-sm text-[#5B6B62]">{translate({ fr: "Choisissez d'abord un véhicule pour voir les prix.", en: "Pick a vehicle first to see prices." })}</div>
-            ) : (
-              <div className="grid sm:grid-cols-2 gap-3">
-                {FORMULAS.map((f) => {
-                  const isActive = selectedFormulaId === f.id;
-                  const price = selectedVehicle === "N3" ? translate({ fr: "Sur devis", en: "On quote" }) : PRICE_MAP[f.id]?.[selectedVehicle as "N1" | "N2"] || "—";
-                  return (
-                    <button key={f.id} type="button"
-                      onClick={() => { setSelectedFormulaId(f.id); setFormula(f.formula); setDurationHours(f.durationHours); }}
-                      className={`text-left rounded-2xl p-4 ring-1 transition-all ${isActive ? "ring-2 bg-[#F4F8F5]" : "ring-[#E6EBE8] hover:ring-[#C9D6CE]"}`}
-                      style={isActive ? { ["--tw-ring-color" as any]: GREEN } : undefined}>
-                      <div className="flex items-center justify-between">
-                        <span className="inline-flex items-center gap-1 rounded-full bg-white ring-1 ring-[#E6EBE8] px-2 py-0.5 text-xs font-bold"><Clock size={11} style={{ color: GREEN }} /> {f.duration}</span>
-                        {isActive && <span className="flex h-5 w-5 items-center justify-center rounded-full text-[#06140D]" style={{ background: GREEN }}><Check size={12} /></span>}
-                      </div>
-                      <h4 className="mt-3 font-bold">{translate(f.name)}</h4>
-                      <p className="mt-0.5 text-xs text-[#5B6B62] leading-relaxed">{translate(f.desc)}</p>
-                      <div className="mt-3 text-lg font-extrabold">{price}</div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </section>
 
-          {/* 4 · Options */}
-          <section className={sectionCls}>
-            <div className="flex items-center gap-3 mb-5">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold text-[#06140D]" style={{ background: GREEN }}>4</span>
-              <h2 className="text-lg font-bold">{translate({ fr: "Options", en: "Options" })}</h2>
+            {/* Véhicule (unique) */}
+            <div className="mb-4 flex items-center gap-3 rounded-2xl bg-[#F4F8F5] ring-1 ring-[#E6EBE8] p-3">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl text-[#06140D]" style={{ background: GREEN }}><Car size={18} /></span>
+              <div className="text-sm">
+                <div className="font-bold">{translate({ fr: "Berline Premium — 100 % électrique", en: "Premium Sedan — 100% electric" })}</div>
+                <div className="text-xs text-[#5B6B62]">{translate({ fr: "Notre véhicule en service · jusqu'à 3 passagers", en: "Our in-service vehicle · up to 3 passengers" })}</div>
+              </div>
             </div>
 
-            {(priceResult?.isNight || priceResult?.isWeekend) && (
-              <div className="space-y-2 mb-4">
-                {priceResult?.isNight && <div className="rounded-xl bg-[rgba(255,122,26,0.08)] ring-1 ring-[rgba(255,122,26,0.2)] p-3 text-xs text-[#0B1F14] flex items-center gap-2"><Clock size={14} className="text-[#C85A00]" /> {translate({ fr: `Service de nuit détecté (${departureTime}) — +20%`, en: `Night service detected (${departureTime}) — +20%` })}</div>}
-                {priceResult?.isWeekend && <div className="rounded-xl bg-[rgba(255,122,26,0.08)] ring-1 ring-[rgba(255,122,26,0.2)] p-3 text-xs text-[#0B1F14] flex items-center gap-2"><Calendar size={14} className="text-[#C85A00]" /> {translate({ fr: "Week-end / jour férié détecté — +20%", en: "Weekend / holiday detected — +20%" })}</div>}
-              </div>
-            )}
+            <div className="grid sm:grid-cols-2 gap-3">
+              {FORMULAS.map((f) => {
+                const isActive = selectedFormulaId === f.id;
+                const price = PRICE_MAP[f.id]?.N1 || "—";
+                return (
+                  <button key={f.id} type="button"
+                    onClick={() => { setSelectedFormulaId(f.id); setFormula(f.formula); setDurationHours(f.durationHours); }}
+                    className={`text-left rounded-2xl p-4 ring-1 transition-all ${isActive ? "ring-2 bg-[#F4F8F5]" : "ring-[#E6EBE8] hover:ring-[#C9D6CE]"}`}
+                    style={isActive ? { ["--tw-ring-color" as any]: GREEN } : undefined}>
+                    <div className="flex items-center justify-between">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-white ring-1 ring-[#E6EBE8] px-2 py-0.5 text-xs font-bold"><Clock size={11} style={{ color: GREEN }} /> {f.duration}</span>
+                      {isActive && <span className="flex h-5 w-5 items-center justify-center rounded-full text-[#06140D]" style={{ background: GREEN }}><Check size={12} /></span>}
+                    </div>
+                    <h4 className="mt-3 font-bold">{translate(f.name)}</h4>
+                    <p className="mt-0.5 text-xs text-[#5B6B62] leading-relaxed">{translate(f.desc)}</p>
+                    <div className="mt-3 text-lg font-extrabold">{price}</div>
+                  </button>
+                );
+              })}
+            </div>
 
-            <div className="grid sm:grid-cols-2 gap-4">
-              <button type="button" onClick={() => setIsBilingual(!isBilingual)}
-                className={`text-left rounded-2xl p-4 ring-1 transition-all flex items-start justify-between gap-3 ${isBilingual ? "ring-2 bg-[#F4F8F5]" : "ring-[#E6EBE8] hover:ring-[#C9D6CE]"}`}
-                style={isBilingual ? { ["--tw-ring-color" as any]: GREEN } : undefined}>
-                <div><h4 className="font-bold text-sm flex items-center gap-2"><Globe size={15} style={{ color: GREEN }} /> {translate({ fr: "Chauffeur bilingue (+15%)", en: "Bilingual chauffeur (+15%)" })}</h4><p className="text-xs text-[#5B6B62] mt-1.5">{translate({ fr: "Français & anglais des affaires.", en: "Business French & English." })}</p></div>
-                <span className={`mt-0.5 flex h-5 w-5 items-center justify-center rounded border ${isBilingual ? "border-transparent text-[#06140D]" : "border-[#C9D6CE]"}`} style={isBilingual ? { background: GREEN } : undefined}>{isBilingual && <Check size={12} />}</span>
-              </button>
-              <button type="button" onClick={() => setIsAirportGreeting(!isAirportGreeting)}
-                className={`text-left rounded-2xl p-4 ring-1 transition-all flex items-start justify-between gap-3 ${isAirportGreeting ? "ring-2 bg-[#F4F8F5]" : "ring-[#E6EBE8] hover:ring-[#C9D6CE]"}`}
-                style={isAirportGreeting ? { ["--tw-ring-color" as any]: GREEN } : undefined}>
-                <div><h4 className="font-bold text-sm flex items-center gap-2"><UserCheck size={15} style={{ color: GREEN }} /> {translate({ fr: "Accueil aéroport (+5 000 FCFA)", en: "Airport greeting (+5,000 FCFA)" })}</h4><p className="text-xs text-[#5B6B62] mt-1.5">{translate({ fr: "Accueil avec pancarte à votre nom.", en: "Meet & greet with a name sign." })}</p></div>
-                <span className={`mt-0.5 flex h-5 w-5 items-center justify-center rounded border ${isAirportGreeting ? "border-transparent text-[#06140D]" : "border-[#C9D6CE]"}`} style={isAirportGreeting ? { background: GREEN } : undefined}>{isAirportGreeting && <Check size={12} />}</span>
-              </button>
+            {/* Options (facultatif) */}
+            <div className="mt-6 pt-5 border-t border-[#EEF2EF]">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-bold">{translate({ fr: "Options", en: "Options" })}</h3>
+                <span className="text-xs text-[#5B6B62]">{translate({ fr: "facultatif", en: "optional" })}</span>
+              </div>
+
+              {(priceResult?.isNight || priceResult?.isWeekend) && (
+                <div className="space-y-2 mb-3">
+                  {priceResult?.isNight && <div className="rounded-xl bg-[rgba(255,122,26,0.08)] ring-1 ring-[rgba(255,122,26,0.2)] p-3 text-xs text-[#0B1F14] flex items-center gap-2"><Clock size={14} className="text-[#C85A00]" /> {translate({ fr: `Service de nuit détecté (${departureTime}) — +20%`, en: `Night service detected (${departureTime}) — +20%` })}</div>}
+                  {priceResult?.isWeekend && <div className="rounded-xl bg-[rgba(255,122,26,0.08)] ring-1 ring-[rgba(255,122,26,0.2)] p-3 text-xs text-[#0B1F14] flex items-center gap-2"><Calendar size={14} className="text-[#C85A00]" /> {translate({ fr: "Week-end / jour férié détecté — +20%", en: "Weekend / holiday detected — +20%" })}</div>}
+                </div>
+              )}
+
+              <div className="grid sm:grid-cols-2 gap-3">
+                <button type="button" onClick={() => setIsBilingual(!isBilingual)}
+                  className={`text-left rounded-2xl p-4 ring-1 transition-all flex items-start justify-between gap-3 ${isBilingual ? "ring-2 bg-[#F4F8F5]" : "ring-[#E6EBE8] hover:ring-[#C9D6CE]"}`}
+                  style={isBilingual ? { ["--tw-ring-color" as any]: GREEN } : undefined}>
+                  <div><h4 className="font-bold text-sm flex items-center gap-2"><Globe size={15} style={{ color: GREEN }} /> {translate({ fr: "Chauffeur bilingue (+15%)", en: "Bilingual chauffeur (+15%)" })}</h4><p className="text-xs text-[#5B6B62] mt-1.5">{translate({ fr: "Français & anglais des affaires.", en: "Business French & English." })}</p></div>
+                  <span className={`mt-0.5 flex h-5 w-5 items-center justify-center rounded border ${isBilingual ? "border-transparent text-[#06140D]" : "border-[#C9D6CE]"}`} style={isBilingual ? { background: GREEN } : undefined}>{isBilingual && <Check size={12} />}</span>
+                </button>
+                <button type="button" onClick={() => setIsAirportGreeting(!isAirportGreeting)}
+                  className={`text-left rounded-2xl p-4 ring-1 transition-all flex items-start justify-between gap-3 ${isAirportGreeting ? "ring-2 bg-[#F4F8F5]" : "ring-[#E6EBE8] hover:ring-[#C9D6CE]"}`}
+                  style={isAirportGreeting ? { ["--tw-ring-color" as any]: GREEN } : undefined}>
+                  <div><h4 className="font-bold text-sm flex items-center gap-2"><UserCheck size={15} style={{ color: GREEN }} /> {translate({ fr: "Accueil aéroport (+5 000 FCFA)", en: "Airport greeting (+5,000 FCFA)" })}</h4><p className="text-xs text-[#5B6B62] mt-1.5">{translate({ fr: "Accueil avec pancarte à votre nom.", en: "Meet & greet with a name sign." })}</p></div>
+                  <span className={`mt-0.5 flex h-5 w-5 items-center justify-center rounded border ${isAirportGreeting ? "border-transparent text-[#06140D]" : "border-[#C9D6CE]"}`} style={isAirportGreeting ? { background: GREEN } : undefined}>{isAirportGreeting && <Check size={12} />}</span>
+                </button>
+              </div>
             </div>
           </section>
 
           {/* 5 · Récapitulatif & confirmation (SOMBRE) */}
           <section id="res_recap" className="rounded-3xl p-6 sm:p-8 text-white ring-1 ring-white/10" style={{ background: INK }}>
             <div className="flex items-center gap-3 mb-5">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold text-[#06140D]" style={{ background: GREEN }}>5</span>
+              <span className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold text-[#06140D]" style={{ background: GREEN }}>3</span>
               <h2 className="text-lg font-bold">{translate({ fr: "Récapitulatif & confirmation", en: "Summary & confirmation" })}</h2>
             </div>
 
