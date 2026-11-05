@@ -437,10 +437,10 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
               <Leaf size={14} /> {translate({ fr: "L'ÉQUIPE EASY", en: "THE EASY TEAM" })}
             </span>
             <h2 className="mt-3 text-3xl sm:text-4xl font-extrabold tracking-tight">
-              {translate({ fr: "Les visages au volant", en: "The faces behind the wheel" })}
+              {translate({ fr: "Quelques visages de l'équipe", en: "A few faces from the team" })}
             </h2>
             <p className="mt-3 text-[#5B6B62]">
-              {translate({ fr: "Des chauffeurs de confiance, identifiés par un badge officiel SAVER.", en: "Trusted chauffeurs, identified by an official SAVER badge." })}
+              {translate({ fr: "Un aperçu de nos chauffeurs — tous formés et identifiés par un badge officiel SAVER.", en: "A glimpse of our chauffeurs — all trained and identified by an official SAVER badge." })}
             </p>
           </motion.div>
 
