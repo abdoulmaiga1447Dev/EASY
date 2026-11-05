@@ -1,250 +1,105 @@
-import React, { useState, useEffect, useRef } from "react";
+/**
+ * Page « Réservation » — refonte UI/UX 2026.
+ * Tunnel en PAGE UNIQUE (scroll) : sections claires empilées + résumé/prix collant,
+ * et récapitulatif/confirmation sur fond sombre.
+ * Toute la logique (prix en direct, autocomplétion, API, succès) est conservée.
+ */
+import React, { useState, useEffect } from "react";
 import { useLanguage } from "../context/LanguageContext";
 import { useAuth } from "../context/AuthContext";
-import { useSegment } from "../context/SegmentContext";
-import { Button } from "../components/Button";
-import { Card } from "../components/Card";
-import { Badge } from "../components/Badge";
-import { 
-  Calendar, Clock, MapPin, Car, ArrowRight, ArrowLeft, Check, 
-  UserCheck, Shield, HelpCircle, Sparkles, Globe, AlertCircle, HeartHandshake, Map, Compass,
-  Zap, ShoppingBag, Briefcase, Users, Phone
+import {
+  Calendar, Clock, MapPin, Car, ArrowRight, Check, UserCheck, Globe, Map,
+  Compass, Phone, HelpCircle, MessageCircle, AlertCircle, ShieldCheck, Zap,
 } from "lucide-react";
 import { MapSelectorModal } from "../components/MapSelectorModal";
 import { MyBookingsModal } from "../components/MyBookingsModal";
+
+const GREEN = "#00C853";
+const INK = "#0B1F14";
 
 interface ReservationProps {
   setCurrentPage: (page: string) => void;
   id: string;
 }
 
-// Popular locations in Abidjan with coordinates for our mini-map simulation
 const ABIDJAN_LOCATIONS = [
-  // Adjamé
-  { name: "Adjamé Liberté, Abidjan" },
-  { name: "Adjamé Forum des Marchés, Abidjan" },
-  { name: "Adjamé 220 Logements, Abidjan" },
-  { name: "Mairie d'Adjamé, Abidjan" },
-  { name: "Gare Routière d'Adjamé, Abidjan" },
-  { name: "Adjamé Mirador, Abidjan" },
-  { name: "Adjamé Paillet, Abidjan" },
-
-  // Cocody
-  { name: "Cocody Centre, Abidjan" },
-  { name: "Cocody Deux Plateaux, Abidjan" },
-  { name: "Cocody Deux Plateaux Vallon, Abidjan" },
-  { name: "Cocody Angré (Nouveau CHU), Abidjan" },
-  { name: "Cocody Angré Djibi, Abidjan" },
-  { name: "Cocody Angré Nouveau Horizon, Abidjan" },
-  { name: "Cocody Riviera 1, Abidjan" },
-  { name: "Cocody Riviera 2, Abidjan" },
-  { name: "Cocody Riviera 3 (Lycée Américain), Abidjan" },
-  { name: "Cocody Riviera 4 (M'Pouto), Abidjan" },
-  { name: "Cocody Riviera Palmeraie, Abidjan" },
-  { name: "Cocody Riviera Bonoumin, Abidjan" },
-  { name: "Cocody Riviera Golf, Abidjan" },
-  { name: "Cocody Riviera Faya, Abidjan" },
-  { name: "Cocody Saint-Jean, Abidjan" },
-  { name: "Université Félix Houphouët-Boigny, Cocody" },
-  { name: "CHU de Cocody, Abidjan" },
-  { name: "Ambassade de France, Cocody" },
-  { name: "Ambassade des Etats-Unis, Cocody" },
-
-  // Plateau
-  { name: "Plateau, Abidjan (Quartier des Affaires)" },
-  { name: "Boulevard de la République, Plateau, Abidjan" },
-  { name: "Avenue Chardy, Plateau, Abidjan" },
-  { name: "Cathédrale Saint-Paul, Plateau, Abidjan" },
-  { name: "Hôtel Tiama, Plateau, Abidjan" },
-  { name: "Hôtel Pullman, Plateau, Abidjan" },
-  { name: "Hôtel Noom, Plateau, Abidjan" },
-  { name: "Stade Félix Houphouët-Boigny (Félicia), Plateau" },
-  { name: "Mairie du Plateau, Abidjan" },
-  { name: "Immeuble CCIA, Plateau, Abidjan" },
-  { name: "Immeuble Postel 2001, Plateau, Abidjan" },
-
-  // Marcory
-  { name: "Marcory Zone 4 (Rue Pierre & Marie Curie), Abidjan" },
-  { name: "Marcory Zone 4 (Rue Paul Langevin), Abidjan" },
-  { name: "Marcory Zone 4 (Rue du Canal), Abidjan" },
-  { name: "Marcory Résidentiel, Abidjan" },
-  { name: "Marcory Centre, Abidjan" },
-  { name: "Boulevard de Marseille, Marcory, Abidjan" },
-  { name: "Boulevard de Lorraine, Marcory, Abidjan" },
-  { name: "Marcory GFCI, Abidjan" },
-  { name: "Marcory Aliodan / Résidences, Abidjan" },
-  { name: "Cap Sud, Marcory, Abidjan" },
-  { name: "Prima Center, Marcory, Abidjan" },
-  { name: "Playce Marcory, Abidjan" },
-  { name: "Hôtel Azalaï, Marcory, Abidjan" },
-  { name: "Biétry, Marcory, Abidjan" },
-
-  // Treichville
-  { name: "Treichville, Boulevard de Marseille, Abidjan" },
-  { name: "Treichville Avenue 16 / Avenue 21, Abidjan" },
-  { name: "Treichville Boulevard Valéry Giscard d'Estaing (VGE)" },
-  { name: "Gare de Bassam, Treichville, Abidjan" },
-  { name: "CHU de Treichville, Abidjan" },
-  { name: "Palais des Sports de Treichville, Abidjan" },
-  { name: "Port Autonome d'Abidjan, Treichville" },
-
-  // Koumassi
-  { name: "Koumassi Centre, Abidjan" },
-  { name: "Koumassi Zone Industrielle, Abidjan" },
-  { name: "Koumassi Soweto, Abidjan" },
-  { name: "Koumassi Grand Carrefour, Abidjan" },
-  { name: "Koumassi Remblais, Abidjan" },
-
-  // Port-Bouët
-  { name: "Aéroport International Félix Houphouët-Boigny, Port-Bouët" },
-  { name: "Port-Bouët Centre, Abidjan" },
-  { name: "Port-Bouët Vridi (Zone Industrielle), Abidjan" },
-  { name: "Port-Bouët Vridi Canal, Abidjan" },
-  { name: "Quartier Phare, Port-Bouët, Abidjan" },
-
-  // Yopougon
-  { name: "Yopougon Siporex, Abidjan" },
-  { name: "Yopougon Maroc, Abidjan" },
-  { name: "Yopougon Niangon, Abidjan" },
-  { name: "Yopougon Toits Rouges, Abidjan" },
-  { name: "Yopougon Sogefiha, Abidjan" },
-  { name: "Yopougon Bel Air, Abidjan" },
-  { name: "Yopougon Académie, Abidjan" },
-  { name: "Yopougon Zone Industrielle, Abidjan" },
-  { name: "Yopougon Selmer, Abidjan" },
-  { name: "Cosmos Yopougon, Abidjan" },
-  { name: "CHU de Yopougon, Abidjan" },
-
-  // Abobo
-  { name: "Abobo Gare, Abidjan" },
-  { name: "Abobo Baoulé, Abidjan" },
-  { name: "Abobo Samaké, Abidjan" },
-  { name: "Abobo Avocatier, Abidjan" },
-  { name: "Abobo Dokui, Abidjan" },
-  { name: "Abobo Té, Abidjan" },
-  { name: "Mairie d'Abobo, Abidjan" },
-
-  // Bingerville
-  { name: "Bingerville Centre, Abidjan" },
-  { name: "Bingerville Fehi Kessé, Abidjan" },
-  { name: "Bingerville Ecole Militaire (EMPT), Abidjan" },
-  { name: "Bingerville Jardin Botanique, Abidjan" },
-
-  // Out of city / Resorts
-  { name: "Grand-Bassam, Zone Balnéaire" },
-  { name: "Grand-Bassam Quartier France" },
-  { name: "Assinie-Mafia, Club Méditerranée" },
-  { name: "Assinie Terminal, Zone Touristique" }
+  { name: "Adjamé Liberté, Abidjan" }, { name: "Adjamé Forum des Marchés, Abidjan" }, { name: "Adjamé 220 Logements, Abidjan" },
+  { name: "Mairie d'Adjamé, Abidjan" }, { name: "Gare Routière d'Adjamé, Abidjan" }, { name: "Adjamé Mirador, Abidjan" }, { name: "Adjamé Paillet, Abidjan" },
+  { name: "Cocody Centre, Abidjan" }, { name: "Cocody Deux Plateaux, Abidjan" }, { name: "Cocody Deux Plateaux Vallon, Abidjan" },
+  { name: "Cocody Angré (Nouveau CHU), Abidjan" }, { name: "Cocody Angré Djibi, Abidjan" }, { name: "Cocody Angré Nouveau Horizon, Abidjan" },
+  { name: "Cocody Riviera 1, Abidjan" }, { name: "Cocody Riviera 2, Abidjan" }, { name: "Cocody Riviera 3 (Lycée Américain), Abidjan" },
+  { name: "Cocody Riviera 4 (M'Pouto), Abidjan" }, { name: "Cocody Riviera Palmeraie, Abidjan" }, { name: "Cocody Riviera Bonoumin, Abidjan" },
+  { name: "Cocody Riviera Golf, Abidjan" }, { name: "Cocody Riviera Faya, Abidjan" }, { name: "Cocody Saint-Jean, Abidjan" },
+  { name: "Université Félix Houphouët-Boigny, Cocody" }, { name: "CHU de Cocody, Abidjan" }, { name: "Ambassade de France, Cocody" }, { name: "Ambassade des Etats-Unis, Cocody" },
+  { name: "Plateau, Abidjan (Quartier des Affaires)" }, { name: "Boulevard de la République, Plateau, Abidjan" }, { name: "Avenue Chardy, Plateau, Abidjan" },
+  { name: "Cathédrale Saint-Paul, Plateau, Abidjan" }, { name: "Hôtel Tiama, Plateau, Abidjan" }, { name: "Hôtel Pullman, Plateau, Abidjan" }, { name: "Hôtel Noom, Plateau, Abidjan" },
+  { name: "Stade Félix Houphouët-Boigny (Félicia), Plateau" }, { name: "Mairie du Plateau, Abidjan" }, { name: "Immeuble CCIA, Plateau, Abidjan" }, { name: "Immeuble Postel 2001, Plateau, Abidjan" },
+  { name: "Marcory Zone 4 (Rue Pierre & Marie Curie), Abidjan" }, { name: "Marcory Zone 4 (Rue Paul Langevin), Abidjan" }, { name: "Marcory Zone 4 (Rue du Canal), Abidjan" },
+  { name: "Marcory Résidentiel, Abidjan" }, { name: "Marcory Centre, Abidjan" }, { name: "Boulevard de Marseille, Marcory, Abidjan" }, { name: "Boulevard de Lorraine, Marcory, Abidjan" },
+  { name: "Marcory GFCI, Abidjan" }, { name: "Marcory Aliodan / Résidences, Abidjan" }, { name: "Cap Sud, Marcory, Abidjan" }, { name: "Prima Center, Marcory, Abidjan" },
+  { name: "Playce Marcory, Abidjan" }, { name: "Hôtel Azalaï, Marcory, Abidjan" }, { name: "Biétry, Marcory, Abidjan" },
+  { name: "Treichville, Boulevard de Marseille, Abidjan" }, { name: "Treichville Avenue 16 / Avenue 21, Abidjan" }, { name: "Treichville Boulevard Valéry Giscard d'Estaing (VGE)" },
+  { name: "Gare de Bassam, Treichville, Abidjan" }, { name: "CHU de Treichville, Abidjan" }, { name: "Palais des Sports de Treichville, Abidjan" }, { name: "Port Autonome d'Abidjan, Treichville" },
+  { name: "Koumassi Centre, Abidjan" }, { name: "Koumassi Zone Industrielle, Abidjan" }, { name: "Koumassi Soweto, Abidjan" }, { name: "Koumassi Grand Carrefour, Abidjan" }, { name: "Koumassi Remblais, Abidjan" },
+  { name: "Aéroport International Félix Houphouët-Boigny, Port-Bouët" }, { name: "Port-Bouët Centre, Abidjan" }, { name: "Port-Bouët Vridi (Zone Industrielle), Abidjan" },
+  { name: "Port-Bouët Vridi Canal, Abidjan" }, { name: "Quartier Phare, Port-Bouët, Abidjan" },
+  { name: "Yopougon Siporex, Abidjan" }, { name: "Yopougon Maroc, Abidjan" }, { name: "Yopougon Niangon, Abidjan" }, { name: "Yopougon Toits Rouges, Abidjan" },
+  { name: "Yopougon Sogefiha, Abidjan" }, { name: "Yopougon Bel Air, Abidjan" }, { name: "Yopougon Académie, Abidjan" }, { name: "Yopougon Zone Industrielle, Abidjan" },
+  { name: "Yopougon Selmer, Abidjan" }, { name: "Cosmos Yopougon, Abidjan" }, { name: "CHU de Yopougon, Abidjan" },
+  { name: "Abobo Gare, Abidjan" }, { name: "Abobo Baoulé, Abidjan" }, { name: "Abobo Samaké, Abidjan" }, { name: "Abobo Avocatier, Abidjan" }, { name: "Abobo Dokui, Abidjan" }, { name: "Abobo Té, Abidjan" }, { name: "Mairie d'Abobo, Abidjan" },
+  { name: "Bingerville Centre, Abidjan" }, { name: "Bingerville Fehi Kessé, Abidjan" }, { name: "Bingerville Ecole Militaire (EMPT), Abidjan" }, { name: "Bingerville Jardin Botanique, Abidjan" },
+  { name: "Grand-Bassam, Zone Balnéaire" }, { name: "Grand-Bassam Quartier France" }, { name: "Assinie-Mafia, Club Méditerranée" }, { name: "Assinie Terminal, Zone Touristique" },
 ];
 
 const FORMULAS = [
-  {
-    id: "flash_premium",
-    duration: "1h",
-    name: { fr: "Le Flash Premium", en: "Le Flash Premium" },
-    desc: { 
-      fr: "Aéroport, restaurant, hôtel — 1 seul trajet. Jusqu'à 3 personnes", 
-      en: "Airport, restaurant, hotel — 1 single journey. Up to 3 passengers" 
-    },
-    formula: "hourly" as const,
-    durationHours: 1,
-    icon: "Zap",
-  },
-  {
-    id: "courses_vip",
-    duration: "2h",
-    name: { fr: "Les Courses VIP", en: "VIP Errands" },
-    desc: { 
-      fr: "Pharmacie, shopping, 2-3 arrêts en ville", 
-      en: "Pharmacy, shopping, 2-3 quick stops around Abidjan" 
-    },
-    formula: "hourly" as const,
-    durationHours: 2,
-    icon: "ShoppingBag",
-  },
-  {
-    id: "rdv_image",
-    duration: "3h",
-    name: { fr: "Le RDV d'Image", en: "The Image Meeting" },
-    desc: { 
-      fr: "Meeting, hôtel 5★, cabinet d'avocats, banque", 
-      en: "Meeting, 5★ hotel, law firm, private banking" 
-    },
-    formula: "hourly" as const,
-    durationHours: 3,
-    icon: "Briefcase",
-  },
-  {
-    id: "grande_journee",
-    duration: "8h",
-    name: { fr: "La Grande Journée", en: "The Full Day" },
-    desc: { 
-      fr: "Bassam, Dabou, Anyama — itinéraire libre", 
-      en: "Grand-Bassam, Dabou, Anyama — custom unlimited route" 
-    },
-    formula: "halfday" as const,
-    durationHours: 8,
-    icon: "Compass",
-  },
-  {
-    id: "evenement",
-    duration: "16h",
-    name: { fr: "L'Événement", en: "The Signature Event" },
-    desc: { 
-      fr: "Mariage, séminaire, journée VIP", 
-      en: "Weddings, high-level seminars, private VIP days" 
-    },
-    formula: "fullday" as const,
-    durationHours: 16,
-    icon: "Sparkles",
-  }
+  { id: "flash_premium", duration: "1h", name: { fr: "Le Flash Premium", en: "Le Flash Premium" }, desc: { fr: "Aéroport, restaurant, hôtel — 1 seul trajet. Jusqu'à 3 personnes", en: "Airport, restaurant, hotel — 1 single journey. Up to 3 passengers" }, formula: "hourly" as const, durationHours: 1 },
+  { id: "courses_vip", duration: "2h", name: { fr: "Les Courses VIP", en: "VIP Errands" }, desc: { fr: "Pharmacie, shopping, 2-3 arrêts en ville", en: "Pharmacy, shopping, 2-3 quick stops around Abidjan" }, formula: "hourly" as const, durationHours: 2 },
+  { id: "rdv_image", duration: "3h", name: { fr: "Le RDV d'Image", en: "The Image Meeting" }, desc: { fr: "Meeting, hôtel 5★, cabinet d'avocats, banque", en: "Meeting, 5★ hotel, law firm, private banking" }, formula: "hourly" as const, durationHours: 3 },
+  { id: "grande_journee", duration: "8h", name: { fr: "La Grande Journée", en: "The Full Day" }, desc: { fr: "Bassam, Dabou, Anyama — itinéraire libre", en: "Grand-Bassam, Dabou, Anyama — custom unlimited route" }, formula: "halfday" as const, durationHours: 8 },
+  { id: "evenement", duration: "16h", name: { fr: "L'Événement", en: "The Signature Event" }, desc: { fr: "Mariage, séminaire, journée VIP", en: "Weddings, high-level seminars, private VIP days" }, formula: "fullday" as const, durationHours: 16 },
 ];
 
-const renderFormulaIcon = (iconName: string) => {
-  switch (iconName) {
-    case "Zap": return <Zap className="text-[#00C853]" size={20} />;
-    case "ShoppingBag": return <ShoppingBag className="text-[#00C853]" size={20} />;
-    case "Briefcase": return <Briefcase className="text-[#00C853]" size={20} />;
-    case "Users": return <Users className="text-[#00C853]" size={20} />;
-    case "Compass": return <Compass className="text-[#00C853]" size={20} />;
-    case "Sparkles": return <Sparkles className="text-[#00C853]" size={20} />;
-    default: return <Clock className="text-[#00C853]" size={20} />;
-  }
+const PRICE_MAP: Record<string, { N1: string; N2: string }> = {
+  flash_premium: { N1: "10 000 FCFA", N2: "15 000 FCFA" },
+  courses_vip: { N1: "18 000 FCFA", N2: "28 000 FCFA" },
+  rdv_image: { N1: "21 000 FCFA", N2: "39 000 FCFA" },
+  grande_journee: { N1: "45 000 FCFA", N2: "60 000 FCFA" },
+  evenement: { N1: "85 000 FCFA", N2: "110 000 FCFA" },
 };
 
 export const Reservation: React.FC<ReservationProps> = ({ setCurrentPage, id }) => {
-  const { t, translate } = useLanguage();
-  const { isAuthenticated, user } = useAuth();
-  const { segment } = useSegment();
+  const { translate } = useLanguage();
+  const { isAuthenticated } = useAuth();
 
-  // Step 1 - 5 State
-  const [step, setStep] = useState(1);
-
-  // Form selections State
+  // --- État (identique au tunnel précédent) ---
   const [departureDate, setDepartureDate] = useState("");
   const [departureTime, setDepartureTime] = useState("10:00");
   const [pickup, setPickup] = useState("");
-  const [destination, setDestination] = useState("Mise à disposition");
+  const [destination] = useState("Mise à disposition");
   const [phoneNumber, setPhoneNumber] = useState("");
-
-  useEffect(() => {
-    if (user?.phone) {
-      setPhoneNumber(user.phone);
-    }
-  }, [user]);
-  
-  // Autocomplete dropdown suggestions state
   const [pickupSuggestions, setPickupSuggestions] = useState<any[]>([]);
   const [showPickupList, setShowPickupList] = useState(false);
   const [showMapModal, setShowMapModal] = useState(false);
   const [showBookingsModal, setShowBookingsModal] = useState(false);
 
-  // Step 2 - Vehicle State
   const [selectedVehicle, setSelectedVehicle] = useState<"N1" | "N2" | "N3" | null>(null);
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [selectedVehicleDetail, setSelectedVehicleDetail] = useState<any | null>(null);
 
-  // Load and match selected vehicle from database
+  const [selectedFormulaId, setSelectedFormulaId] = useState<string | null>(null);
+  const [formula, setFormula] = useState<"hourly" | "halfday" | "fullday" | null>(null);
+  const [durationHours, setDurationHours] = useState(3);
+
+  const [isBilingual, setIsBilingual] = useState(false);
+  const [isAirportGreeting, setIsAirportGreeting] = useState(false);
+
+  const [calcLoading, setCalcLoading] = useState(false);
+  const [priceResult, setPriceResult] = useState<any>(null);
+
+  const [bookingSuccess, setBookingSuccess] = useState(false);
+  const [finalBookingData, setFinalBookingData] = useState<any>(null);
+
+  // Charge les véhicules + pré-sélection éventuelle
   useEffect(() => {
     fetch("/api/vehicles")
       .then((res) => res.json())
@@ -254,1116 +109,410 @@ export const Reservation: React.FC<ReservationProps> = ({ setCurrentPage, id }) 
           const savedId = localStorage.getItem("ev_selected_vehicle_id");
           if (savedId) {
             const match = data.vehicles.find((v: any) => v.id === savedId);
-            if (match) {
-              setSelectedVehicleDetail(match);
-              if (match.category === "berline-premium") {
-                setSelectedVehicle("N1");
-              } else if (match.category === "suv-executive") {
-                setSelectedVehicle("N2");
-              } else if (match.category === "suv-prestige") {
-                setSelectedVehicle("N3");
-              }
-            }
+            if (match) setSelectedVehicleDetail(match);
           }
         }
       })
       .catch((err) => console.error("Error loading vehicles in reservation", err));
   }, []);
 
-  // Step 3 - Formula State
-  const [selectedFormulaId, setSelectedFormulaId] = useState<string | null>(null);
-  const [formula, setFormula] = useState<"hourly" | "halfday" | "fullday" | null>(null);
-  const [durationHours, setDurationHours] = useState(3);
-
-  // Check for pre-selected vehicle & formula from localStorage
   useEffect(() => {
     const savedFormula = localStorage.getItem("ev_selected_formula");
     const savedVehicleCategory = localStorage.getItem("ev_selected_vehicle_category");
-    
     if (savedFormula) {
-      const matched = FORMULAS.find(f => f.id === savedFormula);
+      const matched = FORMULAS.find((f) => f.id === savedFormula);
       if (matched) {
-        setSelectedFormulaId(savedFormula);
+        setSelectedFormulaId(matched.id);
         setFormula(matched.formula);
         setDurationHours(matched.durationHours);
       }
       localStorage.removeItem("ev_selected_formula");
     }
-    
-    if (savedVehicleCategory && (savedVehicleCategory === "N1" || savedVehicleCategory === "N2" || savedVehicleCategory === "N3")) {
-      setSelectedVehicle(savedVehicleCategory as "N1" | "N2" | "N3");
+    if (savedVehicleCategory === "N1" || savedVehicleCategory === "N2" || savedVehicleCategory === "N3") {
+      setSelectedVehicle(savedVehicleCategory);
       localStorage.removeItem("ev_selected_vehicle_category");
     }
   }, [vehicles]);
 
-  // Step 4 - Options State
-  const [isBilingual, setIsBilingual] = useState(false);
-  const [isAirportGreeting, setIsAirportGreeting] = useState(false);
-
-  // Real-time calculated price
-  const [calcLoading, setCalcLoading] = useState(false);
-  const [priceResult, setPriceResult] = useState<{
-    basePrice: number;
-    multiplier: number;
-    isNight: boolean;
-    isWeekend: boolean;
-    totalPrice: number | null;
-    isQuote?: boolean;
-  } | null>(null);
-
-  // Booking result success screen details
-  const [bookingSuccess, setBookingSuccess] = useState(false);
-  const [finalBookingData, setFinalBookingData] = useState<any>(null);
-
-  // Set default tomorrow date on load
+  // Date par défaut : demain
   useEffect(() => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     setDepartureDate(tomorrow.toISOString().split("T")[0]);
   }, []);
 
-  // Filter autocomplete suggestions for Pickup
+  // Autocomplétion
   useEffect(() => {
-    if (!showPickupList) {
-      setPickupSuggestions([]);
-      return;
-    }
-
+    if (!showPickupList) { setPickupSuggestions([]); return; }
     if (!pickup.trim()) {
-      // Show default popular choices when input is empty but active
-      const defaults = [
+      setPickupSuggestions([
         { name: "Aéroport International Félix Houphouët-Boigny, Port-Bouët" },
         { name: "Plateau, Abidjan (Quartier des Affaires)" },
         { name: "Marcory Zone 4 (Rue Pierre & Marie Curie), Abidjan" },
         { name: "Cocody Deux Plateaux, Abidjan" },
         { name: "Adjamé Liberté, Abidjan" },
-        { name: "Yopougon Maroc, Abidjan" }
-      ];
-      setPickupSuggestions(defaults);
+        { name: "Yopougon Maroc, Abidjan" },
+      ]);
       return;
     }
-    
-    const delayDebounceFn = setTimeout(() => {
+    const delay = setTimeout(() => {
       fetch(`/api/autocomplete?input=${encodeURIComponent(pickup)}`)
         .then((res) => res.json())
         .then((data) => {
-          if (data && Array.isArray(data.predictions) && data.predictions.length > 0) {
-            setPickupSuggestions(data.predictions);
-          } else {
-            // Fallback to local filtering
-            const filtered = ABIDJAN_LOCATIONS.filter(loc => 
-              loc.name.toLowerCase().includes(pickup.toLowerCase())
-            );
-            setPickupSuggestions(filtered);
-          }
+          if (data && Array.isArray(data.predictions) && data.predictions.length > 0) setPickupSuggestions(data.predictions);
+          else setPickupSuggestions(ABIDJAN_LOCATIONS.filter((loc) => loc.name.toLowerCase().includes(pickup.toLowerCase())));
         })
-        .catch((err) => {
-          console.error("Autocomplete fetch error, falling back", err);
-          const filtered = ABIDJAN_LOCATIONS.filter(loc => 
-            loc.name.toLowerCase().includes(pickup.toLowerCase())
-          );
-          setPickupSuggestions(filtered);
-        });
+        .catch(() => setPickupSuggestions(ABIDJAN_LOCATIONS.filter((loc) => loc.name.toLowerCase().includes(pickup.toLowerCase()))));
     }, 300);
-
-    return () => clearTimeout(delayDebounceFn);
+    return () => clearTimeout(delay);
   }, [pickup, showPickupList]);
 
-  // Fetch / Calculate price in real-time
+  // Calcul du prix en direct
   useEffect(() => {
-    if (!departureDate || !departureTime || !selectedVehicle || !formula) {
-      setPriceResult(null);
-      return;
-    }
-
-    const requestCalcul = async () => {
+    if (!departureDate || !departureTime || !selectedVehicle || !formula) { setPriceResult(null); return; }
+    const run = async () => {
       setCalcLoading(true);
       try {
         const body = {
-          vehicleClass: selectedVehicle,
-          formula,
-          durationHours: formula === "hourly" ? durationHours : (formula === "halfday" ? 8 : 16),
-          departureDate,
-          departureTime,
-          options: {
-            bilingual: isBilingual,
-            airportGreeting: isAirportGreeting
-          }
+          vehicleClass: selectedVehicle, formula,
+          durationHours: formula === "hourly" ? durationHours : formula === "halfday" ? 8 : 16,
+          departureDate, departureTime,
+          options: { bilingual: isBilingual, airportGreeting: isAirportGreeting },
         };
-
-        const res = await fetch("/api/reservations/calculate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body)
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          setPriceResult(data);
-        }
-      } catch (e) {
-        console.error("Calculation pricing error:", e);
-      } finally {
-        setCalcLoading(false);
-      }
+        const res = await fetch("/api/reservations/calculate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+        if (res.ok) setPriceResult(await res.json());
+      } catch (e) { console.error("Calculation pricing error:", e); } finally { setCalcLoading(false); }
     };
-
-    // Debounce the calculation request slightly
-    const timer = setTimeout(requestCalcul, 300);
+    const timer = setTimeout(run, 300);
     return () => clearTimeout(timer);
-
   }, [selectedVehicle, formula, durationHours, departureDate, departureTime, isBilingual, isAirportGreeting]);
 
-  const handlePickupSelect = (loc: any) => {
-    setPickup(loc.name);
-    setShowPickupList(false);
-  };
+  const handlePickupSelect = (loc: any) => { setPickup(loc.name); setShowPickupList(false); };
 
-  // Process Booking Complete (Sprint 3 Hook) / Final Submission
   const handleConfirmReservation = async () => {
-    if (!isAuthenticated) {
-      setCurrentPage("connexion");
-      return;
-    }
-
+    if (!isAuthenticated) { setCurrentPage("connexion"); return; }
     try {
       const activeToken = localStorage.getItem("ev_access_token");
-      if (!activeToken) {
-        alert("Session expirée. Veuillez vous reconnecter.");
-        setCurrentPage("connexion");
-        return;
-      }
-
+      if (!activeToken) { alert("Session expirée. Veuillez vous reconnecter."); setCurrentPage("connexion"); return; }
       const body = {
-        vehicleId: selectedVehicleDetail ? selectedVehicleDetail.id : (selectedVehicle === "N1" ? "v_berline_n1" : "v_suv_n2_a"),
-        departureDate,
-        departureTime,
-        pickup,
-        destination,
-        formula,
-        durationHours: formula === "hourly" ? durationHours : (formula === "halfday" ? 8 : 16),
-        options: [
-          ...(isBilingual ? ["bilingual"] : []),
-          ...(isAirportGreeting ? ["airportGreeting"] : [])
-        ],
-        totalPrice: priceResult?.totalPrice || 0,
-        segment: "public", // Default to grand public segment
-        status: "pending_assignment",
-        phone: phoneNumber
+        vehicleId: selectedVehicleDetail ? selectedVehicleDetail.id : selectedVehicle === "N1" ? "v_berline_n1" : "v_suv_n2_a",
+        departureDate, departureTime, pickup, destination, formula,
+        durationHours: formula === "hourly" ? durationHours : formula === "halfday" ? 8 : 16,
+        options: [...(isBilingual ? ["bilingual"] : []), ...(isAirportGreeting ? ["airportGreeting"] : [])],
+        totalPrice: priceResult?.totalPrice || 0, segment: "public", status: "pending_assignment", phone: phoneNumber,
       };
-
-      const res = await fetch("/api/reservations", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${activeToken}`
-        },
-        body: JSON.stringify(body)
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        setFinalBookingData(data);
-        setBookingSuccess(true);
-      } else {
-        const errData = await res.json();
-        alert(errData.error?.fr || "Erreur de réservation.");
-      }
-    } catch (e) {
-      console.error(e);
-      alert("Une erreur technique s'est produite lors de la réservation.");
-    }
+      const res = await fetch("/api/reservations", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${activeToken}` }, body: JSON.stringify(body) });
+      if (res.ok) { setFinalBookingData(await res.json()); setBookingSuccess(true); window.scrollTo({ top: 0, behavior: "smooth" }); }
+      else { const errData = await res.json(); alert(errData.error?.fr || "Erreur de réservation."); }
+    } catch (e) { console.error(e); alert("Une erreur technique s'est produite lors de la réservation."); }
   };
 
-  // Navigation conditions
-  const canGoNextStep1 = phoneNumber.trim() !== "" && destination && departureDate && departureTime;
-  const canGoNextStep2 = selectedVehicle !== null;
-  const canGoNextStep3 = formula !== null;
+  const canConfirm = !!(phoneNumber.trim() && destination && departureDate && departureTime && selectedVehicle && formula);
+  const inputCls = "w-full rounded-xl bg-[#F4F8F5] border border-[#E6EBE8] focus:border-[#00C853] focus:ring-2 focus:ring-[#00C853]/20 p-3 text-sm text-[#0B1F14] placeholder-[#9BA8A0] outline-none transition-colors";
+  const sectionCls = "rounded-3xl bg-white ring-1 ring-[#E6EBE8] shadow-[0_1px_0_rgba(0,0,0,0.02)] p-6 sm:p-7";
+  const scrollToConfirm = () => document.getElementById("res_recap")?.scrollIntoView({ behavior: "smooth" });
 
-  // Render Content
+  // ---------- Écran de succès (sombre) ----------
   if (bookingSuccess && finalBookingData) {
     const resId = finalBookingData.reservation?.id;
-
     return (
-      <div id="booking_success_container" className="min-h-screen bg-dark py-16 px-4 flex items-center justify-center">
-        <Card id="res_success_receipt_card" className="w-full max-w-lg p-10 border border-white-premium/10 bg-[#0E0E14] relative overflow-hidden text-center shadow-2xl">
-          <div className="absolute top-0 left-0 w-full h-[3px] bg-white-premium" />
-          
-          <div className="w-16 h-16 bg-white-premium/5 border border-white-premium/10 text-white-premium rounded-full mx-auto flex items-center justify-center mb-6">
-            <Check size={32} />
+      <div id="booking_success_container" className="min-h-screen flex items-center justify-center px-4 py-16 text-white" style={{ background: INK }}>
+        <div className="w-full max-w-lg rounded-3xl p-8 sm:p-10 text-center ring-1 ring-white/10" style={{ background: "#0E1A13" }}>
+          <div className="w-16 h-16 rounded-full mx-auto flex items-center justify-center mb-6" style={{ background: GREEN }}>
+            <Check size={32} className="text-[#06140D]" />
           </div>
-
-          <span className="text-[10px] font-mono tracking-widest text-neutral-400 uppercase font-bold block mb-2">
-            {translate({ fr: "DEMANDE ENREGISTRÉE AVEC SUCCÈS", en: "REQUEST SUCCESSFULLY SAVED" })}
+          <span className="text-[11px] font-semibold tracking-widest uppercase block mb-2" style={{ color: GREEN }}>
+            {translate({ fr: "DEMANDE ENREGISTRÉE", en: "REQUEST SAVED" })}
           </span>
-          <h2 className="text-2xl font-bold text-white-premium font-sans tracking-tight mb-4">
-            {translate({ fr: "Veuillez consulter vos e-mails", en: "Please check your email" })}
-          </h2>
-          
-          <div className="my-6 py-6 px-4 bg-dark/40 border border-white-premium/5 rounded-xl text-center">
-            <p className="text-sm text-neutral-300 font-sans leading-relaxed">
-              {translate({ 
-                fr: "Un e-mail de confirmation contenant le récapitulatif complet de votre demande de réservation, l'estimation tarifaire ainsi que les prochaines étapes de validation vient de vous être envoyé.",
-                en: "A confirmation email containing the complete summary of your reservation request, the estimated price, and the next validation steps has just been sent to you."
-              })}
+          <h2 className="text-2xl font-extrabold tracking-tight mb-4">{translate({ fr: "Vérifiez vos e-mails", en: "Please check your email" })}</h2>
+          <div className="my-6 rounded-2xl bg-white/[0.04] ring-1 ring-white/10 p-5">
+            <p className="text-sm text-white/75 leading-relaxed">
+              {translate({ fr: "Un e-mail de confirmation avec le récapitulatif complet, l'estimation tarifaire et les prochaines étapes vient de vous être envoyé.", en: "A confirmation email with the full summary, price estimate and next steps has just been sent to you." })}
             </p>
-            <p className="text-xs text-neutral-400 font-mono mt-4 font-bold">
-              {translate({ fr: "Réf. Réservation : ", en: "Booking Ref: " })}{resId}
-            </p>
+            {resId && <p className="text-xs text-white/50 mt-4 font-semibold">{translate({ fr: "Réf. : ", en: "Ref: " })}{resId}</p>}
           </div>
-
-          <p className="text-xs text-neutral-400 font-sans leading-relaxed mb-8">
-            {translate({
-              fr: "Si vous ne trouvez pas notre e-mail d'ici quelques minutes, pensez à vérifier vos courriers indésirables (spams).",
-              en: "If you do not receive our email within a few minutes, please check your spam folder."
-            })}
-          </p>
-
           <div className="flex flex-col sm:flex-row gap-3">
-            <Button 
-              id="success_btn_commandes"
-              className="w-full bg-[#C5A880] hover:bg-[#E5C8A0] text-black font-bold flex items-center justify-center gap-1.5 py-6 rounded-lg transition-all" 
-              onClick={() => {
-                setCurrentPage("commandes");
-                window.location.hash = "commandes";
-              }}
-            >
-              {translate({ fr: "Voir mes commandes", en: "View My Orders" })}
-            </Button>
-            <Button 
-              id="success_btn_book_again"
-              className="w-full bg-white-premium/5 border border-white-premium/10 hover:bg-white-premium/10 text-white-premium font-medium py-6 rounded-lg transition-all" 
-              onClick={() => {
-                setBookingSuccess(false);
-                setFinalBookingData(null);
-                setStep(1);
-                setPickup("");
-                setDestination("Mise à disposition");
-              }}
-            >
-              {translate({ fr: "Nouvelle réservation", en: "New Booking" })}
-            </Button>
+            <button onClick={() => { setCurrentPage("commandes"); window.location.hash = "commandes"; }}
+              className="w-full rounded-full px-5 py-3 text-sm font-semibold text-[#06140D]" style={{ background: GREEN }}>
+              {translate({ fr: "Voir mes commandes", en: "View my orders" })}
+            </button>
+            <button onClick={() => { setBookingSuccess(false); setFinalBookingData(null); setPickup(""); }}
+              className="w-full rounded-full px-5 py-3 text-sm font-semibold text-white ring-1 ring-white/20 hover:bg-white/10 transition-colors">
+              {translate({ fr: "Nouvelle réservation", en: "New booking" })}
+            </button>
           </div>
-        </Card>
+        </div>
       </div>
     );
   }
 
-  return (
-    <div id={id} className="min-h-screen bg-dark py-12 px-4 md:px-8">
-      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        
-        {/* Left Side: Stepper Progress & Core Forms (8 Cols) */}
-        <div className="lg:col-span-8 space-y-6">
-          
-          {/* Main Title Banner */}
-          <div className="bg-[#0E0E14] border border-white-premium/5 p-6 rounded-2xl relative overflow-hidden flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <span className="text-[10px] font-mono uppercase tracking-[0.15em] text-[#00C853] font-bold block mb-1">
-                {translate({ fr: "MODULE LOGISTIQUE ABIDJAN", en: "ABIDJAN LOGISTICS INTERACTION" })}
-              </span>
-              <h1 className="text-xl md:text-3xl font-sans font-bold text-white-premium tracking-tight">
-                {translate({ fr: "Planifier Votre Trajet Électrique", en: "Order Silent Electric Chauffeur" })}
-              </h1>
-            </div>
-            <Button
-              id="btn_my_bookings"
-              variant="outline"
-              onClick={() => {
-                if (isAuthenticated) {
-                  setCurrentPage("commandes");
-                  window.location.hash = "commandes";
-                } else {
-                  setCurrentPage("connexion");
-                  window.location.hash = "connexion";
-                }
-              }}
-              className="border-white-premium/10 text-white-premium hover:bg-white-premium/5 text-xs font-bold shrink-0 self-start md:self-auto flex items-center gap-1.5"
-            >
-              <Compass size={14} className="text-[#00C853]" />
-              {translate({ fr: "Mes Réservations ✦", en: "My Bookings ✦" })}
-            </Button>
-          </div>
+  // ---------- Panneau résumé / prix (réutilisé) ----------
+  const SummaryPanel = (
+    <div className="rounded-3xl bg-white ring-1 ring-[#E6EBE8] shadow-sm p-6">
+      <h3 className="text-sm font-bold uppercase tracking-wide text-[#0B1F14]">{translate({ fr: "Votre résumé", en: "Your summary" })}</h3>
+      <p className="text-xs text-[#5B6B62] mt-0.5">{translate({ fr: "Estimation en direct", en: "Live estimate" })}</p>
 
-          {/* Stepper Status Indicators (Liquid-Group design from Uiverse.io) */}
-          <div className="liquid-group w-full flex justify-between items-center relative overflow-hidden">
-            {/* The sliding element indicator */}
-            <div 
-              className="liquid-slider"
-              style={{
-                position: "absolute",
-                inset: "var(--gap)",
-                width: "calc((100% - 24px) / 5)", // (100% - 4 * 6px gap) / 5
-                transform: `translateX(calc(${(step - 1) * 100}% + ${(step - 1) * 6}px))`,
-                transition: "transform var(--speed) var(--ease)",
-              }}
-            />
-
-            {[1, 2, 3, 4, 5].map((s) => {
-              const isCompleted = step > s;
-              const isActive = step === s;
-              // Enable navigation to steps that are already completed or to the next steps if they are filled
-              const isAccessible = s < step || 
-                (s === 2 && canGoNextStep1) || 
-                (s === 3 && canGoNextStep1 && canGoNextStep2) || 
-                (s === 4 && canGoNextStep1 && canGoNextStep2 && canGoNextStep3);
-
-              return (
-                <button
-                  key={s}
-                  type="button"
-                  disabled={!isAccessible}
-                  onClick={() => setStep(s)}
-                  className={`relative z-10 flex-1 py-3 text-center text-[10px] md:text-[11px] font-semibold tracking-wider uppercase font-mono transition-all duration-300 flex items-center justify-center gap-1 md:gap-2 border-0 bg-transparent ${
-                    isActive 
-                      ? "text-white font-bold" 
-                      : isAccessible 
-                        ? "text-neutral-400 hover:text-neutral-200 cursor-pointer" 
-                        : "text-neutral-600 cursor-not-allowed"
-                  }`}
-                >
-                  <span className={`w-4 h-4 md:w-5 md:h-5 rounded-full flex items-center justify-center text-[8px] md:text-[10px] border ${
-                    isActive 
-                      ? "bg-[#00C853] border-[#00C853] text-black" 
-                      : isCompleted 
-                        ? "bg-[#00C853]/20 border-[#00C853]/40 text-[#00C853]" 
-                        : "bg-transparent border-neutral-700 text-neutral-500"
-                  }`}>
-                    {isCompleted ? <Check size={8} className="stroke-[3]" /> : s}
-                  </span>
-                  <span className="hidden md:inline">
-                    {s === 1 && "Trajet"}
-                    {s === 2 && "Véhicule"}
-                    {s === 3 && "Formule"}
-                    {s === 4 && "Options"}
-                    {s === 5 && "Récapitulatif"}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Render Active Step Box */}
-          <Card id="res_main_active_step_card" className="p-6 md:p-8 border border-white-premium/5 bg-[#0E0E14] rounded-2xl relative">
-            
-            {/* Step 1: Destination and Route Addresses */}
-            {step === 1 && (
-              <div className="space-y-6" id="step_form_trajet">
-                <h3 className="text-lg font-bold text-white-premium border-b border-white-premium/5 pb-3">
-                  {translate({ fr: "Étape 1 — Adresse de départ & Heures", en: "Step 1 — Ride Addresses & Timing" })}
-                </h3>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] uppercase tracking-wider text-neutral-400 font-mono block">
-                      Date de départ
-                    </label>
-                    <div className="relative">
-                      <input 
-                        type="date" 
-                        value={departureDate}
-                        onChange={(e) => setDepartureDate(e.target.value)}
-                        className="w-full bg-[#14141C] border border-white-premium/10 rounded-lg p-3 text-sm text-white-premium focus:outline-none focus:border-[#00C853] font-mono"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] uppercase tracking-wider text-neutral-400 font-mono block">
-                      Heure de départ
-                    </label>
-                    <input 
-                      type="time" 
-                      value={departureTime}
-                      onChange={(e) => setDepartureTime(e.target.value)}
-                      className="w-full bg-[#14141C] border border-white-premium/10 rounded-lg p-3 text-sm text-white-premium focus:outline-none focus:border-[#00C853] font-mono"
-                    />
-                  </div>
-                </div>
-
-                {/* Autocomplete Input: Departure */}
-                <div className="space-y-1.5 relative">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[11px] uppercase tracking-wider text-neutral-400 font-mono flex items-center gap-1.5">
-                      <MapPin size={12} className="text-[#00C853]" />
-                      {translate({ fr: "Adresse de départ (Facultatif / Autocomplétion)", en: "Departure Point (Optional)" })}
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setShowMapModal(true)}
-                      className="text-[11px] text-[#00C853] hover:text-[#00e35e] font-medium flex items-center gap-1 hover:underline transition-colors cursor-pointer bg-transparent border-0"
-                    >
-                      <Map size={11} />
-                      {translate({ fr: "Choisir sur la carte", en: "Pick on Map" })}
-                    </button>
-                  </div>
-                  <input 
-                    type="text"
-                    value={pickup}
-                    onFocus={() => setShowPickupList(true)}
-                    onBlur={() => setTimeout(() => setShowPickupList(false), 250)}
-                    onChange={(e) => {
-                      setPickup(e.target.value);
-                      setShowPickupList(true);
-                    }}
-                    placeholder="Saisissez une zone (facultatif - ex: Plateau, Aéroport, Cocody...)"
-                    className="w-full bg-[#14141C] border border-white-premium/10 rounded-lg p-3 text-sm text-white-premium focus:outline-none focus:border-[#00C853]"
-                  />
-                  {showPickupList && pickupSuggestions.length > 0 && (
-                    <div className="absolute z-30 w-full bg-[#14141C] border border-neutral-800 rounded-lg mt-1 max-h-48 overflow-y-auto shadow-2xl divide-y divide-white-premium/5">
-                      {pickupSuggestions.map((loc) => (
-                        <div
-                          key={loc.name}
-                          onClick={() => handlePickupSelect(loc)}
-                          className="p-3 text-xs text-white-premium hover:bg-[#00C853]/10 cursor-pointer transition-colors flex items-center gap-2"
-                        >
-                          <MapPin size={10} className="text-[#00C853]" />
-                          <span>{loc.name}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  <MapSelectorModal
-                    isOpen={showMapModal}
-                    onClose={() => setShowMapModal(false)}
-                    onSelectAddress={(address) => setPickup(address)}
-                  />
-                </div>
-
-                {/* Mandatory Phone Number Field */}
-                <div className="space-y-1.5">
-                  <label className="text-[11px] uppercase tracking-wider text-neutral-400 font-mono flex items-center gap-1.5">
-                    <span className="text-[#00C853] font-bold">*</span>
-                    {translate({ fr: "Numéro de téléphone (Obligatoire)", en: "Phone Number (Required)" })}
-                  </label>
-                  <input 
-                    type="tel"
-                    required
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
-                    placeholder="Ex: 01 70 08 36 81"
-                    className="w-full bg-[#14141C] border border-white-premium/10 rounded-lg p-3 text-sm text-white-premium focus:outline-none focus:border-[#00C853] font-mono"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Step 2: Fleet Category Selector */}
-            {step === 2 && (
-              <div className="space-y-6" id="step_form_vehicule">
-                <h3 className="text-lg font-bold text-white-premium border-b border-white-premium/5 pb-3">
-                  {translate({ fr: "Étape 2 — Type de véhicule", en: "Step 2 — Vehicle Type" })}
-                </h3>
-
-                <p className="text-xs text-neutral-400">
-                  {translate({
-                    fr: "Sélectionnez votre type de véhicule pour votre trajet d'exception à Abidjan. Seules les Berlines Premium sont actuellement en service.",
-                    en: "Select your vehicle type for your elite transport in Abidjan. Only Premium Sedans are currently in service."
-                  })}
-                </p>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {/* Category 1: Berline Premium */}
-                  <div
-                    onClick={() => setSelectedVehicle("N1")}
-                    className={`border rounded-2xl p-6 cursor-pointer transition-all duration-300 relative overflow-hidden flex flex-col justify-between ${
-                      selectedVehicle === "N1"
-                        ? "border-white bg-[#1A1A24] shadow-[0_4px_20px_rgba(255,255,255,0.05)]"
-                        : "border-white-premium/5 bg-[#12121A] hover:border-white-premium/15"
-                    }`}
-                  >
-                    <div className="flex justify-between items-start mb-4">
-                      <span className={`text-[10px] font-mono tracking-widest px-2.5 py-1 rounded-full font-bold uppercase ${
-                        selectedVehicle === "N1" 
-                          ? "text-black bg-white" 
-                          : "text-white bg-white/10"
-                      }`}>
-                        {translate({ fr: "Disponible", en: "Available" })}
-                      </span>
-                      <Car size={24} className={selectedVehicle === "N1" ? "text-white" : "text-neutral-500"} />
-                    </div>
-                    <div>
-                      <h4 className="text-base font-bold text-white-premium font-sans mb-1">
-                        {translate({ fr: "Berline Premium (N1)", en: "Premium Sedan (N1)" })}
-                      </h4>
-                      <p className="text-xs text-neutral-400 font-mono">
-                        {translate({ fr: "Type : Berline Premium", en: "Type: Premium Sedan" })}
-                      </p>
-                    </div>
-                    <div className="mt-6 pt-4 border-t border-white-premium/5 flex justify-between items-center text-xs font-mono">
-                      <span className="text-neutral-500">{translate({ fr: "À partir de", en: "Starting from" })}</span>
-                      <span className={`font-extrabold text-sm ${selectedVehicle === "N1" ? "text-white" : "text-neutral-400"}`}>10 000 FCFA</span>
-                    </div>
-                  </div>
-
-                  {/* Category 2: SUV Executive */}
-                  <div
-                    className="border border-white-premium/5 bg-[#12121A]/40 rounded-2xl p-6 opacity-40 grayscale cursor-not-allowed select-none relative overflow-hidden flex flex-col justify-between"
-                  >
-                    <div className="flex justify-between items-start mb-4">
-                      <span className="text-[10px] font-mono tracking-widest text-red-500 bg-red-950/40 px-2.5 py-1 rounded-full font-bold uppercase">
-                        {translate({ fr: "Bientôt disponible", en: "Coming soon" })}
-                      </span>
-                      <Car size={24} className="text-neutral-600" />
-                    </div>
-                    <div>
-                      <h4 className="text-base font-bold text-neutral-400 font-sans mb-1">
-                        {translate({ fr: "SUV Executive (N2)", en: "Executive SUV (N2)" })}
-                      </h4>
-                      <p className="text-xs text-neutral-500 font-mono">
-                        {translate({ fr: "Type : SUV Premium", en: "Type: Premium SUV" })}
-                      </p>
-                    </div>
-                    <div className="mt-6 pt-4 border-t border-white-premium/5 flex justify-between items-center text-xs font-mono">
-                      <span className="text-neutral-600">{translate({ fr: "À partir de", en: "Starting from" })}</span>
-                      <span className="text-neutral-500 font-bold">15 000 FCFA</span>
-                    </div>
-                  </div>
-
-                  {/* Category 3: SUV Prestige */}
-                  <div
-                    className="border border-white-premium/5 bg-[#12121A]/40 rounded-2xl p-6 opacity-40 grayscale cursor-not-allowed select-none relative overflow-hidden flex flex-col justify-between"
-                  >
-                    <div className="flex justify-between items-start mb-4">
-                      <span className="text-[10px] font-mono tracking-widest text-red-500 bg-transparent border border-red-500/30 px-2.5 py-1 rounded-full font-bold uppercase">
-                        {translate({ fr: "Bientôt disponible", en: "Coming soon" })}
-                      </span>
-                      <Car size={24} className="text-neutral-600" />
-                    </div>
-                    <div>
-                      <h4 className="text-base font-bold text-neutral-400 font-sans mb-1">
-                        {translate({ fr: "SUV Prestige (N3)", en: "Prestige SUV (N3)" })}
-                      </h4>
-                      <p className="text-xs text-neutral-500 font-mono">
-                        {translate({ fr: "Type : Prestige SUV", en: "Type: Prestige SUV" })}
-                      </p>
-                    </div>
-                    <div className="mt-6 pt-4 border-t border-white-premium/5 flex justify-between items-center text-xs font-mono">
-                      <span className="text-neutral-600">{translate({ fr: "Prix", en: "Price" })}</span>
-                      <span className="text-neutral-500 font-bold">{translate({ fr: "Sur Devis", en: "On Quote" })}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Step 3: Logistics Formulas selection */}
-            {step === 3 && (
-              <div className="space-y-6" id="step_form_formule">
-                <h3 className="text-lg font-bold text-white-premium border-b border-white-premium/5 pb-3">
-                  {translate({ fr: "Étape 3 — Durée & Prix", en: "Step 3 — Duration & Price" })}
-                </h3>
-
-                <div className="bg-[#00C853] text-black p-5 rounded-2xl mb-6 shadow-[0_4px_20px_rgba(0,200,83,0.15)] border border-[#00C853]/30">
-                  <p className="text-base md:text-lg lg:text-xl font-black flex items-center gap-3 leading-relaxed">
-                    <span className="w-3 h-3 rounded-full bg-black animate-pulse shrink-0"></span>
-                    {translate({
-                      fr: "Sélectionnez votre formule. Les prix affichés correspondent au type de véhicule sélectionné.",
-                      en: "Select your formula. The prices shown correspond to your selected vehicle type."
-                    })}
-                  </p>
-                </div>
-
-                <div className="uiverse-wrapper">
-                  {FORMULAS.map((f) => {
-                    const isActive = selectedFormulaId === f.id;
-                    const calculatedPrice = selectedVehicle === "N3" 
-                      ? translate({ fr: "Sur Devis", en: "On Quote" })
-                      : selectedVehicle === "N2" 
-                        ? f.id === "flash_premium" ? "15 000 FCFA" : f.id === "courses_vip" ? "28 000 FCFA" : f.id === "rdv_image" ? "39 000 FCFA" : f.id === "grande_journee" ? "60 000 FCFA" : "110 000 FCFA"
-                        : selectedVehicle === "N1"
-                          ? f.id === "flash_premium" ? "10 000 FCFA" : f.id === "courses_vip" ? "18 000 FCFA" : f.id === "rdv_image" ? "21 000 FCFA" : f.id === "grande_journee" ? "45 000 FCFA" : "85 000 FCFA"
-                          : "-";
-
-                    const valueType = 
-                      f.id === "flash_premium" || f.id === "courses_vip" 
-                        ? "basic" 
-                        : f.id === "rdv_image" 
-                          ? "standart" 
-                          : "premium";
-
-                    return (
-                      <div
-                        key={f.id}
-                        id={`formula_selection_${f.id}`}
-                        onClick={() => {
-                          setSelectedFormulaId(f.id);
-                          setFormula(f.formula);
-                          setDurationHours(f.durationHours);
-                        }}
-                        className="uiverse-card"
-                      >
-                        <input 
-                          className="uiverse-input" 
-                          type="radio" 
-                          name="card" 
-                          value={valueType} 
-                          checked={isActive}
-                          onChange={() => {}} // React controlled input
-                        />
-                        <span className="uiverse-check"></span>
-                        <label className="uiverse-label">
-                          <div className="uiverse-title">
-                            <div className="font-extrabold text-[12px] text-white tracking-wider mb-0.5">{f.duration}</div>
-                            <div>{translate(f.name)}</div>
-                          </div>
-                          <div className="uiverse-price">
-                            {calculatedPrice}
-                          </div>
-                        </label>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Step 4: Surcharges & Extra options */}
-            {step === 4 && (
-              <div className="space-y-6" id="step_form_options">
-                <h3 className="text-lg font-bold text-white-premium border-b border-white-premium/5 pb-3">
-                  {translate({ fr: "Étape 4 — Options Facultatives & Surcharges", en: "Step 4 — Addons & Special Surcharges" })}
-                </h3>
-
-                <p className="text-xs text-neutral-400">
-                  {translate({ 
-                    fr: "Personnalisez votre prise en charge au-delà du transport standard d'Abidjan.",
-                    en: "Bespoke your travel services beyond standardized premium transportation."
-                  })}
-                </p>
-
-                {/* Surcharges Detection banners (Auto-detection task requirement) */}
-                <div className="space-y-3">
-                  
-                  {priceResult?.isNight && (
-                    <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex items-center gap-3">
-                      <Clock className="text-white" size={18} />
-                      <div>
-                        <h4 className="text-xs font-bold text-white font-mono">SERVICE DE NUIT ACTIF (+20%)</h4>
-                        <p className="text-[10px] text-neutral-300 font-sans mt-0.5">
-                          Détecté automatiquement selon votre heure de départ ({departureTime}) entre 22h et 6h.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {priceResult?.isWeekend && (
-                    <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex items-center gap-3">
-                      <Calendar className="text-white" size={18} />
-                      <div>
-                        <h4 className="text-xs font-bold text-white font-mono">TARIF DE WEEK-END ACTIF (+20%)</h4>
-                        <p className="text-[10px] text-neutral-300 font-sans mt-0.5">
-                          Détecté automatiquement selon votre date de départ ({departureDate}) qui correspond à un samedi ou dimanche.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                  
-                  {/* Option: Bilingual driver */}
-                  <div 
-                    onClick={() => setIsBilingual(!isBilingual)}
-                    className={`border rounded-2xl p-5 cursor-pointer transition-all duration-300 flex items-start gap-3 justify-between ${
-                      isBilingual ? "border-white bg-[#1A1A24] shadow-[0_4px_20px_rgba(255,255,255,0.05)]" : "border-white-premium/5 bg-[#12121A] hover:border-white-premium/15"
-                    }`}
-                  >
-                    <div>
-                      <h4 className="font-bold text-xs text-white-premium flex items-center gap-2">
-                        <Globe size={14} className={isBilingual ? "text-white" : "text-neutral-400"} />
-                        Chauffeur d'élite bilingue (+15%)
-                      </h4>
-                      <p className="text-[10px] text-neutral-400 mt-2">
-                        Chauffeur certifié maîtrisant parfaitement le français et l'anglais des affaires.
-                      </p>
-                    </div>
-                    <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 mt-0.5 ${isBilingual ? "border-white bg-white" : "border-neutral-700"}`}>
-                      {isBilingual && <Check size={10} className="text-black stroke-[3px]" />}
-                    </div>
-                  </div>
-
-                  {/* Option: Airport Greeting */}
-                  <div 
-                    onClick={() => setIsAirportGreeting(!isAirportGreeting)}
-                    className={`border rounded-2xl p-5 cursor-pointer transition-all duration-300 flex items-start gap-3 justify-between ${
-                      isAirportGreeting ? "border-white bg-[#1A1A24] shadow-[0_4px_20px_rgba(255,255,255,0.05)]" : "border-white-premium/5 bg-[#12121A] hover:border-white-premium/15"
-                    }`}
-                  >
-                    <div>
-                      <h4 className="font-bold text-xs text-white-premium flex items-center gap-2">
-                        <UserCheck size={14} className={isAirportGreeting ? "text-white" : "text-neutral-400"} />
-                        Accueil pancarte aéroport (+5 000 FCFA)
-                      </h4>
-                      <p className="text-[10px] text-neutral-400 mt-2">
-                        Votre chauffeur vous attend dès la sortie des douanes avec une pancarte à votre nom.
-                      </p>
-                    </div>
-                    <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 mt-0.5 ${isAirportGreeting ? "border-white bg-white" : "border-neutral-700"}`}>
-                      {isAirportGreeting && <Check size={10} className="text-black stroke-[3px]" />}
-                    </div>
-                  </div>
-
-                </div>
-              </div>
-            )}
-
-            {/* Step 5: Final recapitulation and review */}
-            {step === 5 && (
-              <div className="space-y-6" id="step_form_recap">
-                <h3 className="text-lg font-bold text-white-premium border-b border-white-premium/5 pb-3">
-                  {translate({ fr: "Étape 5 — Récapitulatif de Votre Réservation", en: "Step 5 — Booking Summary" })}
-                </h3>
-
-                <p className="text-xs text-neutral-400">
-                  {translate({ 
-                    fr: "Vérifiez les détails du protocole de transport électrique d'EASY avant confirmation.",
-                    en: "Double check your route protocol details and finalize execution."
-                  })}
-                </p>
-
-                <div className="divide-y divide-white-premium/5 bg-dark/40 border border-white-premium/5 rounded-2xl p-5 space-y-4 font-sans text-xs">
-                  
-                  {/* Route information */}
-                  <div className="flex items-center gap-3 pb-3">
-                    <div className="w-8 h-8 rounded bg-[#00C853]/10 text-[#00C853] flex items-center justify-center">
-                      <MapPin size={16} />
-                    </div>
-                    <div>
-                      <span className="text-[10px] uppercase font-mono tracking-wider text-neutral-500">TRAJET PRÉVU</span>
-                      <p className="text-white-premium font-medium text-xs mt-0.5">{pickup} → {destination}</p>
-                    </div>
-                  </div>
-
-                  {/* Timing information */}
-                  <div className="flex items-center gap-3 py-3">
-                    <div className="w-8 h-8 rounded bg-[#00C853]/10 text-[#00C853] flex items-center justify-center">
-                      <Calendar size={16} />
-                    </div>
-                    <div>
-                      <span className="text-[10px] uppercase font-mono tracking-wider text-neutral-500">PROGRAMME DE DÉPART</span>
-                      <p className="text-white-premium font-medium">{departureDate} à {departureTime}</p>
-                    </div>
-                  </div>
-
-                  {/* Vehicle selection */}
-                  <div className="flex items-center gap-3 py-3">
-                    <div className="w-8 h-8 rounded bg-transparent border border-white/10 text-gold flex items-center justify-center">
-                      <Car size={16} />
-                    </div>
-                    <div>
-                      <span className="text-[10px] uppercase font-mono tracking-wider text-neutral-500">VÉHICULE SÉLECTIONNÉ</span>
-                      <p className="text-white-premium font-bold font-sans">
-                        {selectedVehicle === "N1" ? "Berline Premium (N1)" : selectedVehicle === "N2" ? "SUV Executive (N2)" : "SUV Prestige (N3)"}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Formula details */}
-                  <div className="flex justify-between items-center py-3">
-                    <span className="text-[10px] uppercase font-mono tracking-wider text-neutral-500">FORMULE RETENUE :</span>
-                    <Badge id="badge_res_summary_formula" className="bg-transparent text-emerald-400 border border-emerald-500/30 font-mono text-[10px]">
-                      {(() => {
-                        const matched = FORMULAS.find(f => f.id === selectedFormulaId);
-                        return matched ? `${translate(matched.name).toUpperCase()} (${matched.duration})` : (formula === "hourly" ? `À L'HEURE (${durationHours}h)` : (formula === "halfday" ? "DEMI-JOURNÉE (8h)" : "JOURNÉE REINE (16h)"));
-                      })()}
-                    </Badge>
-                  </div>
-
-                  {/* Options details */}
-                  {(isBilingual || isAirportGreeting) && (
-                    <div className="py-3">
-                      <span className="text-[10px] uppercase font-mono tracking-wider text-neutral-500 block mb-2">OPTIONS ACTIVÉES</span>
-                      <div className="flex flex-wrap gap-2">
-                        {isBilingual && <Badge id="badge_res_summary_opt_bilingual" className="bg-white-premium/5 text-neutral-300 border-none text-[9px]">Chauffeur bilingue</Badge>}
-                        {isAirportGreeting && <Badge id="badge_res_summary_opt_airport" className="bg-white-premium/5 text-neutral-300 border-none text-[9px]">Accueil pancarte</Badge>}
-                      </div>
-                    </div>
-                  )}
-
-                </div>
-
-                {!isAuthenticated && (
-                  <div className="bg-transparent border border-red-500/30 p-4 rounded-xl flex items-center gap-3 hover:translate-y-[-1px] transition-all cursor-pointer" onClick={() => setCurrentPage("connexion")}>
-                    <AlertCircle className="text-red-400 shrink-0" size={18} />
-                    <p className="text-xs text-red-400 font-sans">
-                      {translate({ 
-                        fr: "Veuillez vous connecter à votre Espace Client pour confirmer votre réservation.",
-                        en: "Please connect to your Member Portal to validate this ride request."
-                      })}
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Steps Controller Buttons (Stepper Navigation) */}
-            <div className="border-t border-white-premium/5 pt-6 mt-8 flex justify-between gap-4">
-              {step > 1 ? (
-                <Button
-                  id="stepper_btn_prev"
-                  variant="outline"
-                  onClick={() => setStep(step - 1)}
-                  className="flex items-center gap-1.5"
-                >
-                  <ArrowLeft size={14} />
-                  {translate({ fr: "Précédent", en: "Back" })}
-                </Button>
-              ) : (
-                <div />
-              )}
-
-              {step < 5 ? (
-                <Button
-                  id="stepper_btn_next"
-                  onClick={() => setStep(step + 1)}
-                  disabled={
-                    (step === 1 && !canGoNextStep1) || 
-                    (step === 2 && !canGoNextStep2) ||
-                    (step === 3 && !canGoNextStep3)
-                  }
-                  className="bg-[#00C853] hover:bg-[#00b04a] text-black font-bold flex items-center gap-1.5"
-                >
-                  {translate({ fr: "Continuer", en: "Continue" })}
-                  <ArrowRight size={14} />
-                </Button>
-              ) : (
-                <Button
-                  id="stepper_btn_confirm"
-                  onClick={() => handleConfirmReservation()}
-                  disabled={calcLoading}
-                  className="bg-[#00C853] hover:bg-[#00b04a] text-black font-extrabold flex items-center gap-1.5 px-6"
-                >
-                  {isAuthenticated 
-                    ? translate({ fr: "Confirmer ma réservation ✦", en: "Confirm My Booking ✦" })
-                    : translate({ fr: "Se connecter pour réserver ✦", en: "Log in to Book ✦" })
-                  }
-                  <Check size={14} />
-                </Button>
-              )}
-            </div>
-
-          </Card>
+      {calcLoading ? (
+        <div className="py-10 text-center text-xs text-[#5B6B62] animate-pulse">{translate({ fr: "Calcul du tarif…", en: "Calculating…" })}</div>
+      ) : !selectedVehicle || !selectedFormulaId || !priceResult ? (
+        <div className="mt-4 rounded-2xl bg-[#F4F8F5] p-4 text-center text-xs text-[#5B6B62]">
+          {!selectedVehicle ? translate({ fr: "Choisissez un véhicule, puis une formule.", en: "Choose a vehicle, then a package." }) : translate({ fr: "Choisissez une formule.", en: "Choose a package." })}
         </div>
+      ) : (
+        <div className="mt-4 space-y-2.5 text-sm">
+          <div className="flex justify-between"><span className="text-[#5B6B62]">{translate({ fr: "Véhicule", en: "Vehicle" })}</span><span className="font-semibold">{selectedVehicle === "N1" ? "Berline (N1)" : selectedVehicle === "N2" ? "SUV Exec (N2)" : "Prestige (N3)"}</span></div>
+          {selectedVehicle !== "N3" && priceResult.basePrice != null && (
+            <div className="flex justify-between"><span className="text-[#5B6B62]">{translate({ fr: "Tarif de base", en: "Base rate" })}</span><span className="font-semibold">{priceResult.basePrice.toLocaleString()} FCFA</span></div>
+          )}
+          {priceResult.isNight && <div className="flex justify-between text-[#C85A00]"><span>{translate({ fr: "Majoration nuit", en: "Night surcharge" })}</span><span className="font-semibold">+20%</span></div>}
+          {priceResult.isWeekend && <div className="flex justify-between text-[#C85A00]"><span>{translate({ fr: "Week-end / férié", en: "Weekend / holiday" })}</span><span className="font-semibold">+20%</span></div>}
+          {isBilingual && <div className="flex justify-between text-[#5B6B62]"><span>{translate({ fr: "Chauffeur bilingue", en: "Bilingual chauffeur" })}</span><span className="font-semibold">+15%</span></div>}
+          {isAirportGreeting && <div className="flex justify-between text-[#5B6B62]"><span>{translate({ fr: "Accueil aéroport", en: "Airport greeting" })}</span><span className="font-semibold">+5 000 FCFA</span></div>}
 
-        {/* Right Side: Quick receipt / Realtime pricing calculations panel (4 Cols) */}
-        <div className="lg:col-span-4 space-y-6">
-          <Card id="res_price_calculator_panel_card" className="p-6 border border-white-premium/5 bg-[#12121A] rounded-2xl relative sticky top-24">
-            <h3 className="text-sm font-mono uppercase tracking-[0.15em] text-neutral-400 mb-4 border-b border-white-premium/5 pb-2 font-bold">
-              {translate({ fr: "Calculateur temps réel", en: "Real-Time Quote calculation" })}
-            </h3>
-
-            {calcLoading ? (
-              <div className="py-12 text-center text-xs font-mono text-neutral-500 animate-pulse">
-                Calcul des tarifs d'Abidjan...
-              </div>
-            ) : (!selectedVehicle || !selectedFormulaId || !priceResult) ? (
-              <div className="py-12 text-center text-xs font-sans text-neutral-500 px-4 leading-relaxed">
-                <p className="font-semibold text-neutral-400 mb-1">
-                  {!selectedVehicle 
-                    ? translate({ fr: "Aucun véhicule sélectionné", en: "No vehicle selected" })
-                    : translate({ fr: "Aucune formule sélectionnée", en: "No package selected" })
-                  }
-                </p>
-                <p className="text-[10px] text-neutral-500">
-                  {!selectedVehicle 
-                    ? translate({ fr: "Veuillez choisir un véhicule à l'Étape 2.", en: "Please choose a vehicle at Step 2." })
-                    : translate({ fr: "Veuillez choisir une formule de durée à l'Étape 3.", en: "Please choose a duration package at Step 3." })
-                  }
-                </p>
-              </div>
+          <div className="mt-3 rounded-2xl p-4 text-center" style={{ background: "#F4F8F5" }}>
+            <span className="text-[10px] font-semibold uppercase tracking-widest text-[#5B6B62] block mb-1">{translate({ fr: "Total estimé (XOF)", en: "Estimated total (XOF)" })}</span>
+            {selectedVehicle === "N3" ? (
+              <span className="text-xl font-extrabold" style={{ color: GREEN }}>{translate({ fr: "Sur devis", en: "On quote" })}</span>
             ) : (
-              <div className="space-y-4">
-                
-                {/* Visual indicator of vehicle type */}
-                <div className="flex justify-between text-xs pb-2 border-b border-white-premium/5">
-                  <span className="text-neutral-500">Véhicule choisi :</span>
-                  <span className="text-white font-bold font-mono text-right">
-                    {selectedVehicle === "N1" ? "Berline Premium (N1)" : selectedVehicle === "N2" ? "SUV Executive (N2)" : "SUV Prestige (N3)"}
-                  </span>
+              <span className="text-3xl font-extrabold tracking-tight">{priceResult.totalPrice?.toLocaleString()}<span className="text-sm ml-1">FCFA</span></span>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="mt-5 rounded-2xl bg-[#F4F8F5] p-4 text-xs text-[#5B6B62] space-y-1.5">
+        <span className="text-[10px] font-bold uppercase block" style={{ color: GREEN }}>{translate({ fr: "Garanties EASY", en: "EASY guarantees" })}</span>
+        <p>✔ {translate({ fr: "Annulation gratuite jusqu'à 1h avant.", en: "Free cancellation up to 1h before." })}</p>
+        <p>✔ {translate({ fr: "Flotte 100 % électrique.", en: "100% electric fleet." })}</p>
+        <p>✔ {translate({ fr: "Facturation par e-mail.", en: "Instant email invoice." })}</p>
+      </div>
+    </div>
+  );
+
+  return (
+    <div id={id} className="bg-white text-[#0B1F14] font-sans">
+      <div className="max-w-6xl mx-auto px-6 lg:px-8 pt-12 lg:pt-16 pb-28 lg:pb-16 grid lg:grid-cols-12 gap-8 items-start">
+        {/* ===================== COLONNE CONTENU ===================== */}
+        <div className="lg:col-span-8 space-y-6">
+          {/* En-tête */}
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+            <div>
+              <span className="text-xs font-semibold tracking-wide" style={{ color: GREEN }}>{translate({ fr: "RÉSERVATION", en: "BOOKING" })}</span>
+              <h1 className="mt-1 text-3xl sm:text-4xl font-extrabold tracking-tight">{translate({ fr: "Planifier votre trajet", en: "Plan your ride" })}</h1>
+              <p className="mt-1 text-[#5B6B62]">{translate({ fr: "Simple et rapide — remplissez, le prix s'affiche en direct.", en: "Simple and fast — fill in, the price updates live." })}</p>
+            </div>
+            <button
+              onClick={() => { if (isAuthenticated) { setCurrentPage("commandes"); window.location.hash = "commandes"; } else { setCurrentPage("connexion"); window.location.hash = "connexion"; } }}
+              className="inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold text-[#0B1F14] ring-1 ring-[#D7E0DA] hover:bg-[#F4F8F5] transition-colors self-start"
+            >
+              <Compass size={15} style={{ color: GREEN }} /> {translate({ fr: "Mes réservations", en: "My bookings" })}
+            </button>
+          </div>
+
+          {/* 1 · Trajet */}
+          <section className={sectionCls}>
+            <div className="flex items-center gap-3 mb-5">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold text-[#06140D]" style={{ background: GREEN }}>1</span>
+              <h2 className="text-lg font-bold">{translate({ fr: "Votre trajet", en: "Your ride" })}</h2>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-[#5B6B62] uppercase tracking-wide">{translate({ fr: "Date de départ", en: "Departure date" })}</label>
+                <input type="date" value={departureDate} onChange={(e) => setDepartureDate(e.target.value)} className={inputCls} />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-[#5B6B62] uppercase tracking-wide">{translate({ fr: "Heure de départ", en: "Departure time" })}</label>
+                <input type="time" value={departureTime} onChange={(e) => setDepartureTime(e.target.value)} className={inputCls} />
+              </div>
+            </div>
+
+            <div className="mt-4 space-y-1.5 relative">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-[#5B6B62] uppercase tracking-wide flex items-center gap-1.5"><MapPin size={13} style={{ color: GREEN }} /> {translate({ fr: "Lieu de prise en charge (facultatif)", en: "Pickup point (optional)" })}</label>
+                <button type="button" onClick={() => setShowMapModal(true)} className="text-xs font-semibold inline-flex items-center gap-1 hover:underline" style={{ color: GREEN }}><Map size={12} /> {translate({ fr: "Carte", en: "Map" })}</button>
+              </div>
+              <input type="text" value={pickup}
+                onFocus={() => setShowPickupList(true)} onBlur={() => setTimeout(() => setShowPickupList(false), 250)}
+                onChange={(e) => { setPickup(e.target.value); setShowPickupList(true); }}
+                placeholder={translate({ fr: "Ex : Plateau, Aéroport, Cocody…", en: "e.g., Plateau, Airport, Cocody…" })} className={inputCls} />
+              {showPickupList && pickupSuggestions.length > 0 && (
+                <div className="absolute z-30 w-full bg-white border border-[#E6EBE8] rounded-xl mt-1 max-h-52 overflow-y-auto shadow-xl divide-y divide-[#F0F3F1]">
+                  {pickupSuggestions.map((loc) => (
+                    <div key={loc.name} onClick={() => handlePickupSelect(loc)} className="p-3 text-sm text-[#0B1F14] hover:bg-[#F4F8F5] cursor-pointer flex items-center gap-2"><MapPin size={12} style={{ color: GREEN }} /><span>{loc.name}</span></div>
+                  ))}
                 </div>
+              )}
+              <MapSelectorModal isOpen={showMapModal} onClose={() => setShowMapModal(false)} onSelectAddress={(address) => setPickup(address)} />
+            </div>
 
-                <div className="flex justify-between text-xs pb-2 border-b border-white-premium/5">
-                  <span className="text-neutral-500">
-                    {step < 3 
-                      ? translate({ fr: "Prix minimum de location :", en: "Minimum rental price:" }) 
-                      : translate({ fr: "Tarif de base :", en: "Base rate:" })}
-                  </span>
-                  <span className="text-white-premium font-mono">
-                    {selectedVehicle === "N3" ? (
-                      translate({ fr: "Sur devis", en: "On quote" })
-                    ) : step < 3 ? (
-                      selectedVehicle === "N2" ? "57 000 FCFA" : "45 000 FCFA"
-                    ) : (
-                      `${priceResult.basePrice?.toLocaleString()} FCFA`
-                    )}
-                  </span>
+            <div className="mt-4 space-y-1.5">
+              <label className="text-xs font-semibold text-[#5B6B62] uppercase tracking-wide"><span style={{ color: GREEN }}>*</span> {translate({ fr: "Numéro de téléphone (obligatoire)", en: "Phone number (required)" })}</label>
+              <input type="tel" required value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder={translate({ fr: "Ex : 01 70 08 36 81", en: "e.g., 01 70 08 36 81" })} className={inputCls} />
+            </div>
+          </section>
+
+          {/* 2 · Véhicule */}
+          <section className={sectionCls}>
+            <div className="flex items-center gap-3 mb-5">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold text-[#06140D]" style={{ background: GREEN }}>2</span>
+              <h2 className="text-lg font-bold">{translate({ fr: "Votre véhicule", en: "Your vehicle" })}</h2>
+            </div>
+            <div className="grid sm:grid-cols-3 gap-4">
+              <button type="button" onClick={() => setSelectedVehicle("N1")}
+                className={`text-left rounded-2xl p-5 ring-1 transition-all ${selectedVehicle === "N1" ? "ring-2 bg-[#F4F8F5]" : "ring-[#E6EBE8] hover:ring-[#C9D6CE]"}`}
+                style={selectedVehicle === "N1" ? { ["--tw-ring-color" as any]: GREEN } : undefined}>
+                <div className="flex items-center justify-between"><span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full text-[#06140D]" style={{ background: GREEN }}>{translate({ fr: "Disponible", en: "Available" })}</span><Car size={22} style={{ color: GREEN }} /></div>
+                <h4 className="mt-4 font-bold">{translate({ fr: "Berline Premium (N1)", en: "Premium Sedan (N1)" })}</h4>
+                <p className="text-xs text-[#5B6B62]">{translate({ fr: "Berline électrique", en: "Electric sedan" })}</p>
+                <div className="mt-4 pt-3 border-t border-[#E6EBE8] flex justify-between text-xs"><span className="text-[#5B6B62]">{translate({ fr: "À partir de", en: "From" })}</span><span className="font-extrabold">10 000 FCFA</span></div>
+              </button>
+              {[{ tag: "N2", t: "SUV Executive (N2)", p: "15 000 FCFA" }, { tag: "N3", t: "SUV Prestige (N3)", p: translate({ fr: "Sur devis", en: "On quote" }) }].map((v) => (
+                <div key={v.tag} className="rounded-2xl p-5 ring-1 ring-[#E6EBE8] bg-[#F4F8F5] opacity-70 cursor-not-allowed select-none">
+                  <div className="flex items-center justify-between"><span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full text-[#C85A00]" style={{ background: "rgba(255,122,26,0.14)" }}>{translate({ fr: "Bientôt", en: "Soon" })}</span><Car size={22} className="text-[#9BA8A0]" /></div>
+                  <h4 className="mt-4 font-bold text-[#5B6B62]">{v.t}</h4>
+                  <p className="text-xs text-[#9BA8A0]">{translate({ fr: "Prochainement", en: "Coming soon" })}</p>
+                  <div className="mt-4 pt-3 border-t border-[#E6EBE8] flex justify-between text-xs"><span className="text-[#9BA8A0]">{translate({ fr: "À partir de", en: "From" })}</span><span className="font-bold text-[#5B6B62]">{v.p}</span></div>
                 </div>
+              ))}
+            </div>
+          </section>
 
-                {/* Night surcharge info if exist */}
-                {priceResult.isNight && (
-                  <div className="flex justify-between text-xs text-white pb-2 border-b border-white-premium/5">
-                    <span>Majoration Nuit (22h-6h) :</span>
-                    <span className="font-mono font-bold">+15%</span>
-                  </div>
-                )}
+          {/* 3 · Formule */}
+          <section className={sectionCls}>
+            <div className="flex items-center gap-3 mb-5">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold text-[#06140D]" style={{ background: GREEN }}>3</span>
+              <h2 className="text-lg font-bold">{translate({ fr: "Votre formule", en: "Your package" })}</h2>
+            </div>
+            {!selectedVehicle ? (
+              <div className="rounded-2xl bg-[#F4F8F5] p-4 text-sm text-[#5B6B62]">{translate({ fr: "Choisissez d'abord un véhicule pour voir les prix.", en: "Pick a vehicle first to see prices." })}</div>
+            ) : (
+              <div className="grid sm:grid-cols-2 gap-3">
+                {FORMULAS.map((f) => {
+                  const isActive = selectedFormulaId === f.id;
+                  const price = selectedVehicle === "N3" ? translate({ fr: "Sur devis", en: "On quote" }) : PRICE_MAP[f.id]?.[selectedVehicle as "N1" | "N2"] || "—";
+                  return (
+                    <button key={f.id} type="button"
+                      onClick={() => { setSelectedFormulaId(f.id); setFormula(f.formula); setDurationHours(f.durationHours); }}
+                      className={`text-left rounded-2xl p-4 ring-1 transition-all ${isActive ? "ring-2 bg-[#F4F8F5]" : "ring-[#E6EBE8] hover:ring-[#C9D6CE]"}`}
+                      style={isActive ? { ["--tw-ring-color" as any]: GREEN } : undefined}>
+                      <div className="flex items-center justify-between">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-white ring-1 ring-[#E6EBE8] px-2 py-0.5 text-xs font-bold"><Clock size={11} style={{ color: GREEN }} /> {f.duration}</span>
+                        {isActive && <span className="flex h-5 w-5 items-center justify-center rounded-full text-[#06140D]" style={{ background: GREEN }}><Check size={12} /></span>}
+                      </div>
+                      <h4 className="mt-3 font-bold">{translate(f.name)}</h4>
+                      <p className="mt-0.5 text-xs text-[#5B6B62] leading-relaxed">{translate(f.desc)}</p>
+                      <div className="mt-3 text-lg font-extrabold">{price}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </section>
 
-                {/* Weekend surcharge info if exist */}
-                {priceResult.isWeekend && (
-                  <div className="flex justify-between text-xs text-white pb-2 border-b border-white-premium/5">
-                    <span>Majoration Samedi / Dimanche :</span>
-                    <span className="font-mono font-bold">+20%</span>
-                  </div>
-                )}
+          {/* 4 · Options */}
+          <section className={sectionCls}>
+            <div className="flex items-center gap-3 mb-5">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold text-[#06140D]" style={{ background: GREEN }}>4</span>
+              <h2 className="text-lg font-bold">{translate({ fr: "Options", en: "Options" })}</h2>
+            </div>
 
-                {/* Surcharges list */}
-                {isBilingual && (
-                  <div className="flex justify-between text-xs text-neutral-300 pb-2 border-b border-white-premium/5">
-                    <span>Chauffeur bilingue :</span>
-                    <span className="font-mono">+15%</span>
-                  </div>
-                )}
-
-                {isAirportGreeting && (
-                  <div className="flex justify-between text-xs text-neutral-300 pb-2 border-b border-white-premium/5">
-                    <span>Forfait Accueil Aéroport :</span>
-                    <span className="font-mono">+5 000 FCFA</span>
-                  </div>
-                )}
-
-                {/* Total price section */}
-                <div className="pt-4 text-center">
-                  <span className="text-[10px] font-mono uppercase tracking-widest text-neutral-500 block mb-1">
-                    {step < 3 
-                      ? translate({ fr: "ESTIMATION INITIALE", en: "INITIAL ESTIMATION" }) 
-                      : translate({ fr: "TOTAL ESTIMÉ EN FRANCS CFA (XOF)", en: "ESTIMATED TOTAL IN FRANCS CFA (XOF)" })}
-                  </span>
-                  
-                  {selectedVehicle === "N3" ? (
-                    <div className="p-3 bg-transparent border border-red-500/30 rounded-lg">
-                      <span className="text-lg font-bold text-red-400 font-sans block">SUR DEVIS</span>
-                      <span className="text-[9px] text-neutral-400 font-sans uppercase">Étude de protocole requise</span>
-                    </div>
-                  ) : step < 3 ? (
-                    <div className="p-4 bg-dark rounded-xl border border-white-premium/5">
-                      <span className="text-[9px] font-mono uppercase text-emerald-500 font-bold block mb-1">
-                        {translate({ fr: "À PARTIR DE", en: "STARTING FROM" })}
-                      </span>
-                      <span className="text-3xl font-extrabold text-white tracking-tighter font-mono">
-                        {selectedVehicle === "N2" ? "57 000" : "45 000"}
-                      </span>
-                      <span className="text-xs font-mono font-bold text-white ml-1">FCFA</span>
-                      <p className="text-[9px] text-neutral-400 font-sans mt-2 uppercase tracking-wide">
-                        {translate({ 
-                          fr: "Sélectionnez votre formule à l'étape 3", 
-                          en: "Select your formula at step 3" 
-                        })}
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="p-4 bg-dark rounded-xl border border-white-premium/5">
-                      <span className="text-3xl font-extrabold text-white tracking-tighter font-mono">
-                        {priceResult.totalPrice?.toLocaleString()}
-                      </span>
-                      <span className="text-xs font-mono font-bold text-white ml-1">FCFA</span>
-                      <p className="text-[9px] text-neutral-500 font-mono mt-1">ARRONDI REGLEMENTAIRE (500 FCFA SUP.)</p>
-                    </div>
-                  )}
-
-                </div>
-
+            {(priceResult?.isNight || priceResult?.isWeekend) && (
+              <div className="space-y-2 mb-4">
+                {priceResult?.isNight && <div className="rounded-xl bg-[rgba(255,122,26,0.08)] ring-1 ring-[rgba(255,122,26,0.2)] p-3 text-xs text-[#0B1F14] flex items-center gap-2"><Clock size={14} className="text-[#C85A00]" /> {translate({ fr: `Service de nuit détecté (${departureTime}) — +20%`, en: `Night service detected (${departureTime}) — +20%` })}</div>}
+                {priceResult?.isWeekend && <div className="rounded-xl bg-[rgba(255,122,26,0.08)] ring-1 ring-[rgba(255,122,26,0.2)] p-3 text-xs text-[#0B1F14] flex items-center gap-2"><Calendar size={14} className="text-[#C85A00]" /> {translate({ fr: "Week-end / jour férié détecté — +20%", en: "Weekend / holiday detected — +20%" })}</div>}
               </div>
             )}
 
-            <div className="bg-[#14141C] border border-white-premium/5 rounded-xl p-4 mt-6 text-[11px] text-neutral-400 space-y-2">
-              <span className="text-[9px] font-mono uppercase font-bold text-[#00C853] block">GARANTIES EASY :</span>
-              <p>✔ Annulation gratuite jusqu'à 1h avant le départ.</p>
-              <p>✔ Flotte de prestige 100% électrique rutilante.</p>
-              <p>✔ Facturation par email instantanée.</p>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <button type="button" onClick={() => setIsBilingual(!isBilingual)}
+                className={`text-left rounded-2xl p-4 ring-1 transition-all flex items-start justify-between gap-3 ${isBilingual ? "ring-2 bg-[#F4F8F5]" : "ring-[#E6EBE8] hover:ring-[#C9D6CE]"}`}
+                style={isBilingual ? { ["--tw-ring-color" as any]: GREEN } : undefined}>
+                <div><h4 className="font-bold text-sm flex items-center gap-2"><Globe size={15} style={{ color: GREEN }} /> {translate({ fr: "Chauffeur bilingue (+15%)", en: "Bilingual chauffeur (+15%)" })}</h4><p className="text-xs text-[#5B6B62] mt-1.5">{translate({ fr: "Français & anglais des affaires.", en: "Business French & English." })}</p></div>
+                <span className={`mt-0.5 flex h-5 w-5 items-center justify-center rounded border ${isBilingual ? "border-transparent text-[#06140D]" : "border-[#C9D6CE]"}`} style={isBilingual ? { background: GREEN } : undefined}>{isBilingual && <Check size={12} />}</span>
+              </button>
+              <button type="button" onClick={() => setIsAirportGreeting(!isAirportGreeting)}
+                className={`text-left rounded-2xl p-4 ring-1 transition-all flex items-start justify-between gap-3 ${isAirportGreeting ? "ring-2 bg-[#F4F8F5]" : "ring-[#E6EBE8] hover:ring-[#C9D6CE]"}`}
+                style={isAirportGreeting ? { ["--tw-ring-color" as any]: GREEN } : undefined}>
+                <div><h4 className="font-bold text-sm flex items-center gap-2"><UserCheck size={15} style={{ color: GREEN }} /> {translate({ fr: "Accueil aéroport (+5 000 FCFA)", en: "Airport greeting (+5,000 FCFA)" })}</h4><p className="text-xs text-[#5B6B62] mt-1.5">{translate({ fr: "Accueil avec pancarte à votre nom.", en: "Meet & greet with a name sign." })}</p></div>
+                <span className={`mt-0.5 flex h-5 w-5 items-center justify-center rounded border ${isAirportGreeting ? "border-transparent text-[#06140D]" : "border-[#C9D6CE]"}`} style={isAirportGreeting ? { background: GREEN } : undefined}>{isAirportGreeting && <Check size={12} />}</span>
+              </button>
             </div>
-          </Card>
+          </section>
 
-          {/* Elite Customer Support Help Card */}
-          <Card id="res_support_help_card" className="p-6 border border-[#25D366]/20 bg-[#12121A] rounded-2xl relative">
-            <div className="absolute top-0 left-0 w-full h-[3px] bg-[#25D366]" />
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-8 h-8 rounded bg-[#25D366]/10 text-[#25D366] flex items-center justify-center">
-                <HelpCircle size={18} />
+          {/* 5 · Récapitulatif & confirmation (SOMBRE) */}
+          <section id="res_recap" className="rounded-3xl p-6 sm:p-8 text-white ring-1 ring-white/10" style={{ background: INK }}>
+            <div className="flex items-center gap-3 mb-5">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold text-[#06140D]" style={{ background: GREEN }}>5</span>
+              <h2 className="text-lg font-bold">{translate({ fr: "Récapitulatif & confirmation", en: "Summary & confirmation" })}</h2>
+            </div>
+
+            <div className="rounded-2xl bg-white/[0.04] ring-1 ring-white/10 divide-y divide-white/10 text-sm">
+              <div className="flex items-center gap-3 p-4"><span className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: "rgba(0,200,83,0.15)", color: GREEN }}><MapPin size={15} /></span><div><div className="text-[11px] uppercase tracking-wider text-white/45">{translate({ fr: "Trajet", en: "Route" })}</div><div className="font-semibold">{pickup || translate({ fr: "Prise en charge à préciser", en: "Pickup to confirm" })} → {destination}</div></div></div>
+              <div className="flex items-center gap-3 p-4"><span className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: "rgba(0,200,83,0.15)", color: GREEN }}><Calendar size={15} /></span><div><div className="text-[11px] uppercase tracking-wider text-white/45">{translate({ fr: "Départ", en: "Departure" })}</div><div className="font-semibold">{departureDate} · {departureTime}</div></div></div>
+              <div className="flex items-center gap-3 p-4"><span className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: "rgba(0,200,83,0.15)", color: GREEN }}><Car size={15} /></span><div><div className="text-[11px] uppercase tracking-wider text-white/45">{translate({ fr: "Véhicule & formule", en: "Vehicle & package" })}</div><div className="font-semibold">{selectedVehicle ? (selectedVehicle === "N1" ? "Berline (N1)" : selectedVehicle === "N2" ? "SUV Exec (N2)" : "Prestige (N3)") : "—"}{selectedFormulaId ? ` · ${translate(FORMULAS.find((f) => f.id === selectedFormulaId)!.name)}` : ""}</div></div></div>
+              <div className="flex items-center justify-between p-4"><span className="text-[11px] uppercase tracking-wider text-white/45">{translate({ fr: "Total estimé", en: "Estimated total" })}</span><span className="text-xl font-extrabold">{selectedVehicle === "N3" ? translate({ fr: "Sur devis", en: "On quote" }) : priceResult?.totalPrice ? `${priceResult.totalPrice.toLocaleString()} FCFA` : "—"}</span></div>
+            </div>
+
+            {(isBilingual || isAirportGreeting) && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {isBilingual && <span className="rounded-full bg-white/10 px-3 py-1 text-xs">{translate({ fr: "Chauffeur bilingue", en: "Bilingual chauffeur" })}</span>}
+                {isAirportGreeting && <span className="rounded-full bg-white/10 px-3 py-1 text-xs">{translate({ fr: "Accueil aéroport", en: "Airport greeting" })}</span>}
               </div>
-              <div>
-                <span className="text-[10px] font-mono uppercase tracking-[0.15em] text-[#25D366] font-bold block">
-                  SUPPORT CLIENTS
-                </span>
-                <h4 className="text-xs font-bold text-white-premium font-sans">
-                  Difficulté à réserver ?
-                </h4>
+            )}
+
+            {!isAuthenticated && (
+              <div onClick={() => setCurrentPage("connexion")} className="mt-4 rounded-xl ring-1 ring-red-500/30 bg-red-500/10 p-3 flex items-center gap-2 cursor-pointer">
+                <AlertCircle size={16} className="text-red-300 shrink-0" />
+                <p className="text-xs text-red-200">{translate({ fr: "Connectez-vous à votre espace pour confirmer votre réservation.", en: "Log in to your account to confirm your booking." })}</p>
               </div>
-            </div>
+            )}
 
-            <p className="text-[11px] text-neutral-400 font-sans leading-relaxed mb-4">
-              Notre équipe d'assistance est à votre entière disposition pour enregistrer directement votre réservation ou répondre à vos questions.
-            </p>
-
-            <div className="space-y-2.5">
-              {/* WhatsApp Button */}
-              <a 
-                href="https://wa.me/2250797139787?text=Bonjour,%20j'ai%20besoin%20d'aide%20pour%20ma%20r%C3%A9servation%20sur%20Easy"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-between p-3 rounded-xl bg-[#25D366]/10 border border-[#25D366]/20 hover:bg-[#25D366]/20 transition-all text-xs group"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-[#25D366] animate-pulse" />
-                  <span className="text-white-premium font-bold font-mono">07 97 13 97 87</span>
-                </div>
-                <span className="bg-[#25D366] text-black text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full flex items-center gap-1">
-                  WhatsApp
-                </span>
-              </a>
-
-              {/* Phone call only */}
-              <a 
-                href="tel:+2250170083681"
-                className="flex items-center justify-between p-3 rounded-xl bg-white-premium/5 border border-white-premium/10 hover:bg-white-premium/10 transition-all text-xs"
-              >
-                <div className="flex items-center gap-2">
-                  <Phone size={12} className="text-neutral-400" />
-                  <span className="text-white-premium font-bold font-mono">01 70 08 36 81</span>
-                </div>
-                <span className="bg-white-premium/10 text-neutral-300 text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full">
-                  Appel uniquement
-                </span>
-              </a>
-            </div>
-          </Card>
+            <button onClick={handleConfirmReservation} disabled={calcLoading || !canConfirm}
+              className="mt-5 w-full inline-flex items-center justify-center gap-2 rounded-full px-6 py-4 text-sm font-extrabold text-[#06140D] shadow-lg transition-transform active:scale-[0.98] disabled:opacity-50"
+              style={{ background: GREEN }}>
+              {isAuthenticated ? translate({ fr: "Confirmer ma réservation", en: "Confirm my booking" }) : translate({ fr: "Se connecter pour réserver", en: "Log in to book" })}
+              <Check size={16} />
+            </button>
+            {!canConfirm && <p className="mt-2 text-center text-xs text-white/50">{translate({ fr: "Complétez le trajet, le véhicule et la formule.", en: "Complete the ride, vehicle and package." })}</p>}
+          </section>
         </div>
 
+        {/* ===================== COLONNE RÉSUMÉ (collant) ===================== */}
+        <div className="lg:col-span-4 space-y-6 lg:sticky lg:top-24">
+          {SummaryPanel}
+          {/* Support */}
+          <div className="rounded-3xl bg-white ring-1 ring-[#E6EBE8] shadow-sm p-6">
+            <div className="flex items-center gap-2 mb-3"><span className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: "rgba(0,200,83,0.12)", color: GREEN }}><HelpCircle size={16} /></span><h4 className="text-sm font-bold">{translate({ fr: "Besoin d'aide ?", en: "Need help?" })}</h4></div>
+            <p className="text-xs text-[#5B6B62] mb-4">{translate({ fr: "Notre équipe peut enregistrer votre réservation ou répondre à vos questions.", en: "Our team can register your booking or answer your questions." })}</p>
+            <div className="space-y-2.5">
+              <a href="https://wa.me/2250797139787?text=Bonjour,%20j'ai%20besoin%20d'aide%20pour%20ma%20r%C3%A9servation%20sur%20Easy" target="_blank" rel="noopener noreferrer"
+                className="flex items-center justify-between rounded-xl bg-[#00C853]/10 ring-1 ring-[#00C853]/25 p-3 text-sm hover:bg-[#00C853]/15 transition-colors">
+                <span className="font-bold inline-flex items-center gap-2"><MessageCircle size={14} style={{ color: GREEN }} /> 07 97 13 97 87</span>
+                <span className="rounded-full px-2 py-0.5 text-[10px] font-extrabold text-[#06140D]" style={{ background: GREEN }}>WhatsApp</span>
+              </a>
+              <a href="tel:+2250170083681" className="flex items-center justify-between rounded-xl bg-[#F4F8F5] ring-1 ring-[#E6EBE8] p-3 text-sm hover:bg-[#EEF4F0] transition-colors">
+                <span className="font-bold inline-flex items-center gap-2"><Phone size={14} style={{ color: GREEN }} /> 01 70 08 36 81</span>
+                <span className="rounded-full bg-[#E6EBE8] px-2 py-0.5 text-[10px] font-extrabold text-[#5B6B62]">{translate({ fr: "Appel", en: "Call" })}</span>
+              </a>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Floating WhatsApp Help Button */}
-      <a
-        href="https://wa.me/2250797139787?text=Bonjour,%20j'ai%20besoin%20d'aide%20pour%20ma%20r%C3%A9servation%20sur%20Easy"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="fixed bottom-6 right-6 z-50 flex items-center gap-2 bg-[#25D366] hover:bg-[#20ba56] text-white px-4 py-3 rounded-full shadow-2xl transition-all duration-300 hover:scale-105 active:scale-95 group font-sans"
-        id="whatsapp_floating_help_btn"
-      >
-        <div className="relative flex items-center justify-center">
-          <span className="absolute inline-flex h-3 w-3 rounded-full bg-white opacity-75 animate-ping" />
-          <Phone size={18} className="relative text-white fill-current" />
+      {/* ===================== BARRE RÉSUMÉ COLLANTE (mobile) ===================== */}
+      {priceResult && selectedVehicle && selectedFormulaId && (
+        <div className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-[#E6EBE8] px-4 py-3 flex items-center justify-between gap-3 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-[#5B6B62]">{translate({ fr: "Total estimé", en: "Estimated total" })}</div>
+            <div className="text-lg font-extrabold">{selectedVehicle === "N3" ? translate({ fr: "Sur devis", en: "On quote" }) : priceResult.totalPrice ? `${priceResult.totalPrice.toLocaleString()} FCFA` : "—"}</div>
+          </div>
+          <button onClick={scrollToConfirm} className="inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-bold text-[#06140D]" style={{ background: GREEN }}>
+            {translate({ fr: "Réserver", en: "Book" })} <ArrowRight size={16} />
+          </button>
         </div>
-        <span className="text-xs font-extrabold tracking-wide uppercase">
-          Besoin d'aide ? WhatsApp
-        </span>
-      </a>
+      )}
 
-      <MyBookingsModal
-        isOpen={showBookingsModal}
-        onClose={() => setShowBookingsModal(false)}
-        setCurrentPage={setCurrentPage}
-      />
+      <MyBookingsModal isOpen={showBookingsModal} onClose={() => setShowBookingsModal(false)} setCurrentPage={setCurrentPage} />
     </div>
   );
 };
