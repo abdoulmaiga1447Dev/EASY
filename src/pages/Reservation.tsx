@@ -411,19 +411,20 @@ export const Reservation: React.FC<ReservationProps> = ({ setCurrentPage, id }) 
               <label className="text-xs font-semibold text-[#5B6B62] uppercase tracking-wide mb-2 block">{translate({ fr: "Véhicule", en: "Vehicle" })}</label>
               <div className="grid grid-cols-3 gap-2 sm:gap-3">
                 {([
-                  { tag: "N1", name: { fr: "Berline", en: "Sedan" }, price: "dès 10 000 FCFA" },
-                  { tag: "N2", name: { fr: "SUV Executive", en: "Executive SUV" }, price: "dès 15 000 FCFA" },
-                  { tag: "N3", name: { fr: "Prestige", en: "Prestige" }, price: translate({ fr: "Sur devis", en: "On quote" }) },
+                  { tag: "N1", name: { fr: "Berline", en: "Sedan" }, price: "dès 10 000 FCFA", tint: "rgba(0,200,83,0.12)", accent: "#00A846" },
+                  { tag: "N2", name: { fr: "SUV Executive", en: "Executive SUV" }, price: "dès 15 000 FCFA", tint: "rgba(255,122,26,0.14)", accent: "#C85A00" },
+                  { tag: "N3", name: { fr: "Prestige", en: "Prestige" }, price: translate({ fr: "Sur devis", en: "On quote" }), tint: "rgba(245,158,11,0.16)", accent: "#B45309" },
                 ] as const).map((v) => {
                   const active = selectedVehicle === v.tag;
                   return (
                     <button key={v.tag} type="button" onClick={() => setSelectedVehicle(v.tag)}
-                      className={`rounded-2xl p-3 text-center ring-1 transition-all ${active ? "ring-2 bg-[#F4F8F5]" : "ring-[#E6EBE8] hover:ring-[#C9D6CE]"}`}
-                      style={active ? { ["--tw-ring-color" as any]: GREEN } : undefined}>
-                      <Car size={20} className="mx-auto" style={{ color: active ? GREEN : "#9BA8A0" }} />
-                      <div className="mt-1.5 text-sm font-bold leading-tight">{translate(v.name)}</div>
+                      className={`rounded-2xl p-3 text-center ring-1 transition-all ${active ? "ring-2 shadow-sm" : "ring-black/5 hover:ring-black/15"}`}
+                      style={{ background: v.tint, ...(active ? { ["--tw-ring-color" as any]: GREEN } : {}) }}>
+                      <Car size={20} className="mx-auto" style={{ color: v.accent }} />
+                      <div className="mt-1.5 text-sm font-bold leading-tight text-[#0B1F14]">{translate(v.name)}</div>
                       <div className="text-[11px] text-[#5B6B62]">{v.tag}</div>
-                      <div className="mt-1 text-xs font-semibold" style={{ color: active ? "#0B1F14" : "#5B6B62" }}>{v.price}</div>
+                      <div className="mt-1 text-xs font-semibold" style={{ color: v.accent }}>{v.price}</div>
+                      {active && <span className="mt-2 inline-flex h-5 w-5 items-center justify-center rounded-full text-[#06140D]" style={{ background: GREEN }}><Check size={12} /></span>}
                     </button>
                   );
                 })}
