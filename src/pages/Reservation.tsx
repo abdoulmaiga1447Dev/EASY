@@ -101,6 +101,7 @@ export const Reservation: React.FC<ReservationProps> = ({ setCurrentPage, id }) 
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [finalBookingData, setFinalBookingData] = useState<any>(null);
   const [showRecap, setShowRecap] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
 
   // Charge les véhicules + pré-sélection éventuelle
   useEffect(() => {
@@ -191,9 +192,11 @@ export const Reservation: React.FC<ReservationProps> = ({ setCurrentPage, id }) 
 
   const handleConfirmReservation = async () => {
     if (!isAuthenticated) { setCurrentPage("connexion"); return; }
+    const activeToken = localStorage.getItem("ev_access_token");
+    if (!activeToken) { alert("Session expirée. Veuillez vous reconnecter."); setCurrentPage("connexion"); return; }
+    setIsConfirming(true);
+    const started = Date.now();
     try {
-      const activeToken = localStorage.getItem("ev_access_token");
-      if (!activeToken) { alert("Session expirée. Veuillez vous reconnecter."); setCurrentPage("connexion"); return; }
       const body = {
         vehicleId: selectedVehicleDetail ? selectedVehicleDetail.id : selectedVehicle === "N1" ? "v_berline_n1" : "v_suv_n2_a",
         departureDate, departureTime, pickup, destination, formula,
@@ -202,49 +205,20 @@ export const Reservation: React.FC<ReservationProps> = ({ setCurrentPage, id }) 
         totalPrice: priceResult?.totalPrice || 0, segment: "public", status: "pending_assignment", phone: phoneNumber,
       };
       const res = await fetch("/api/reservations", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${activeToken}` }, body: JSON.stringify(body) });
-      if (res.ok) { setFinalBookingData(await res.json()); setBookingSuccess(true); window.scrollTo({ top: 0, behavior: "smooth" }); }
-      else { const errData = await res.json(); alert(errData.error?.fr || "Erreur de réservation."); }
-    } catch (e) { console.error(e); alert("Une erreur technique s'est produite lors de la réservation."); }
+      if (res.ok) {
+        const data = await res.json();
+        const wait = Math.max(0, 900 - (Date.now() - started)); // laisse voir l'animation
+        setTimeout(() => { setFinalBookingData(data); setBookingSuccess(true); setIsConfirming(false); }, wait);
+      } else {
+        const errData = await res.json(); setIsConfirming(false); alert(errData.error?.fr || "Erreur de réservation.");
+      }
+    } catch (e) { console.error(e); setIsConfirming(false); alert("Une erreur technique s'est produite lors de la réservation."); }
   };
 
   const canConfirm = !!(phoneNumber.trim() && destination && departureDate && departureTime && selectedVehicle && formula);
   const inputCls = "w-full rounded-xl bg-[#F4F8F5] border border-[#E6EBE8] focus:border-[#00C853] focus:ring-2 focus:ring-[#00C853]/20 p-3 text-sm text-[#0B1F14] placeholder-[#9BA8A0] outline-none transition-colors";
   const sectionCls = "rounded-3xl bg-white ring-1 ring-[#E6EBE8] shadow-[0_1px_0_rgba(0,0,0,0.02)] p-6 sm:p-7";
   const goToRecap = () => { if (canConfirm) { setShowRecap(true); window.scrollTo({ top: 0, behavior: "smooth" }); } };
-
-  // ---------- Écran de succès (sombre) ----------
-  if (bookingSuccess && finalBookingData) {
-    const resId = finalBookingData.reservation?.id;
-    return (
-      <div id="booking_success_container" className="min-h-screen flex items-center justify-center px-4 py-16 text-white" style={{ background: INK }}>
-        <div className="w-full max-w-lg rounded-3xl p-8 sm:p-10 text-center ring-1 ring-white/10" style={{ background: "#0E1A13" }}>
-          <div className="w-16 h-16 rounded-full mx-auto flex items-center justify-center mb-6" style={{ background: GREEN }}>
-            <Check size={32} className="text-[#06140D]" />
-          </div>
-          <span className="text-[11px] font-semibold tracking-widest uppercase block mb-2" style={{ color: GREEN }}>
-            {translate({ fr: "DEMANDE ENREGISTRÉE", en: "REQUEST SAVED" })}
-          </span>
-          <h2 className="text-2xl font-extrabold tracking-tight mb-4">{translate({ fr: "Vérifiez vos e-mails", en: "Please check your email" })}</h2>
-          <div className="my-6 rounded-2xl bg-white/[0.04] ring-1 ring-white/10 p-5">
-            <p className="text-sm text-white/75 leading-relaxed">
-              {translate({ fr: "Un e-mail de confirmation avec le récapitulatif complet, l'estimation tarifaire et les prochaines étapes vient de vous être envoyé.", en: "A confirmation email with the full summary, price estimate and next steps has just been sent to you." })}
-            </p>
-            {resId && <p className="text-xs text-white/50 mt-4 font-semibold">{translate({ fr: "Réf. : ", en: "Ref: " })}{resId}</p>}
-          </div>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <button onClick={() => { setCurrentPage("commandes"); window.location.hash = "commandes"; }}
-              className="w-full rounded-full px-5 py-3 text-sm font-semibold text-[#06140D]" style={{ background: GREEN }}>
-              {translate({ fr: "Voir mes commandes", en: "View my orders" })}
-            </button>
-            <button onClick={() => { setBookingSuccess(false); setFinalBookingData(null); setPickup(""); }}
-              className="w-full rounded-full px-5 py-3 text-sm font-semibold text-white ring-1 ring-white/20 hover:bg-white/10 transition-colors">
-              {translate({ fr: "Nouvelle réservation", en: "New booking" })}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   // ---------- Panneau résumé / prix (réutilisé) ----------
   const SummaryPanel = (
@@ -511,53 +485,81 @@ export const Reservation: React.FC<ReservationProps> = ({ setCurrentPage, id }) 
       <AnimatePresence>
         {showRecap && (
           <motion.div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
-            <div className="absolute inset-0 bg-[#0B1F14]/30 backdrop-blur-md" onClick={() => setShowRecap(false)} />
+            <div className="absolute inset-0 bg-[#0B1F14]/30 backdrop-blur-md" onClick={() => { if (!isConfirming) setShowRecap(false); }} />
             <motion.div
               className="relative w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl p-6 sm:p-8 text-[#0B1F14] ring-1 ring-white/60 shadow-2xl max-h-[92vh] overflow-y-auto bg-white/75 backdrop-blur-2xl backdrop-saturate-150"
               initial={{ y: 60, opacity: 0, scale: 0.98 }} animate={{ y: 0, opacity: 1, scale: 1 }} exit={{ y: 60, opacity: 0, scale: 0.98 }}
               transition={{ type: "spring", stiffness: 320, damping: 30 }}
             >
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <span className="text-xs font-semibold tracking-wide" style={{ color: GREEN }}>{translate({ fr: "DERNIÈRE ÉTAPE", en: "LAST STEP" })}</span>
-                  <h3 className="text-xl font-extrabold tracking-tight">{translate({ fr: "Confirmez votre réservation", en: "Confirm your booking" })}</h3>
-                </div>
-                <button onClick={() => setShowRecap(false)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black/5 hover:bg-black/10 transition-colors"><X size={18} className="text-[#0B1F14]" /></button>
-              </div>
+              <AnimatePresence mode="wait">
+                {bookingSuccess ? (
+                  <motion.div key="success" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} className="text-center">
+                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 260, damping: 18, delay: 0.05 }} className="w-16 h-16 rounded-full mx-auto flex items-center justify-center mb-5" style={{ background: GREEN }}>
+                      <Check size={32} className="text-[#06140D]" />
+                    </motion.div>
+                    <span className="text-[11px] font-semibold tracking-widest uppercase block mb-2" style={{ color: GREEN }}>{translate({ fr: "DEMANDE ENREGISTRÉE", en: "REQUEST SAVED" })}</span>
+                    <h3 className="text-2xl font-extrabold tracking-tight mb-4">{translate({ fr: "Vérifiez vos e-mails", en: "Check your email" })}</h3>
+                    <div className="rounded-2xl bg-white/50 ring-1 ring-black/5 p-5 text-sm text-[#5B6B62] leading-relaxed">
+                      {translate({ fr: "Un e-mail de confirmation avec le récapitulatif complet, l'estimation tarifaire et les prochaines étapes vient de vous être envoyé.", en: "A confirmation email with the full summary, price estimate and next steps has just been sent to you." })}
+                      {finalBookingData?.reservation?.id && <div className="text-xs text-[#9BA8A0] mt-3 font-semibold">{translate({ fr: "Réf. : ", en: "Ref: " })}{finalBookingData.reservation.id}</div>}
+                    </div>
+                    <div className="mt-6 flex flex-col sm:flex-row gap-3">
+                      <button onClick={() => { setCurrentPage("commandes"); window.location.hash = "commandes"; }} className="w-full rounded-full px-5 py-3.5 text-sm font-bold text-[#06140D]" style={{ background: GREEN }}>{translate({ fr: "Voir mes commandes", en: "View my orders" })}</button>
+                      <button onClick={() => { setShowRecap(false); setBookingSuccess(false); setFinalBookingData(null); setPickup(""); }} className="w-full rounded-full px-5 py-3.5 text-sm font-semibold text-[#0B1F14] ring-1 ring-[#D7E0DA] bg-white/50 hover:bg-white transition-colors">{translate({ fr: "Nouvelle réservation", en: "New booking" })}</button>
+                    </div>
+                  </motion.div>
+                ) : isConfirming ? (
+                  <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="py-12 text-center">
+                    <div className="mx-auto mb-5 h-14 w-14 rounded-full border-4 border-[#00C853]/20 border-t-[#00C853] animate-spin" />
+                    <h3 className="text-lg font-bold">{translate({ fr: "Confirmation en cours…", en: "Confirming…" })}</h3>
+                    <p className="text-sm text-[#5B6B62] mt-1">{translate({ fr: "Nous enregistrons votre réservation.", en: "We're saving your booking." })}</p>
+                  </motion.div>
+                ) : (
+                  <motion.div key="recap" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                    <div className="flex items-start justify-between mb-4">
+                      <div>
+                        <span className="text-xs font-semibold tracking-wide" style={{ color: GREEN }}>{translate({ fr: "DERNIÈRE ÉTAPE", en: "LAST STEP" })}</span>
+                        <h3 className="text-xl font-extrabold tracking-tight">{translate({ fr: "Confirmez votre réservation", en: "Confirm your booking" })}</h3>
+                      </div>
+                      <button onClick={() => setShowRecap(false)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black/5 hover:bg-black/10 transition-colors"><X size={18} className="text-[#0B1F14]" /></button>
+                    </div>
 
-              <div className="rounded-2xl bg-white/50 ring-1 ring-black/5 divide-y divide-black/5 text-sm">
-                <div className="flex items-center gap-3 p-4"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/70 ring-1 ring-black/5" style={{ color: GREEN }}><MapPin size={15} /></span><div><div className="text-[11px] uppercase tracking-wider text-[#5B6B62]">{translate({ fr: "Trajet", en: "Route" })}</div><div className="font-semibold">{pickup || translate({ fr: "Prise en charge à préciser", en: "Pickup to confirm" })} → {destination}</div></div></div>
-                <div className="flex items-center gap-3 p-4"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/70 ring-1 ring-black/5" style={{ color: GREEN }}><Calendar size={15} /></span><div><div className="text-[11px] uppercase tracking-wider text-[#5B6B62]">{translate({ fr: "Départ", en: "Departure" })}</div><div className="font-semibold">{departureDate} · {departureTime}</div></div></div>
-                <div className="flex items-center gap-3 p-4"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/70 ring-1 ring-black/5" style={{ color: GREEN }}><Car size={15} /></span><div><div className="text-[11px] uppercase tracking-wider text-[#5B6B62]">{translate({ fr: "Véhicule & formule", en: "Vehicle & package" })}</div><div className="font-semibold">{selectedVehicle ? (selectedVehicle === "N1" ? "Berline (N1)" : selectedVehicle === "N2" ? "SUV Exec (N2)" : "Prestige (N3)") : "—"}{selectedFormulaId ? ` · ${translate(FORMULAS.find((f) => f.id === selectedFormulaId)!.name)}` : ""}</div></div></div>
-                <div className="flex items-center gap-3 p-4"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/70 ring-1 ring-black/5" style={{ color: GREEN }}><Phone size={15} /></span><div><div className="text-[11px] uppercase tracking-wider text-[#5B6B62]">{translate({ fr: "Téléphone", en: "Phone" })}</div><div className="font-semibold">{phoneNumber}</div></div></div>
-                <div className="flex items-center justify-between p-4"><span className="text-[11px] uppercase tracking-wider text-[#5B6B62]">{translate({ fr: "Total estimé", en: "Estimated total" })}</span><span className="text-2xl font-extrabold">{selectedVehicle === "N3" ? translate({ fr: "Sur devis", en: "On quote" }) : priceResult?.totalPrice ? `${priceResult.totalPrice.toLocaleString()} FCFA` : "—"}</span></div>
-              </div>
+                    <div className="rounded-2xl bg-white/50 ring-1 ring-black/5 divide-y divide-black/5 text-sm">
+                      <div className="flex items-center gap-3 p-4"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/70 ring-1 ring-black/5" style={{ color: GREEN }}><MapPin size={15} /></span><div><div className="text-[11px] uppercase tracking-wider text-[#5B6B62]">{translate({ fr: "Trajet", en: "Route" })}</div><div className="font-semibold">{pickup || translate({ fr: "Prise en charge à préciser", en: "Pickup to confirm" })} → {destination}</div></div></div>
+                      <div className="flex items-center gap-3 p-4"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/70 ring-1 ring-black/5" style={{ color: GREEN }}><Calendar size={15} /></span><div><div className="text-[11px] uppercase tracking-wider text-[#5B6B62]">{translate({ fr: "Départ", en: "Departure" })}</div><div className="font-semibold">{departureDate} · {departureTime}</div></div></div>
+                      <div className="flex items-center gap-3 p-4"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/70 ring-1 ring-black/5" style={{ color: GREEN }}><Car size={15} /></span><div><div className="text-[11px] uppercase tracking-wider text-[#5B6B62]">{translate({ fr: "Véhicule & formule", en: "Vehicle & package" })}</div><div className="font-semibold">{selectedVehicle ? (selectedVehicle === "N1" ? "Berline (N1)" : selectedVehicle === "N2" ? "SUV Exec (N2)" : "Prestige (N3)") : "—"}{selectedFormulaId ? ` · ${translate(FORMULAS.find((f) => f.id === selectedFormulaId)!.name)}` : ""}</div></div></div>
+                      <div className="flex items-center gap-3 p-4"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/70 ring-1 ring-black/5" style={{ color: GREEN }}><Phone size={15} /></span><div><div className="text-[11px] uppercase tracking-wider text-[#5B6B62]">{translate({ fr: "Téléphone", en: "Phone" })}</div><div className="font-semibold">{phoneNumber}</div></div></div>
+                      <div className="flex items-center justify-between p-4"><span className="text-[11px] uppercase tracking-wider text-[#5B6B62]">{translate({ fr: "Total estimé", en: "Estimated total" })}</span><span className="text-2xl font-extrabold">{selectedVehicle === "N3" ? translate({ fr: "Sur devis", en: "On quote" }) : priceResult?.totalPrice ? `${priceResult.totalPrice.toLocaleString()} FCFA` : "—"}</span></div>
+                    </div>
 
-              {(isBilingual || isAirportGreeting) && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {isBilingual && <span className="rounded-full bg-black/[0.06] ring-1 ring-black/5 px-3 py-1 text-xs font-medium">{translate({ fr: "Chauffeur bilingue", en: "Bilingual chauffeur" })}</span>}
-                  {isAirportGreeting && <span className="rounded-full bg-black/[0.06] ring-1 ring-black/5 px-3 py-1 text-xs font-medium">{translate({ fr: "Accueil aéroport", en: "Airport greeting" })}</span>}
-                </div>
-              )}
+                    {(isBilingual || isAirportGreeting) && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {isBilingual && <span className="rounded-full bg-black/[0.06] ring-1 ring-black/5 px-3 py-1 text-xs font-medium">{translate({ fr: "Chauffeur bilingue", en: "Bilingual chauffeur" })}</span>}
+                        {isAirportGreeting && <span className="rounded-full bg-black/[0.06] ring-1 ring-black/5 px-3 py-1 text-xs font-medium">{translate({ fr: "Accueil aéroport", en: "Airport greeting" })}</span>}
+                      </div>
+                    )}
 
-              {!isAuthenticated && (
-                <div onClick={() => setCurrentPage("connexion")} className="mt-4 rounded-xl ring-1 ring-red-200 bg-red-50 p-3 flex items-center gap-2 cursor-pointer">
-                  <AlertCircle size={16} className="text-red-500 shrink-0" />
-                  <p className="text-xs text-red-600">{translate({ fr: "Connectez-vous à votre espace pour confirmer votre réservation.", en: "Log in to your account to confirm your booking." })}</p>
-                </div>
-              )}
+                    {!isAuthenticated && (
+                      <div onClick={() => setCurrentPage("connexion")} className="mt-4 rounded-xl ring-1 ring-red-200 bg-red-50 p-3 flex items-center gap-2 cursor-pointer">
+                        <AlertCircle size={16} className="text-red-500 shrink-0" />
+                        <p className="text-xs text-red-600">{translate({ fr: "Connectez-vous à votre espace pour confirmer votre réservation.", en: "Log in to your account to confirm your booking." })}</p>
+                      </div>
+                    )}
 
-              <div className="mt-6 flex flex-col sm:flex-row gap-3">
-                <button onClick={() => setShowRecap(false)} className="w-full sm:w-auto rounded-full px-6 py-3.5 text-sm font-semibold text-[#0B1F14] ring-1 ring-[#D7E0DA] bg-white/50 hover:bg-white transition-colors">
-                  {translate({ fr: "Modifier", en: "Edit" })}
-                </button>
-                <button onClick={handleConfirmReservation} disabled={calcLoading || !canConfirm}
-                  className="w-full inline-flex items-center justify-center gap-2 rounded-full px-6 py-3.5 text-sm font-extrabold text-[#06140D] shadow-lg transition-transform active:scale-[0.98] disabled:opacity-50"
-                  style={{ background: GREEN }}>
-                  {isAuthenticated ? translate({ fr: "Confirmer", en: "Confirm" }) : translate({ fr: "Se connecter", en: "Log in" })}
-                  <Check size={16} />
-                </button>
-              </div>
+                    <div className="mt-6 flex flex-col sm:flex-row gap-3">
+                      <button onClick={() => setShowRecap(false)} className="w-full sm:w-auto rounded-full px-6 py-3.5 text-sm font-semibold text-[#0B1F14] ring-1 ring-[#D7E0DA] bg-white/50 hover:bg-white transition-colors">
+                        {translate({ fr: "Modifier", en: "Edit" })}
+                      </button>
+                      <button onClick={handleConfirmReservation} disabled={calcLoading || !canConfirm}
+                        className="w-full inline-flex items-center justify-center gap-2 rounded-full px-6 py-3.5 text-sm font-extrabold text-[#06140D] shadow-lg transition-transform active:scale-[0.98] disabled:opacity-50"
+                        style={{ background: GREEN }}>
+                        {isAuthenticated ? translate({ fr: "Confirmer", en: "Confirm" }) : translate({ fr: "Se connecter", en: "Log in" })}
+                        <Check size={16} />
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
           </motion.div>
         )}
