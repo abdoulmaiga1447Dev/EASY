@@ -159,7 +159,7 @@ function MainAppApplet() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-dark text-white-premium font-sans overflow-x-hidden selection:bg-gold/30 selection:text-white-premium">
+    <div className="flex flex-col min-h-screen bg-dark text-white-premium font-sans selection:bg-gold/30 selection:text-white-premium">
       {/* Navigation Header */}
       <Navbar currentPage={currentPage} setCurrentPage={handlePageChange} id="app_primary_navbar" />
 
