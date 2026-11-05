@@ -62,6 +62,12 @@ export const Contact: React.FC<ContactProps> = ({ id }) => {
 
   return (
     <div id={id} className="relative overflow-hidden text-white font-sans" style={{ background: "#15171A" }}>
+      {/* Illustration en arrière-plan sur mobile uniquement */}
+      <div
+        aria-hidden
+        className="lg:hidden pointer-events-none absolute inset-0 z-0 opacity-[0.12]"
+        style={{ backgroundImage: `url(${illu})`, backgroundSize: "cover", backgroundPosition: "center 12%" }}
+      />
       <div className="relative z-10 max-w-6xl mx-auto px-6 lg:px-8 py-16 lg:py-24 grid lg:grid-cols-2 gap-12 items-start">
         {/* ====== COLONNE GAUCHE ====== */}
         <div>
