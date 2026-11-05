@@ -8,7 +8,7 @@ import React, { useState, useEffect } from "react";
 import { useLanguage } from "../context/LanguageContext";
 import { useAuth } from "../context/AuthContext";
 import {
-  Calendar, Clock, MapPin, Car, ArrowRight, Check, UserCheck, Globe, Map,
+  Calendar, Clock, MapPin, Car, ArrowRight, ArrowLeft, Check, UserCheck, Globe, Map,
   Compass, Phone, HelpCircle, MessageCircle, AlertCircle, ChevronDown,
 } from "lucide-react";
 import { MapSelectorModal } from "../components/MapSelectorModal";
@@ -98,6 +98,7 @@ export const Reservation: React.FC<ReservationProps> = ({ setCurrentPage, id }) 
 
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [finalBookingData, setFinalBookingData] = useState<any>(null);
+  const [showRecap, setShowRecap] = useState(false);
 
   // Charge les véhicules + pré-sélection éventuelle
   useEffect(() => {
@@ -207,7 +208,7 @@ export const Reservation: React.FC<ReservationProps> = ({ setCurrentPage, id }) 
   const canConfirm = !!(phoneNumber.trim() && destination && departureDate && departureTime && selectedVehicle && formula);
   const inputCls = "w-full rounded-xl bg-[#F4F8F5] border border-[#E6EBE8] focus:border-[#00C853] focus:ring-2 focus:ring-[#00C853]/20 p-3 text-sm text-[#0B1F14] placeholder-[#9BA8A0] outline-none transition-colors";
   const sectionCls = "rounded-3xl bg-white ring-1 ring-[#E6EBE8] shadow-[0_1px_0_rgba(0,0,0,0.02)] p-6 sm:p-7";
-  const scrollToConfirm = () => document.getElementById("res_recap")?.scrollIntoView({ behavior: "smooth" });
+  const goToRecap = () => { if (canConfirm) { setShowRecap(true); window.scrollTo({ top: 0, behavior: "smooth" }); } };
 
   // ---------- Écran de succès (sombre) ----------
   if (bookingSuccess && finalBookingData) {
@@ -236,6 +237,56 @@ export const Reservation: React.FC<ReservationProps> = ({ setCurrentPage, id }) 
             <button onClick={() => { setBookingSuccess(false); setFinalBookingData(null); setPickup(""); }}
               className="w-full rounded-full px-5 py-3 text-sm font-semibold text-white ring-1 ring-white/20 hover:bg-white/10 transition-colors">
               {translate({ fr: "Nouvelle réservation", en: "New booking" })}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ---------- Écran de confirmation (récap, sombre) ----------
+  if (showRecap) {
+    return (
+      <div className="min-h-screen text-white font-sans" style={{ background: INK }}>
+        <div className="max-w-2xl mx-auto px-6 py-14 lg:py-20">
+          <button onClick={() => setShowRecap(false)} className="inline-flex items-center gap-2 text-sm text-white/70 hover:text-white mb-6">
+            <ArrowLeft size={16} /> {translate({ fr: "Modifier", en: "Edit" })}
+          </button>
+          <span className="text-xs font-semibold tracking-wide" style={{ color: GREEN }}>{translate({ fr: "DERNIÈRE ÉTAPE", en: "LAST STEP" })}</span>
+          <h1 className="mt-1 text-3xl sm:text-4xl font-extrabold tracking-tight">{translate({ fr: "Confirmez votre réservation", en: "Confirm your booking" })}</h1>
+          <p className="mt-2 text-white/70">{translate({ fr: "Vérifiez le récapitulatif avant de valider.", en: "Check the summary before confirming." })}</p>
+
+          <div className="mt-6 rounded-2xl bg-white/[0.04] ring-1 ring-white/10 divide-y divide-white/10 text-sm">
+            <div className="flex items-center gap-3 p-4"><span className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: "rgba(0,200,83,0.15)", color: GREEN }}><MapPin size={15} /></span><div><div className="text-[11px] uppercase tracking-wider text-white/45">{translate({ fr: "Trajet", en: "Route" })}</div><div className="font-semibold">{pickup || translate({ fr: "Prise en charge à préciser", en: "Pickup to confirm" })} → {destination}</div></div></div>
+            <div className="flex items-center gap-3 p-4"><span className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: "rgba(0,200,83,0.15)", color: GREEN }}><Calendar size={15} /></span><div><div className="text-[11px] uppercase tracking-wider text-white/45">{translate({ fr: "Départ", en: "Departure" })}</div><div className="font-semibold">{departureDate} · {departureTime}</div></div></div>
+            <div className="flex items-center gap-3 p-4"><span className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: "rgba(0,200,83,0.15)", color: GREEN }}><Car size={15} /></span><div><div className="text-[11px] uppercase tracking-wider text-white/45">{translate({ fr: "Véhicule & formule", en: "Vehicle & package" })}</div><div className="font-semibold">{selectedVehicle ? (selectedVehicle === "N1" ? "Berline (N1)" : selectedVehicle === "N2" ? "SUV Exec (N2)" : "Prestige (N3)") : "—"}{selectedFormulaId ? ` · ${translate(FORMULAS.find((f) => f.id === selectedFormulaId)!.name)}` : ""}</div></div></div>
+            <div className="flex items-center gap-3 p-4"><span className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: "rgba(0,200,83,0.15)", color: GREEN }}><Phone size={15} /></span><div><div className="text-[11px] uppercase tracking-wider text-white/45">{translate({ fr: "Téléphone", en: "Phone" })}</div><div className="font-semibold">{phoneNumber}</div></div></div>
+            <div className="flex items-center justify-between p-4"><span className="text-[11px] uppercase tracking-wider text-white/45">{translate({ fr: "Total estimé", en: "Estimated total" })}</span><span className="text-2xl font-extrabold">{selectedVehicle === "N3" ? translate({ fr: "Sur devis", en: "On quote" }) : priceResult?.totalPrice ? `${priceResult.totalPrice.toLocaleString()} FCFA` : "—"}</span></div>
+          </div>
+
+          {(isBilingual || isAirportGreeting) && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {isBilingual && <span className="rounded-full bg-white/10 px-3 py-1 text-xs">{translate({ fr: "Chauffeur bilingue", en: "Bilingual chauffeur" })}</span>}
+              {isAirportGreeting && <span className="rounded-full bg-white/10 px-3 py-1 text-xs">{translate({ fr: "Accueil aéroport", en: "Airport greeting" })}</span>}
+            </div>
+          )}
+
+          {!isAuthenticated && (
+            <div onClick={() => setCurrentPage("connexion")} className="mt-4 rounded-xl ring-1 ring-red-500/30 bg-red-500/10 p-3 flex items-center gap-2 cursor-pointer">
+              <AlertCircle size={16} className="text-red-300 shrink-0" />
+              <p className="text-xs text-red-200">{translate({ fr: "Connectez-vous à votre espace pour confirmer votre réservation.", en: "Log in to your account to confirm your booking." })}</p>
+            </div>
+          )}
+
+          <div className="mt-6 flex flex-col sm:flex-row gap-3">
+            <button onClick={() => setShowRecap(false)} className="w-full sm:w-auto rounded-full px-6 py-4 text-sm font-semibold text-white ring-1 ring-white/20 hover:bg-white/10 transition-colors">
+              {translate({ fr: "Modifier", en: "Edit" })}
+            </button>
+            <button onClick={handleConfirmReservation} disabled={calcLoading || !canConfirm}
+              className="w-full inline-flex items-center justify-center gap-2 rounded-full px-6 py-4 text-sm font-extrabold text-[#06140D] shadow-lg transition-transform active:scale-[0.98] disabled:opacity-50"
+              style={{ background: GREEN }}>
+              {isAuthenticated ? translate({ fr: "Confirmer ma réservation", en: "Confirm my booking" }) : translate({ fr: "Se connecter pour réserver", en: "Log in to book" })}
+              <Check size={16} />
             </button>
           </div>
         </div>
@@ -446,42 +497,15 @@ export const Reservation: React.FC<ReservationProps> = ({ setCurrentPage, id }) 
             </div>
           </section>
 
-          {/* 5 · Récapitulatif & confirmation (SOMBRE) */}
-          <section id="res_recap" className="rounded-3xl p-6 sm:p-8 text-white ring-1 ring-white/10" style={{ background: INK }}>
-            <div className="flex items-center gap-3 mb-5">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold text-[#06140D]" style={{ background: GREEN }}>3</span>
-              <h2 className="text-lg font-bold">{translate({ fr: "Récapitulatif & confirmation", en: "Summary & confirmation" })}</h2>
-            </div>
-
-            <div className="rounded-2xl bg-white/[0.04] ring-1 ring-white/10 divide-y divide-white/10 text-sm">
-              <div className="flex items-center gap-3 p-4"><span className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: "rgba(0,200,83,0.15)", color: GREEN }}><MapPin size={15} /></span><div><div className="text-[11px] uppercase tracking-wider text-white/45">{translate({ fr: "Trajet", en: "Route" })}</div><div className="font-semibold">{pickup || translate({ fr: "Prise en charge à préciser", en: "Pickup to confirm" })} → {destination}</div></div></div>
-              <div className="flex items-center gap-3 p-4"><span className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: "rgba(0,200,83,0.15)", color: GREEN }}><Calendar size={15} /></span><div><div className="text-[11px] uppercase tracking-wider text-white/45">{translate({ fr: "Départ", en: "Departure" })}</div><div className="font-semibold">{departureDate} · {departureTime}</div></div></div>
-              <div className="flex items-center gap-3 p-4"><span className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: "rgba(0,200,83,0.15)", color: GREEN }}><Car size={15} /></span><div><div className="text-[11px] uppercase tracking-wider text-white/45">{translate({ fr: "Véhicule & formule", en: "Vehicle & package" })}</div><div className="font-semibold">{selectedVehicle ? (selectedVehicle === "N1" ? "Berline (N1)" : selectedVehicle === "N2" ? "SUV Exec (N2)" : "Prestige (N3)") : "—"}{selectedFormulaId ? ` · ${translate(FORMULAS.find((f) => f.id === selectedFormulaId)!.name)}` : ""}</div></div></div>
-              <div className="flex items-center justify-between p-4"><span className="text-[11px] uppercase tracking-wider text-white/45">{translate({ fr: "Total estimé", en: "Estimated total" })}</span><span className="text-xl font-extrabold">{selectedVehicle === "N3" ? translate({ fr: "Sur devis", en: "On quote" }) : priceResult?.totalPrice ? `${priceResult.totalPrice.toLocaleString()} FCFA` : "—"}</span></div>
-            </div>
-
-            {(isBilingual || isAirportGreeting) && (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {isBilingual && <span className="rounded-full bg-white/10 px-3 py-1 text-xs">{translate({ fr: "Chauffeur bilingue", en: "Bilingual chauffeur" })}</span>}
-                {isAirportGreeting && <span className="rounded-full bg-white/10 px-3 py-1 text-xs">{translate({ fr: "Accueil aéroport", en: "Airport greeting" })}</span>}
-              </div>
-            )}
-
-            {!isAuthenticated && (
-              <div onClick={() => setCurrentPage("connexion")} className="mt-4 rounded-xl ring-1 ring-red-500/30 bg-red-500/10 p-3 flex items-center gap-2 cursor-pointer">
-                <AlertCircle size={16} className="text-red-300 shrink-0" />
-                <p className="text-xs text-red-200">{translate({ fr: "Connectez-vous à votre espace pour confirmer votre réservation.", en: "Log in to your account to confirm your booking." })}</p>
-              </div>
-            )}
-
-            <button onClick={handleConfirmReservation} disabled={calcLoading || !canConfirm}
-              className="mt-5 w-full inline-flex items-center justify-center gap-2 rounded-full px-6 py-4 text-sm font-extrabold text-[#06140D] shadow-lg transition-transform active:scale-[0.98] disabled:opacity-50"
+          {/* Terminer → écran de confirmation */}
+          <div className="space-y-2">
+            <button onClick={goToRecap} disabled={!canConfirm}
+              className="w-full inline-flex items-center justify-center gap-2 rounded-full px-6 py-4 text-sm font-extrabold text-[#06140D] shadow-lg transition-transform active:scale-[0.98] disabled:opacity-50"
               style={{ background: GREEN }}>
-              {isAuthenticated ? translate({ fr: "Confirmer ma réservation", en: "Confirm my booking" }) : translate({ fr: "Se connecter pour réserver", en: "Log in to book" })}
-              <Check size={16} />
+              {translate({ fr: "Terminer", en: "Finish" })} <ArrowRight size={16} />
             </button>
-            {!canConfirm && <p className="mt-2 text-center text-xs text-white/50">{translate({ fr: "Complétez le trajet, le véhicule et la formule.", en: "Complete the ride, vehicle and package." })}</p>}
-          </section>
+            {!canConfirm && <p className="text-center text-xs text-[#5B6B62]">{translate({ fr: "Complétez le trajet, le véhicule et la formule pour continuer.", en: "Complete the ride, vehicle and package to continue." })}</p>}
+          </div>
         </div>
 
         {/* ===================== COLONNE RÉSUMÉ (collant) ===================== */}
@@ -513,8 +537,8 @@ export const Reservation: React.FC<ReservationProps> = ({ setCurrentPage, id }) 
             <div className="text-[10px] uppercase tracking-wider text-[#5B6B62]">{translate({ fr: "Total estimé", en: "Estimated total" })}</div>
             <div className="text-lg font-extrabold">{selectedVehicle === "N3" ? translate({ fr: "Sur devis", en: "On quote" }) : priceResult.totalPrice ? `${priceResult.totalPrice.toLocaleString()} FCFA` : "—"}</div>
           </div>
-          <button onClick={scrollToConfirm} className="inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-bold text-[#06140D]" style={{ background: GREEN }}>
-            {translate({ fr: "Réserver", en: "Book" })} <ArrowRight size={16} />
+          <button onClick={goToRecap} className="inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-bold text-[#06140D]" style={{ background: GREEN }}>
+            {translate({ fr: "Terminer", en: "Finish" })} <ArrowRight size={16} />
           </button>
         </div>
       )}
