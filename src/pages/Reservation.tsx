@@ -9,7 +9,7 @@ import { useLanguage } from "../context/LanguageContext";
 import { useAuth } from "../context/AuthContext";
 import {
   Calendar, Clock, MapPin, Car, ArrowRight, Check, UserCheck, Globe, Map,
-  Compass, Phone, HelpCircle, MessageCircle, AlertCircle, ShieldCheck, Zap,
+  Compass, Phone, HelpCircle, MessageCircle, AlertCircle, ChevronDown,
 } from "lucide-react";
 import { MapSelectorModal } from "../components/MapSelectorModal";
 import { MyBookingsModal } from "../components/MyBookingsModal";
@@ -379,26 +379,41 @@ export const Reservation: React.FC<ReservationProps> = ({ setCurrentPage, id }) 
               </div>
             </div>
 
-            <div className="grid sm:grid-cols-2 gap-3">
-              {FORMULAS.map((f) => {
-                const isActive = selectedFormulaId === f.id;
-                const price = selectedVehicle === "N3" ? translate({ fr: "Sur devis", en: "On quote" }) : PRICE_MAP[f.id]?.[selectedVehicle as "N1" | "N2"] || "—";
-                return (
-                  <button key={f.id} type="button"
-                    onClick={() => { setSelectedFormulaId(f.id); setFormula(f.formula); setDurationHours(f.durationHours); }}
-                    className={`text-left rounded-2xl p-4 ring-1 transition-all ${isActive ? "ring-2 bg-[#F4F8F5]" : "ring-[#E6EBE8] hover:ring-[#C9D6CE]"}`}
-                    style={isActive ? { ["--tw-ring-color" as any]: GREEN } : undefined}>
-                    <div className="flex items-center justify-between">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-white ring-1 ring-[#E6EBE8] px-2 py-0.5 text-xs font-bold"><Clock size={11} style={{ color: GREEN }} /> {f.duration}</span>
-                      {isActive && <span className="flex h-5 w-5 items-center justify-center rounded-full text-[#06140D]" style={{ background: GREEN }}><Check size={12} /></span>}
-                    </div>
-                    <h4 className="mt-3 font-bold">{translate(f.name)}</h4>
-                    <p className="mt-0.5 text-xs text-[#5B6B62] leading-relaxed">{translate(f.desc)}</p>
-                    <div className="mt-3 text-lg font-extrabold">{price}</div>
-                  </button>
-                );
-              })}
+            {/* Formule : menu déroulant */}
+            <label className="text-xs font-semibold text-[#5B6B62] uppercase tracking-wide mb-2 block">{translate({ fr: "Formule", en: "Package" })}</label>
+            <div className="relative">
+              <select
+                value={selectedFormulaId ?? ""}
+                onChange={(e) => { const f = FORMULAS.find((x) => x.id === e.target.value); if (f) { setSelectedFormulaId(f.id); setFormula(f.formula); setDurationHours(f.durationHours); } }}
+                className={`${inputCls} appearance-none pr-10 cursor-pointer`}
+              >
+                <option value="" disabled>{translate({ fr: "Choisissez une formule…", en: "Choose a package…" })}</option>
+                {FORMULAS.map((f) => {
+                  const price = selectedVehicle === "N3" ? translate({ fr: "Sur devis", en: "On quote" }) : PRICE_MAP[f.id]?.[selectedVehicle as "N1" | "N2"] || "";
+                  return <option key={f.id} value={f.id}>{f.duration} · {translate(f.name)}{price ? ` — ${price}` : ""}</option>;
+                })}
+              </select>
+              <ChevronDown size={18} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#5B6B62]" />
             </div>
+
+            {/* Détail de la formule choisie */}
+            {selectedFormulaId && (() => {
+              const f = FORMULAS.find((x) => x.id === selectedFormulaId);
+              if (!f) return null;
+              const price = selectedVehicle === "N3" ? translate({ fr: "Sur devis", en: "On quote" }) : PRICE_MAP[f.id]?.[selectedVehicle as "N1" | "N2"] || "—";
+              return (
+                <div className="mt-3 flex items-center justify-between gap-4 rounded-2xl bg-[#F4F8F5] ring-1 ring-[#E6EBE8] p-4">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-white ring-1 ring-[#E6EBE8] px-2 py-0.5 text-xs font-bold"><Clock size={11} style={{ color: GREEN }} /> {f.duration}</span>
+                      <span className="font-bold">{translate(f.name)}</span>
+                    </div>
+                    <p className="text-xs text-[#5B6B62] mt-1.5 leading-relaxed">{translate(f.desc)}</p>
+                  </div>
+                  <div className="text-lg font-extrabold shrink-0">{price}</div>
+                </div>
+              );
+            })()}
 
             {/* Options (facultatif) */}
             <div className="mt-6 pt-5 border-t border-[#EEF2EF]">
