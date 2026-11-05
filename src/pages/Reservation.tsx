@@ -339,8 +339,10 @@ export const Reservation: React.FC<ReservationProps> = ({ setCurrentPage, id }) 
   );
 
   return (
-    <div id={id} className="bg-white text-[#0B1F14] font-sans">
-      <div className="max-w-6xl mx-auto px-6 lg:px-8 pt-12 lg:pt-16 pb-28 lg:pb-16 grid lg:grid-cols-12 gap-8 items-start">
+    <div id={id} className="relative overflow-hidden bg-white text-[#0B1F14] font-sans">
+      {/* Illustration en arrière-plan sur mobile */}
+      <div aria-hidden className="lg:hidden pointer-events-none absolute inset-0 z-0 opacity-[0.12]" style={{ backgroundImage: `url(${reservationIllu})`, backgroundSize: "cover", backgroundPosition: "center top" }} />
+      <div className="relative z-10 max-w-6xl mx-auto px-6 lg:px-8 pt-12 lg:pt-16 pb-28 lg:pb-16 grid lg:grid-cols-12 gap-8 items-start">
         {/* ===================== ILLUSTRATION (gauche) ===================== */}
         <div className="hidden lg:block lg:col-span-5 lg:sticky lg:top-24">
           <div className="rounded-3xl overflow-hidden ring-1 ring-[#E6EBE8] bg-[#F4F8F5] shadow-sm">
