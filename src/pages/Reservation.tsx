@@ -352,22 +352,37 @@ export const Reservation: React.FC<ReservationProps> = ({ setCurrentPage, id }) 
           <section className={sectionCls}>
             <div className="flex items-center gap-3 mb-4">
               <span className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold text-[#06140D]" style={{ background: GREEN }}>2</span>
-              <h2 className="text-lg font-bold">{translate({ fr: "Votre formule", en: "Your package" })}</h2>
+              <h2 className="text-lg font-bold">{translate({ fr: "Véhicule & formule", en: "Vehicle & package" })}</h2>
             </div>
 
-            {/* Véhicule (unique) */}
-            <div className="mb-4 flex items-center gap-3 rounded-2xl bg-[#F4F8F5] ring-1 ring-[#E6EBE8] p-3">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl text-[#06140D]" style={{ background: GREEN }}><Car size={18} /></span>
-              <div className="text-sm">
-                <div className="font-bold">{translate({ fr: "Berline Premium — 100 % électrique", en: "Premium Sedan — 100% electric" })}</div>
-                <div className="text-xs text-[#5B6B62]">{translate({ fr: "Notre véhicule en service · jusqu'à 3 passagers", en: "Our in-service vehicle · up to 3 passengers" })}</div>
+            {/* Choix du véhicule (compact) */}
+            <div className="mb-5">
+              <label className="text-xs font-semibold text-[#5B6B62] uppercase tracking-wide mb-2 block">{translate({ fr: "Véhicule", en: "Vehicle" })}</label>
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                {([
+                  { tag: "N1", name: { fr: "Berline", en: "Sedan" }, price: "dès 10 000 FCFA" },
+                  { tag: "N2", name: { fr: "SUV Executive", en: "Executive SUV" }, price: "dès 15 000 FCFA" },
+                  { tag: "N3", name: { fr: "Prestige", en: "Prestige" }, price: translate({ fr: "Sur devis", en: "On quote" }) },
+                ] as const).map((v) => {
+                  const active = selectedVehicle === v.tag;
+                  return (
+                    <button key={v.tag} type="button" onClick={() => setSelectedVehicle(v.tag)}
+                      className={`rounded-2xl p-3 text-center ring-1 transition-all ${active ? "ring-2 bg-[#F4F8F5]" : "ring-[#E6EBE8] hover:ring-[#C9D6CE]"}`}
+                      style={active ? { ["--tw-ring-color" as any]: GREEN } : undefined}>
+                      <Car size={20} className="mx-auto" style={{ color: active ? GREEN : "#9BA8A0" }} />
+                      <div className="mt-1.5 text-sm font-bold leading-tight">{translate(v.name)}</div>
+                      <div className="text-[11px] text-[#5B6B62]">{v.tag}</div>
+                      <div className="mt-1 text-xs font-semibold" style={{ color: active ? "#0B1F14" : "#5B6B62" }}>{v.price}</div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
             <div className="grid sm:grid-cols-2 gap-3">
               {FORMULAS.map((f) => {
                 const isActive = selectedFormulaId === f.id;
-                const price = PRICE_MAP[f.id]?.N1 || "—";
+                const price = selectedVehicle === "N3" ? translate({ fr: "Sur devis", en: "On quote" }) : PRICE_MAP[f.id]?.[selectedVehicle as "N1" | "N2"] || "—";
                 return (
                   <button key={f.id} type="button"
                     onClick={() => { setSelectedFormulaId(f.id); setFormula(f.formula); setDurationHours(f.durationHours); }}
