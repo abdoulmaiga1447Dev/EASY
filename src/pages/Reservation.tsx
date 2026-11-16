@@ -14,7 +14,7 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { MapSelectorModal } from "../components/MapSelectorModal";
 import { MyBookingsModal } from "../components/MyBookingsModal";
-import reservationIllu from "../assets/saver/reservation-illustration.jpg";
+import reservationIllu from "../assets/saver/reservation-illustration.webp";
 
 const GREEN = "#00C853";
 const INK = "#0B1F14";
@@ -271,7 +271,7 @@ export const Reservation: React.FC<ReservationProps> = ({ setCurrentPage, id }) 
         {/* ===================== ILLUSTRATION (gauche) ===================== */}
         <div className="hidden lg:block lg:col-span-5 lg:sticky lg:top-24">
           <div className="rounded-3xl overflow-hidden ring-1 ring-[#E6EBE8] bg-[#F4F8F5] shadow-sm">
-            <img src={reservationIllu} alt="Réservez votre course EASY" className="w-full h-auto object-cover" />
+            <img fetchPriority="high" src={reservationIllu} alt="Réservez votre course EASY" className="w-full h-auto object-cover" />
           </div>
           <div className="mt-4 rounded-2xl bg-[#F4F8F5] ring-1 ring-[#E6EBE8] p-4 text-xs text-[#5B6B62] space-y-1.5">
             <span className="text-[10px] font-bold uppercase block" style={{ color: GREEN }}>{translate({ fr: "Garanties EASY", en: "EASY guarantees" })}</span>

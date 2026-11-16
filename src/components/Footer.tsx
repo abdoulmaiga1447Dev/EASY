@@ -30,7 +30,7 @@ export const Footer: React.FC<FooterProps> = ({
         {/* Branding Column */}
         <div className="flex flex-col gap-4">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleNavigate("home")}>
-            <img
+            <img loading="lazy" decoding="async"
               src={segment === "public" ? logoGreen : logoGold}
               alt="EASY Logo"
               className="h-10 w-auto object-contain"

@@ -41,7 +41,7 @@ const AnimatedPrice: React.FC<{ value: string }> = ({ value }) => {
   );
 };
 import { motion } from "motion/react";
-import heroImg from "../assets/saver/tarifs-hero.jpg";
+import heroImg from "../assets/saver/tarifs-hero.webp";
 
 const GREEN = "#00C853";
 const INK = "#0B1F14";
@@ -172,7 +172,7 @@ export const Tarifs: React.FC<RatesProps> = ({ id, setCurrentPage }) => {
     <div id={id} className="bg-white text-[#0B1F14] font-sans -mt-[69px] lg:-mt-[81px]">
       {/* ====================== BANDEAU ====================== */}
       <section className="relative overflow-hidden min-h-[46vh] flex items-center">
-        <img src={heroImg} alt="" className="absolute inset-0 w-full h-full object-cover" />
+        <img fetchPriority="high" src={heroImg} alt="" className="absolute inset-0 w-full h-full object-cover" />
         <div className="absolute inset-0" style={{ background: "linear-gradient(to right, rgba(5,20,12,0.9) 0%, rgba(5,20,12,0.6) 55%, rgba(5,20,12,0.35) 100%)" }} />
         <div className="relative z-10 max-w-6xl mx-auto w-full px-6 lg:px-8 pt-32 lg:pt-40 pb-14 text-center">
           <motion.span

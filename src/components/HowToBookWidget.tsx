@@ -5,7 +5,7 @@
  * fixe de 720×720 px mis à l'échelle ; chaque scène est calculée à partir du temps
  * courant (rejouable, déplaçable sur la barre de progression).
  *
- * Son : bruitages + nappe musicale générés en direct (Web Audio), sans fichier.
+ * Son : petits bruitages générés en direct (Web Audio), sans fichier ni musique de fond.
  * Voix off : placer un mp3 (ex. ElevenLabs, voix féminine FR) dans public/audio/
  * et renseigner VOICE_SRC — il sera synchronisé automatiquement avec l'animation.
  * Le texte à faire lire est dans SUBTITLES (il sert aussi de sous-titres).
@@ -21,7 +21,7 @@ import {
   Globe, UserCheck, MessageCircle, PhoneCall, ArrowRight,
 } from "lucide-react";
 import { useLanguage } from "../context/LanguageContext";
-import hero from "../assets/saver/hero.png";
+import hero from "../assets/saver/hero.webp";
 
 /* ------------------------------------------------------------------ */
 /*  Réglages                                                            */
@@ -100,25 +100,14 @@ function cursorPos(kf: KF[], t: number) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Son : bruitages + nappe musicale (Web Audio, aucun fichier)         */
+/*  Son : bruitages discrets (Web Audio, aucun fichier)                 */
 /* ------------------------------------------------------------------ */
-
-const CHORDS = [
-  [130.81, 164.81, 196.0, 246.94], // Cmaj7
-  [110.0, 130.81, 164.81, 196.0], // Am7
-  [87.31, 130.81, 174.61, 220.0], // Fmaj7
-  [98.0, 146.83, 196.0, 246.94], // G
-];
 
 class SoundKit {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
   private fx: GainNode | null = null;
-  private music: GainNode | null = null;
   private noise: AudioBuffer | null = null;
-  private nextChord = 0;
-  private chordIdx = 0;
-  private musicOn = false;
   private muted = false;
 
   init() {
@@ -134,13 +123,6 @@ class SoundKit {
       this.fx = ctx.createGain();
       this.fx.gain.value = 0.55;
       this.fx.connect(this.master);
-      const lp = ctx.createBiquadFilter();
-      lp.type = "lowpass";
-      lp.frequency.value = 1500;
-      this.music = ctx.createGain();
-      this.music.gain.value = 0.05;
-      this.music.connect(lp);
-      lp.connect(this.master);
       const len = ctx.sampleRate;
       const buf = ctx.createBuffer(1, len, ctx.sampleRate);
       const d = buf.getChannelData(0);
@@ -154,10 +136,6 @@ class SoundKit {
   setMuted(m: boolean) {
     this.muted = m;
     if (this.ctx && this.master) this.master.gain.setTargetAtTime(m ? 0 : 0.9, this.ctx.currentTime, 0.04);
-  }
-  /** Baisse la musique quand une voix off est présente. */
-  setMusicLevel(v: number) {
-    if (this.ctx && this.music) this.music.gain.setTargetAtTime(v, this.ctx.currentTime, 0.2);
   }
 
   private tone(freq: number, dur: number, type: OscillatorType, vol: number, delay = 0, glideTo?: number) {
@@ -219,48 +197,6 @@ class SoundKit {
     }
   }
 
-  startMusic() {
-    if (!this.ctx) return;
-    this.musicOn = true;
-    if (this.nextChord < this.ctx.currentTime) this.nextChord = this.ctx.currentTime + 0.05;
-  }
-  stopMusic() { this.musicOn = false; }
-
-  /** À appeler à chaque image : programme les accords à venir. */
-  pump() {
-    const ctx = this.ctx;
-    if (!ctx || !this.music || !this.musicOn || ctx.state !== "running") return;
-    while (this.nextChord < ctx.currentTime + 0.4) {
-      this.chord(this.nextChord, CHORDS[this.chordIdx]);
-      this.nextChord += 4;
-      this.chordIdx = (this.chordIdx + 1) % CHORDS.length;
-    }
-  }
-
-  private chord(at: number, notes: number[]) {
-    const ctx = this.ctx;
-    if (!ctx || !this.music) return;
-    notes.forEach((f) => {
-      [0, -7].forEach((det) => {
-        const o = ctx.createOscillator();
-        o.type = "triangle";
-        o.frequency.value = f;
-        o.detune.value = det;
-        const g = ctx.createGain();
-        g.gain.setValueAtTime(0.0001, at);
-        g.gain.linearRampToValueAtTime(0.22, at + 1.2);
-        g.gain.setValueAtTime(0.22, at + 3.2);
-        g.gain.linearRampToValueAtTime(0.0001, at + 4.5);
-        o.connect(g);
-        g.connect(this.music!);
-        o.start(at);
-        o.stop(at + 4.6);
-      });
-    });
-    // petite note cristalline en début d'accord
-    const delay = Math.max(0, at - ctx.currentTime);
-    this.tone(notes[3] * 4, 0.9, "sine", 0.025, delay);
-  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -1022,7 +958,6 @@ export const HowToBookWidget: React.FC<Props> = ({ currentPage, onNavigate }) =>
         lastTick.current = next;
         sound.play("tick");
       }
-      sound.pump();
       const v = voiceRef.current;
       if (v && Math.abs(v.currentTime - next) > 0.35) v.currentTime = next;
       tRef.current = next;
@@ -1043,8 +978,6 @@ export const HowToBookWidget: React.FC<Props> = ({ currentPage, onNavigate }) =>
     const v = voiceRef.current;
     if (playing) {
       sound.resume();
-      sound.startMusic();
-      sound.setMusicLevel(v ? 0.025 : 0.05);
       if (v) { v.currentTime = tRef.current; void v.play().catch(() => undefined); }
     } else {
       sound.suspend();
@@ -1074,7 +1007,6 @@ export const HowToBookWidget: React.FC<Props> = ({ currentPage, onNavigate }) =>
   };
   const closePlayer = useCallback(() => {
     setPlaying(false);
-    sound.stopMusic();
     sound.suspend();
     setOpen(false);
   }, [sound]);
@@ -1150,7 +1082,7 @@ export const HowToBookWidget: React.FC<Props> = ({ currentPage, onNavigate }) =>
         )}
       </AnimatePresence>
 
-      {/* Lecteur */}
+      {/* Lecteur — cadre sobre, façon lecteur vidéo */}
       <AnimatePresence>
         {open && (
           <motion.div
@@ -1158,158 +1090,153 @@ export const HowToBookWidget: React.FC<Props> = ({ currentPage, onNavigate }) =>
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.25 }}
+            transition={{ duration: 0.2 }}
           >
-            <div className="absolute inset-0 backdrop-blur-sm" style={{ background: "rgba(11,31,20,.72)" }} onClick={closePlayer} />
+            <div className="absolute inset-0" style={{ background: "rgba(6,9,7,.84)" }} onClick={closePlayer} />
             <motion.div
               role="dialog"
               aria-modal="true"
               aria-label={tr({ fr: "Tutoriel : comment réserver", en: "Tutorial: how to book" })}
-              className="relative rounded-3xl bg-white overflow-hidden shadow-2xl"
-              style={{ width: "min(560px, calc(100vw - 32px), calc(100vh - 170px))" }}
-              initial={{ opacity: 0, y: 40, scale: 0.94 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 30, scale: 0.96 }}
-              transition={{ type: "spring", stiffness: 240, damping: 24 }}
+              className="relative"
+              style={{ width: "min(640px, calc(100vw - 32px), calc(100vh - 140px))" }}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 8 }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
             >
-              {/* En-tête */}
-              <div className="flex items-center gap-3 px-4 py-3 border-b" style={{ borderColor: "#E6EBE8" }}>
-                <div className="min-w-0 flex-1">
-                  <div className="font-display text-[15px] leading-tight" style={{ color: INK }}>{tr({ fr: "Comment réserver sur EASY", en: "How to book with EASY" })}</div>
-                  <div className="text-[12px] truncate" style={{ color: MUTED }}>
-                    {tr({ fr: "Étape", en: "Step" })} {idx + 1}/{SCENES.length} · {tr(scene.chapter)}
-                  </div>
+              {/* Titre discret au-dessus du cadre */}
+              <div className="mb-2 flex items-center gap-3">
+                <div className="min-w-0 flex-1 truncate text-[13px] text-white/60">
+                  <span className="font-medium text-white">{tr({ fr: "Comment réserver", en: "How to book" })}</span>
+                  <span className="mx-1.5">·</span>
+                  {idx + 1}/{SCENES.length} — {tr(scene.chapter)}
                 </div>
                 <button
                   type="button"
                   onClick={closePlayer}
-                  className="h-9 w-9 shrink-0 rounded-full flex items-center justify-center hover:bg-[#F1F5F2] transition-colors"
+                  className="h-8 w-8 shrink-0 rounded-full flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-colors"
                   aria-label={tr({ fr: "Fermer", en: "Close" })}
                 >
-                  <X size={18} color={INK} />
+                  <X size={18} />
                 </button>
               </div>
 
-              {/* Scène */}
-              <div ref={stageRef} className="relative w-full aspect-square overflow-hidden select-none" style={{ background: LIGHT }} onClick={togglePlay}>
-                <div className="absolute left-0 top-0 origin-top-left" style={{ width: STAGE, height: STAGE, transform: `scale(${stageW / STAGE})` }}>
-                  <AnimatePresence initial={false}>
-                    <motion.div
-                      key={scene.id}
-                      className="absolute inset-0"
-                      initial={{ opacity: 0, scale: 1.02 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.98 }}
-                      transition={{ duration: 0.4, ease: "easeOut" }}
-                    >
-                      <Comp t={local} tr={tr} />
-                    </motion.div>
-                  </AnimatePresence>
-                </div>
-
-                {/* Sous-titres (hors échelle pour rester lisibles) */}
-                <div className="pointer-events-none absolute inset-x-3 bottom-3 flex justify-center">
-                  <AnimatePresence mode="wait">
-                    {sub && !ended && (
-                      <motion.span
-                        key={sub.a}
-                        initial={{ opacity: 0, y: 6 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -4 }}
-                        transition={{ duration: 0.25 }}
-                        className="max-w-[92%] rounded-xl px-3.5 py-2 text-center text-[13px] sm:text-[15px] leading-snug text-white"
-                        style={{ background: "rgba(11,31,20,.88)" }}
+              <div className="overflow-hidden rounded-xl ring-1 ring-white/10 shadow-[0_30px_80px_-20px_rgba(0,0,0,.7)]" style={{ background: "#111614" }}>
+                {/* Scène */}
+                <div ref={stageRef} className="relative w-full aspect-square overflow-hidden select-none cursor-pointer" style={{ background: LIGHT }} onClick={togglePlay}>
+                  <div className="absolute left-0 top-0 origin-top-left" style={{ width: STAGE, height: STAGE, transform: `scale(${stageW / STAGE})` }}>
+                    <AnimatePresence initial={false}>
+                      <motion.div
+                        key={scene.id}
+                        className="absolute inset-0"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.4, ease: "easeOut" }}
                       >
-                        {tr(sub)}
-                      </motion.span>
+                        <Comp t={local} tr={tr} />
+                      </motion.div>
+                    </AnimatePresence>
+                  </div>
+
+                  {/* Sous-titres (hors échelle pour rester lisibles) */}
+                  <div className="pointer-events-none absolute inset-x-3 bottom-3 flex justify-center">
+                    <AnimatePresence mode="wait">
+                      {sub && !ended && (
+                        <motion.span
+                          key={sub.a}
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="max-w-[92%] rounded-md px-3 py-1.5 text-center text-[13px] sm:text-[14px] leading-snug text-white"
+                          style={{ background: "rgba(0,0,0,.78)" }}
+                        >
+                          {tr(sub)}
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  {/* Écran de fin */}
+                  <AnimatePresence>
+                    {ended && (
+                      <motion.div
+                        className="absolute inset-0 flex flex-col items-center justify-center gap-5 px-6 text-center cursor-default"
+                        style={{ background: "#111614" }}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="text-white text-lg sm:text-xl font-semibold">{tr({ fr: "Prêt à réserver ?", en: "Ready to book?" })}</div>
+                        <div className="flex flex-wrap justify-center gap-2.5">
+                          <button
+                            type="button"
+                            onClick={() => { closePlayer(); onNavigate("reservation"); }}
+                            className="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold"
+                            style={{ background: GREEN, color: "#06140D" }}
+                          >
+                            {tr({ fr: "Réserver maintenant", en: "Book now" })} <ArrowRight size={15} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={restart}
+                            className="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white hover:bg-white/10 transition-colors"
+                          >
+                            <RotateCcw size={15} /> {tr({ fr: "Revoir", en: "Replay" })}
+                          </button>
+                        </div>
+                      </motion.div>
                     )}
                   </AnimatePresence>
                 </div>
 
-                {/* Écran de fin */}
-                <AnimatePresence>
-                  {ended && (
-                    <motion.div
-                      className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-6 text-center"
-                      style={{ background: "rgba(11,31,20,.86)" }}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <div className="font-display text-white text-[22px] sm:text-[28px]">{tr({ fr: "À vous de jouer !", en: "Your turn!" })}</div>
-                      <div className="flex flex-wrap justify-center gap-3">
-                        <button
-                          type="button"
-                          onClick={() => { closePlayer(); onNavigate("reservation"); }}
-                          className="inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold"
-                          style={{ background: GREEN, color: "#06140D" }}
-                        >
-                          {tr({ fr: "Réserver maintenant", en: "Book now" })} <ArrowRight size={16} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={restart}
-                          className="inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white ring-1 ring-white/30 hover:bg-white/10"
-                        >
-                          <RotateCcw size={16} /> {tr({ fr: "Revoir", en: "Replay" })}
-                        </button>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-
-              {/* Contrôles */}
-              <div className="px-4 pt-3 pb-4">
-                <div
-                  ref={barRef}
-                  className="relative h-5 cursor-pointer touch-none"
-                  onPointerDown={(e) => { dragging.current = true; e.currentTarget.setPointerCapture(e.pointerId); seekFromPointer(e.clientX); }}
-                  onPointerMove={(e) => { if (dragging.current) seekFromPointer(e.clientX); }}
-                  onPointerUp={() => { dragging.current = false; }}
-                  role="slider"
-                  aria-label={tr({ fr: "Progression", en: "Progress" })}
-                  aria-valuemin={0}
-                  aria-valuemax={Math.round(TOTAL)}
-                  aria-valuenow={Math.round(t)}
-                >
-                  <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-1.5 rounded-full" style={{ background: "#E6EBE8" }} />
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 h-1.5 rounded-full" style={{ width: `${(t / TOTAL) * 100}%`, background: GREEN }} />
-                  {STARTS.slice(1).map((s) => (
-                    <span key={s} className="absolute top-1/2 -translate-y-1/2 h-1.5 w-[2px] bg-white" style={{ left: `${(s / TOTAL) * 100}%` }} />
-                  ))}
-                  <span
-                    className="absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow"
-                    style={{ left: `${(t / TOTAL) * 100}%`, border: `2px solid ${GREEN}` }}
-                  />
-                </div>
-                <div className="mt-2 flex items-center gap-2">
+                {/* Contrôles */}
+                <div className="flex h-12 items-center gap-1 px-2 text-white">
                   <button
                     type="button"
                     onClick={togglePlay}
-                    className="h-10 w-10 rounded-full flex items-center justify-center"
-                    style={{ background: INK }}
+                    className="h-9 w-9 shrink-0 rounded-md flex items-center justify-center hover:bg-white/10 transition-colors"
                     aria-label={playing ? tr({ fr: "Pause", en: "Pause" }) : tr({ fr: "Lecture", en: "Play" })}
                   >
-                    {playing ? <Pause size={17} color="#fff" fill="#fff" /> : <Play size={17} color="#fff" fill="#fff" className="ml-0.5" />}
+                    {playing ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" className="ml-0.5" />}
                   </button>
+                  <span className="shrink-0 px-1.5 text-[12px] tabular-nums text-white/65">{mmss(t)} / {mmss(TOTAL)}</span>
+                  <div
+                    ref={barRef}
+                    className="group relative mx-2 h-8 flex-1 cursor-pointer touch-none"
+                    onPointerDown={(e) => { dragging.current = true; e.currentTarget.setPointerCapture(e.pointerId); seekFromPointer(e.clientX); }}
+                    onPointerMove={(e) => { if (dragging.current) seekFromPointer(e.clientX); }}
+                    onPointerUp={() => { dragging.current = false; }}
+                    role="slider"
+                    aria-label={tr({ fr: "Progression", en: "Progress" })}
+                    aria-valuemin={0}
+                    aria-valuemax={Math.round(TOTAL)}
+                    aria-valuenow={Math.round(t)}
+                  >
+                    <div className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 rounded-full bg-white/15" />
+                    <div className="absolute left-0 top-1/2 h-1 -translate-y-1/2 rounded-full" style={{ width: `${(t / TOTAL) * 100}%`, background: GREEN }} />
+                    <span
+                      className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white opacity-0 group-hover:opacity-100 transition-opacity"
+                      style={{ left: `${(t / TOTAL) * 100}%` }}
+                    />
+                  </div>
                   <button
                     type="button"
                     onClick={restart}
-                    className="h-10 w-10 rounded-full flex items-center justify-center hover:bg-[#F1F5F2]"
+                    className="h-9 w-9 shrink-0 rounded-md flex items-center justify-center text-white/80 hover:text-white hover:bg-white/10 transition-colors"
                     aria-label={tr({ fr: "Recommencer", en: "Restart" })}
                   >
-                    <RotateCcw size={17} color={INK} />
+                    <RotateCcw size={16} />
                   </button>
-                  <span className="text-[12px] tabular-nums" style={{ color: MUTED }}>{mmss(t)} / {mmss(TOTAL)}</span>
                   <button
                     type="button"
                     onClick={() => setMuted((m) => !m)}
-                    className="ml-auto h-10 w-10 rounded-full flex items-center justify-center hover:bg-[#F1F5F2]"
+                    className="h-9 w-9 shrink-0 rounded-md flex items-center justify-center text-white/80 hover:text-white hover:bg-white/10 transition-colors"
                     aria-label={muted ? tr({ fr: "Activer le son", en: "Unmute" }) : tr({ fr: "Couper le son", en: "Mute" })}
                   >
-                    {muted ? <VolumeX size={18} color={INK} /> : <Volume2 size={18} color={INK} />}
+                    {muted ? <VolumeX size={17} /> : <Volume2 size={17} />}
                   </button>
                 </div>
               </div>

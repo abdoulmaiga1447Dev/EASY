@@ -23,40 +23,40 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 
 // @ts-ignore
-import vehicle1_all from "../assets/images/all/pexels-cruz-in-portugal-36855175.jpg";
+import vehicle1_all from "../assets/images/all/pexels-cruz-in-portugal-36855175.webp";
 // @ts-ignore
-import vehicle2_all from "../assets/images/all/pexels-eddievaldes155-16288341.jpg";
+import vehicle2_all from "../assets/images/all/pexels-eddievaldes155-16288341.webp";
 // @ts-ignore
-import vehicle3_all from "../assets/images/all/pexels-giantasparagus-37576187.jpg";
+import vehicle3_all from "../assets/images/all/pexels-giantasparagus-37576187.webp";
 // @ts-ignore
-import vehicle4_all from "../assets/images/all/pexels-holyson-h-2154634702-35336611.jpg";
+import vehicle4_all from "../assets/images/all/pexels-holyson-h-2154634702-35336611.webp";
 
 // @ts-ignore
-import sedan1 from "../assets/images/berline-premium/WhatsApp_Image_2026-06-20_at_15.41.22.jpeg_202606241515.jpeg";
+import sedan1 from "../assets/images/berline-premium/WhatsApp_Image_2026-06-20_at_15.41.22.jpeg_202606241515.webp";
 // @ts-ignore
-import sedan2 from "../assets/images/berline-premium/Gemini_Generated_Image_t3ajr4t3ajr4t3aj.png";
+import sedan2 from "../assets/images/berline-premium/Gemini_Generated_Image_t3ajr4t3ajr4t3aj.webp";
 // @ts-ignore
-import sedan3 from "../assets/images/berline-premium/Gemini_Generated_Image_tqkztxtqkztxtqkz.png";
+import sedan3 from "../assets/images/berline-premium/Gemini_Generated_Image_tqkztxtqkztxtqkz.webp";
 // @ts-ignore
-import sedan_extra1 from "../assets/images/berline-premium/Gemini_Generated_Image_1zsh7n1zsh7n1zsh.png";
+import sedan_extra1 from "../assets/images/berline-premium/Gemini_Generated_Image_1zsh7n1zsh7n1zsh.webp";
 // @ts-ignore
-import sedan_extra2 from "../assets/images/berline-premium/Gemini_Generated_Image_v70l4sv70l4sv70l.png";
+import sedan_extra2 from "../assets/images/berline-premium/Gemini_Generated_Image_v70l4sv70l4sv70l.webp";
 // @ts-ignore
-import sedan_extra3 from "../assets/images/berline-premium/Gemini_Generated_Image_wuffsawuffsawuff.png";
+import sedan_extra3 from "../assets/images/berline-premium/Gemini_Generated_Image_wuffsawuffsawuff.webp";
 
 // @ts-ignore
-import suv_exec1 from "../assets/images/suv-executive/pexels-vadutskevich-17000848.jpg";
+import suv_exec1 from "../assets/images/suv-executive/pexels-vadutskevich-17000848.webp";
 // @ts-ignore
-import suv_exec2 from "../assets/images/suv-executive/pexels-zion-10029774.jpg";
+import suv_exec2 from "../assets/images/suv-executive/pexels-zion-10029774.webp";
 // @ts-ignore
-import suv_exec3 from "../assets/images/suv-executive/pexels-cruz-in-portugal-36855175.jpg";
+import suv_exec3 from "../assets/images/suv-executive/pexels-cruz-in-portugal-36855175.webp";
 
 // @ts-ignore
-import suv_pres1 from "../assets/images/suv-prestige/pexels-eddievaldes155-16288341.jpg";
+import suv_pres1 from "../assets/images/suv-prestige/pexels-eddievaldes155-16288341.webp";
 // @ts-ignore
-import suv_pres2 from "../assets/images/suv-prestige/pexels-giantasparagus-37576187.jpg";
+import suv_pres2 from "../assets/images/suv-prestige/pexels-giantasparagus-37576187.webp";
 // @ts-ignore
-import suv_pres3 from "../assets/images/suv-prestige/pexels-holyson-h-2154634702-35336611.jpg";
+import suv_pres3 from "../assets/images/suv-prestige/pexels-holyson-h-2154634702-35336611.webp";
 
 const categoryMetadata: Record<string, { frTitle: string, enTitle: string, frSub: string, enSub: string, representativeId: string, priceFr: string, priceEn: string }> = {
   "berline-premium": {

@@ -7,7 +7,7 @@ import React, { useState } from "react";
 import { useLanguage } from "../context/LanguageContext";
 import { Mail, Phone, MapPin, Send, MessageCircle, Clock, CheckCircle, PhoneCall } from "lucide-react";
 import { motion } from "motion/react";
-import illu from "../assets/saver/contact-illustration.jpg";
+import illu from "../assets/saver/contact-illustration.webp";
 
 const GREEN = "#00C853";
 
@@ -170,7 +170,7 @@ export const Contact: React.FC<ContactProps> = ({ id }) => {
         {/* ====== COLONNE DROITE (illustration) ====== */}
         <motion.div {...fade} className="hidden lg:block lg:sticky lg:top-28">
           <div className="relative rounded-3xl overflow-hidden ring-1 ring-white/10 shadow-2xl">
-            <img src={illu} alt="Contactez l'équipe EASY" className="w-full h-auto object-cover" />
+            <img fetchPriority="high" src={illu} alt="Contactez l'équipe EASY" className="w-full h-auto object-cover" />
           </div>
           <div className="mt-4 flex items-center justify-center">
             <span className="inline-flex items-center gap-2 rounded-full bg-white/[0.06] px-3 py-1.5 ring-1 ring-white/15 text-sm font-semibold text-white">

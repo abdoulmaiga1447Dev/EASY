@@ -9,16 +9,16 @@ import { useLanguage } from "../context/LanguageContext";
 import { ShieldCheck, Gauge, UserCheck, BadgeCheck, MapPin, ArrowRight, PhoneCall, Leaf, GraduationCap, Cpu, BookOpen, BatteryCharging } from "lucide-react";
 import { motion } from "motion/react";
 
-import showcaseImg from "../assets/saver/showcase-illustration.jpg";
-import jacquesImg from "../assets/saver/chauffeur-jacques.jpg";
-import yeoImg from "../assets/saver/chauffeur-yeo.jpg";
-import traoreImg from "../assets/saver/chauffeur-traore.jpg";
-import femmeImg from "../assets/saver/chauffeur-femme.jpg";
-import heroIllu from "../assets/saver/chauffeur-illustration.png";
-import fComposants from "../assets/saver/formation-composants.jpg";
-import fHistoire from "../assets/saver/formation-histoire.jpg";
-import fMoteur from "../assets/saver/formation-moteur.jpg";
-import fConduite from "../assets/saver/formation-conduite.jpg";
+import showcaseImg from "../assets/saver/showcase-illustration.webp";
+import jacquesImg from "../assets/saver/chauffeur-jacques.webp";
+import yeoImg from "../assets/saver/chauffeur-yeo.webp";
+import traoreImg from "../assets/saver/chauffeur-traore.webp";
+import femmeImg from "../assets/saver/chauffeur-femme.webp";
+import heroIllu from "../assets/saver/chauffeur-illustration.webp";
+import fComposants from "../assets/saver/formation-composants.webp";
+import fHistoire from "../assets/saver/formation-histoire.webp";
+import fMoteur from "../assets/saver/formation-moteur.webp";
+import fConduite from "../assets/saver/formation-conduite.webp";
 
 const GREEN = "#00C853";
 const INK = "#0B1F14";
@@ -390,7 +390,7 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
             transition={{ duration: 0.7, delay: 0.15 }}
             className="relative mx-auto w-full max-w-md"
           >
-            <img src={heroIllu} alt="Chauffeur EASY et passagère dans un véhicule électrique" className="w-full h-auto drop-shadow-[0_18px_40px_rgba(0,0,0,0.12)]" />
+            <img fetchPriority="high" src={heroIllu} alt="Chauffeur EASY et passagère dans un véhicule électrique" className="w-full h-auto drop-shadow-[0_18px_40px_rgba(0,0,0,0.12)]" />
           </motion.div>
         </div>
       </section>
@@ -452,7 +452,7 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
                 transition={{ ...fade.transition, delay: i * 0.08 }}
                 className="group relative aspect-[4/5] rounded-3xl overflow-hidden ring-1 ring-black/5 shadow-md hover:shadow-2xl transition-all duration-300"
               >
-                <img
+                <img loading="lazy" decoding="async"
                   src={d.photo}
                   alt={d.name}
                   className="absolute inset-0 w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-[1.06]"
@@ -525,7 +525,7 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
                 transition={{ ...fade.transition, delay: i * 0.08 }}
                 className="group rounded-2xl bg-white ring-1 ring-[#E6EBE8] overflow-hidden hover:-translate-y-1 hover:shadow-lg transition-all duration-300"
               >
-                <img src={f.img} alt={f.t} className="w-full aspect-[4/3] object-cover transition-transform duration-500 group-hover:scale-[1.04]" />
+                <img loading="lazy" decoding="async" src={f.img} alt={f.t} className="w-full aspect-[4/3] object-cover transition-transform duration-500 group-hover:scale-[1.04]" />
                 <div className="p-5">
                   <h3 className="text-base font-bold">{f.t}</h3>
                   <p className="mt-2 text-sm text-[#5B6B62] leading-relaxed">{f.d}</p>
@@ -541,7 +541,7 @@ export const NosChauffeurs: React.FC<{ id: string }> = ({ id }) => {
         <SectionDecor id="dec-showcase" />
         <div className="relative z-10 max-w-6xl mx-auto px-6 lg:px-8 py-20 grid lg:grid-cols-2 gap-10 items-center">
           <motion.div {...fade} className="relative order-2 lg:order-1">
-            <img src={showcaseImg} alt="Passager serein conduit par un chauffeur EASY dans Abidjan" className="rounded-3xl w-full h-auto shadow-xl ring-1 ring-black/5" />
+            <img loading="lazy" decoding="async" src={showcaseImg} alt="Passager serein conduit par un chauffeur EASY dans Abidjan" className="rounded-3xl w-full h-auto shadow-xl ring-1 ring-black/5" />
           </motion.div>
           <motion.div {...fade} className="order-1 lg:order-2">
             <span className="inline-flex items-center gap-2 text-xs font-semibold tracking-wide" style={{ color: GREEN }}>

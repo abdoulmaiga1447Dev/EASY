@@ -6,18 +6,18 @@
 import React from "react";
 import { motion } from "motion/react";
 import { Zap, BatteryCharging, MapPin, Leaf, ArrowRight, ShieldCheck, Gauge, PhoneCall } from "lucide-react";
-import heroImg from "../assets/saver/hero.png";
-import hubImg from "../assets/saver/fleet-09.jpg";
-import closeupImg from "../assets/saver/fleet-12.jpg";
-import rideImg from "../assets/saver/fleet-13.jpg";
-import rentImg from "../assets/saver/fleet-11.jpg";
-import entreprisesImg from "../assets/saver/bento-entreprises.png";
-import hotelsImg from "../assets/saver/bento-hotels.png";
-import flotteImg from "../assets/saver/bento-flotte.png";
-import rechargeImg from "../assets/saver/bento-recharge.png";
-import mascotImg from "../assets/saver/impact-mascot.png";
-import evenementsImg from "../assets/saver/bento-evenements.jpg";
-import suiviImg from "../assets/saver/bento-suivi.jpg";
+import heroImg from "../assets/saver/hero.webp";
+import hubImg from "../assets/saver/fleet-09.webp";
+import closeupImg from "../assets/saver/fleet-12.webp";
+import rideImg from "../assets/saver/fleet-13.webp";
+import rentImg from "../assets/saver/fleet-11.webp";
+import entreprisesImg from "../assets/saver/bento-entreprises.webp";
+import hotelsImg from "../assets/saver/bento-hotels.webp";
+import flotteImg from "../assets/saver/bento-flotte.webp";
+import rechargeImg from "../assets/saver/bento-recharge.webp";
+import mascotImg from "../assets/saver/impact-mascot.webp";
+import evenementsImg from "../assets/saver/bento-evenements.webp";
+import suiviImg from "../assets/saver/bento-suivi.webp";
 
 // Charte
 const GREEN = "#00C853";
@@ -40,7 +40,7 @@ const BentoImageTile: React.FC<{ label: string; desc?: string; img: string; colo
   <button onClick={onClick} className="relative text-left group">
     <div className="absolute top-3 left-3 right-0 bottom-0 rounded-3xl" style={{ backgroundColor: color }} />
     <div className="absolute top-0 left-0 right-3 bottom-3 rounded-3xl overflow-hidden shadow-[0_12px_26px_rgba(0,0,0,0.45)] ring-1 ring-black/10">
-      <img src={img} alt={label} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+      <img loading="lazy" decoding="async" src={img} alt={label} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
       <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(6,20,13,0.85), transparent 60%)" }} />
       <div className="absolute left-3 bottom-3">
         <div className="text-sm font-bold text-white">{label}</div>
@@ -273,7 +273,7 @@ export const Home: React.FC<HomeProps> = ({ setCurrentPage, id }) => {
             <button onClick={() => go("vehicules")} className="relative col-span-2 row-span-2 text-left group">
               <div className="absolute top-4 left-4 right-0 bottom-0 rounded-3xl" style={{ backgroundColor: "#00C853" }} />
               <div className="absolute top-0 left-0 right-4 bottom-4 rounded-3xl overflow-hidden shadow-[0_18px_40px_rgba(0,0,0,0.45)] ring-1 ring-black/10">
-                <img src={rideImg} alt="Courses VTC" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                <img loading="lazy" decoding="async" src={rideImg} alt="Courses VTC" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                 <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(6,20,13,0.9) 0%, transparent 60%)" }} />
                 <span className="absolute top-4 right-4 rounded-lg bg-black/25 backdrop-blur px-2.5 py-1 text-[11px] font-bold tracking-wide text-white">EASY</span>
                 <div className="absolute left-5 bottom-5">
@@ -292,7 +292,7 @@ export const Home: React.FC<HomeProps> = ({ setCurrentPage, id }) => {
             <button onClick={() => go("vehicules")} className="relative col-span-2 text-left group">
               <div className="absolute top-3 left-3 right-0 bottom-0 rounded-3xl" style={{ backgroundColor: "#047857" }} />
               <div className="absolute top-0 left-0 right-3 bottom-3 rounded-3xl overflow-hidden shadow-[0_12px_26px_rgba(0,0,0,0.45)] ring-1 ring-black/10">
-                <img src={rechargeImg} alt="Recharge & énergie" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                <img loading="lazy" decoding="async" src={rechargeImg} alt="Recharge & énergie" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                 <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(6,20,13,0.9), transparent 70%)" }} />
                 <div className="absolute left-5 bottom-4">
                   <div className="text-lg font-bold text-white">Recharge & énergie</div>
@@ -311,7 +311,7 @@ export const Home: React.FC<HomeProps> = ({ setCurrentPage, id }) => {
       <section className="bg-white">
         <div className="max-w-6xl mx-auto px-6 lg:px-8 py-20 grid lg:grid-cols-2 gap-10 items-center">
           <motion.div {...fade} className="relative">
-            <img src={hubImg} alt="Flotte SAVER au hub d'Abidjan" className="rounded-3xl w-full object-cover aspect-[4/3] shadow-xl" />
+            <img loading="lazy" decoding="async" src={hubImg} alt="Flotte SAVER au hub d'Abidjan" className="rounded-3xl w-full object-cover aspect-[4/3] shadow-xl" />
             <div className="absolute -bottom-5 -left-3 sm:left-6 rounded-2xl bg-white px-5 py-4 ring-1 ring-[#E6EBE8] shadow-lg">
               <div className="text-2xl font-extrabold" style={{ color: GREEN }}>100 %</div>
               <div className="text-xs text-[#5B6B62]">électrique</div>
@@ -343,7 +343,7 @@ export const Home: React.FC<HomeProps> = ({ setCurrentPage, id }) => {
       <section className="relative overflow-hidden" style={{ background: INK }}>
         <ImpactDoodles />
         {/* Mascotte : au-dessus du fond, sous le contenu (coin bas-gauche) */}
-        <img src={mascotImg} alt="" aria-hidden className="pointer-events-none select-none absolute bottom-0 left-0 sm:left-4 w-40 sm:w-52 lg:w-60 drop-shadow-[0_6px_14px_rgba(0,0,0,0.35)]" />
+        <img loading="lazy" decoding="async" src={mascotImg} alt="" aria-hidden className="pointer-events-none select-none absolute bottom-0 left-0 sm:left-4 w-40 sm:w-52 lg:w-60 drop-shadow-[0_6px_14px_rgba(0,0,0,0.35)]" />
         <div className="relative z-10 max-w-6xl mx-auto px-6 lg:px-8 py-16 grid lg:grid-cols-2 gap-10 items-center">
           <motion.div {...fade}>
             <span className="inline-flex items-center gap-2 text-xs font-semibold tracking-wide" style={{ color: GREEN }}>
@@ -355,7 +355,7 @@ export const Home: React.FC<HomeProps> = ({ setCurrentPage, id }) => {
             </p>
           </motion.div>
           <motion.div {...fade}>
-            <img src={closeupImg} alt="Véhicule électrique SAVER" className="rounded-3xl w-full object-cover aspect-[16/10] shadow-2xl ring-1 ring-white/10" />
+            <img loading="lazy" decoding="async" src={closeupImg} alt="Véhicule électrique SAVER" className="rounded-3xl w-full object-cover aspect-[16/10] shadow-2xl ring-1 ring-white/10" />
           </motion.div>
         </div>
       </section>

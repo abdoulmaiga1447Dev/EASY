@@ -8,7 +8,7 @@ import { BatteryCharging, AlertTriangle, ChevronDown, ChevronUp } from "lucide-r
 import { useRbac } from "../../context/RbacContext";
 import { api, uploadMedia, type ApiError } from "../../api/fleet";
 import { Btn, Reveal, Field, Input, Select, Spinner, EmptyState, Toast, Modal, AuthImage } from "./ui";
-import rechargeHero from "../../assets/recharge-hero.jpg";
+import rechargeHero from "../../assets/recharge-hero.webp";
 import easyLogo from "../../assets/images/easy-logo-green.png";
 
 type ToastState = { message: string; kind: "ok" | "err" } | null;
