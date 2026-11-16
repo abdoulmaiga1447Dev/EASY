@@ -3,7 +3,7 @@ import { useLanguage } from "../context/LanguageContext";
 import { useAuth } from "../context/AuthContext";
 import { 
   Calendar, Clock, MapPin, User, Phone, Trash2, Edit3, Save, X,
-  Compass, AlertTriangle, Loader2, Check, ExternalLink, ArrowLeft, RefreshCw
+  Compass, AlertTriangle, Loader2, Check, ExternalLink, ArrowLeft, RefreshCw, ChevronDown
 } from "lucide-react";
 
 interface CommandesProps {
@@ -17,6 +17,7 @@ export const Commandes: React.FC<CommandesProps> = ({
   const { translate } = useLanguage();
   const { accessToken, user, isAuthenticated } = useAuth();
   const [reservations, setReservations] = useState<any[]>([]);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   
@@ -366,11 +367,26 @@ export const Commandes: React.FC<CommandesProps> = ({
                   ? "Berline Prestige" 
                   : "Berline Executive";
 
+              const expanded = expandedId === item.id;
+              const amountLabel = item.totalPrice ? `${Number(item.totalPrice).toLocaleString()} FCFA` : translate({ fr: "Sur devis", en: "On quote" });
               return (
-                <div 
-                  key={item.id}
-                  className="flex justify-center w-full py-2"
-                >
+                <div key={item.id} className="w-full max-w-[44rem] mx-auto">
+                  <button
+                    onClick={() => setExpandedId(expanded ? null : item.id)}
+                    className={`w-full flex items-center justify-between gap-4 rounded-2xl bg-white ring-1 px-5 py-4 text-left transition ${expanded ? "ring-neutral-300 shadow-sm" : "ring-neutral-200 hover:ring-neutral-300"}`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <ChevronDown size={18} className={`shrink-0 text-neutral-400 transition-transform duration-300 ${expanded ? "rotate-180" : ""}`} />
+                      <div className="min-w-0">
+                        <div className="font-bold text-neutral-900 truncate">{vehicleLabel} <span className="text-neutral-400 font-mono text-[11px]">#{item.id.substring(0, 10).toUpperCase()}</span></div>
+                        <div className="text-xs text-neutral-500 truncate">{item.departureDate} · {item.departureTime} — <span className={statusDetails.bg}>{translate({ fr: statusDetails.fr, en: statusDetails.en })}</span></div>
+                      </div>
+                    </div>
+                    <div className="font-extrabold text-neutral-900 shrink-0">{amountLabel}</div>
+                  </button>
+
+                  {expanded && (
+                  <div className="mt-2 flex justify-center w-full">
                   <div className="ticket-canvas select-none w-full max-w-[44rem]">
                     <div className="ticket-wrapper">
                       <div className="ticket">
@@ -719,6 +735,8 @@ export const Commandes: React.FC<CommandesProps> = ({
                       </div>
                     </div>
                   </div>
+                  </div>
+                  )}
                 </div>
               );
             })
