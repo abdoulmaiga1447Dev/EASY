@@ -9,6 +9,7 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import { SegmentProvider, useSegment } from "./context/SegmentContext";
 import { Navbar } from "./components/Navbar";
 import { Footer } from "./components/Footer";
+import { HowToBookWidget } from "./components/HowToBookWidget";
 import { Home } from "./pages/Home";
 import { Vehicules } from "./pages/Vehicules";
 import { NosChauffeurs } from "./pages/NosChauffeurs";
@@ -180,6 +181,9 @@ function MainAppApplet() {
 
       {/* Primary Dispatch Center Info / Footer */}
       <Footer setCurrentPage={handlePageChange} id="app_primary_footer" />
+
+      {/* Tutoriel animé « Comment réserver ? » (bouton flottant + lecteur) */}
+      <HowToBookWidget currentPage={currentPage} onNavigate={handlePageChange} />
     </div>
   );
 }
