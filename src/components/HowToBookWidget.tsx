@@ -39,6 +39,8 @@ const LINE = "#DCE5DF";
 const LIGHT = "#F4F8F5";
 const LOGO = "/images/easy-logo-green.png";
 const STAGE = 720;
+/** Attente max (s) de la voix off avant de continuer sans elle. */
+const VOICE_WAIT = 12;
 
 type Tr = (k: { fr: string; en: string }) => string;
 type SfxKind = "click" | "pop" | "whoosh" | "chime" | "tick";
@@ -942,6 +944,8 @@ export const HowToBookWidget: React.FC<Props> = ({ currentPage, onNavigate }) =>
   const tRef = useRef(0);
   const lastTick = useRef(-1);
   const waited = useRef(0);
+  const bufRef = useRef(false);
+  const [buffering, setBuffering] = useState(false);
   const sound = useMemo(() => new SoundKit(), []);
   const voiceRef = useRef<HTMLAudioElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
@@ -978,17 +982,26 @@ export const HowToBookWidget: React.FC<Props> = ({ currentPage, onNavigate }) =>
       const dt = Math.min(0.1, (now - last) / 1000);
       last = now;
       const prev = tRef.current;
-      // Horloge : la voix off si elle joue (synchro parfaite), sinon le temps écoulé.
-      // Si la voix charge encore, l'image attend (2,5 s max, puis on continue sans elle).
+      // Horloge : la voix off quand elle joue (synchro parfaite), sinon le temps écoulé.
+      // Connexion lente : l'image attend la voix (indicateur « Chargement »), jusqu'à VOICE_WAIT s.
+      // Au-delà, on continue sans elle et on la recale dès qu'elle devient disponible.
       const v = voiceRef.current;
       let next: number;
-      if (v && !v.error && waited.current < 2.5) {
-        if (!v.paused && v.readyState >= 2) { next = Math.min(TOTAL, Math.max(prev, v.currentTime)); waited.current = 0; }
-        else { next = prev; waited.current += dt; }
+      if (v && !v.error) {
+        const ready = !v.paused && v.readyState >= 2;
+        if (waited.current < VOICE_WAIT) {
+          if (ready) { next = Math.min(TOTAL, Math.max(prev, v.currentTime)); waited.current = 0; }
+          else { next = prev; waited.current += dt; }
+        } else {
+          next = Math.min(TOTAL, prev + dt);
+          if (!v.paused && v.readyState >= 3) { v.currentTime = next; waited.current = 0; }
+        }
         if (v.ended) next = TOTAL;
       } else {
         next = Math.min(TOTAL, prev + dt);
       }
+      const isBuf = waited.current > 0.4 && waited.current < VOICE_WAIT;
+      if (isBuf !== bufRef.current) { bufRef.current = isBuf; setBuffering(isBuf); }
       for (const c of CUES) if (c.t > prev && c.t <= next) sound.play(c.k);
       if (TYPING.some(([a, b]) => next >= a && next < b) && next - lastTick.current > 0.075) {
         lastTick.current = next;
@@ -1029,10 +1042,18 @@ export const HowToBookWidget: React.FC<Props> = ({ currentPage, onNavigate }) =>
     tRef.current = nt;
     lastTick.current = nt;
     waited.current = 0;
+    bufRef.current = false;
+    setBuffering(false);
     setT(nt);
     setEnded(nt >= TOTAL);
     if (voiceRef.current) voiceRef.current.currentTime = nt;
   }, []);
+
+  /** Commence à télécharger la voix dès que le visiteur s'intéresse au bouton. */
+  const primeVoice = () => {
+    const v = voiceRef.current;
+    if (v && v.preload !== "auto") { v.preload = "auto"; v.load(); }
+  };
 
   const openPlayer = () => {
     sound.init(); // geste utilisateur : autorise l'audio
@@ -1092,6 +1113,9 @@ export const HowToBookWidget: React.FC<Props> = ({ currentPage, onNavigate }) =>
           <motion.button
             type="button"
             onClick={openPlayer}
+            onPointerEnter={primeVoice}
+            onTouchStart={primeVoice}
+            onFocus={primeVoice}
             initial={{ opacity: 0, y: 20, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.9 }}
@@ -1175,6 +1199,16 @@ export const HowToBookWidget: React.FC<Props> = ({ currentPage, onNavigate }) =>
                       </motion.div>
                     </AnimatePresence>
                   </div>
+
+                  {/* Chargement de la voix (connexion lente) */}
+                  {buffering && playing && !ended && (
+                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                      <span className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-[13px] text-white" style={{ background: "rgba(0,0,0,.72)" }}>
+                        <span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                        {tr({ fr: "Chargement…", en: "Loading…" })}
+                      </span>
+                    </div>
+                  )}
 
                   {/* Sous-titres (hors échelle pour rester lisibles) */}
                   <div className="pointer-events-none absolute inset-x-3 bottom-3 flex justify-center">
