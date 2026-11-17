@@ -28,7 +28,7 @@ import hero from "../assets/saver/hero.webp";
 /* ------------------------------------------------------------------ */
 
 /** Chemin du mp3 de voix off (ex. "/audio/tutoriel-fr.mp3"), null tant qu'il n'existe pas. */
-const VOICE_SRC: { fr: string | null; en: string | null } = { fr: null, en: null };
+const VOICE_SRC: { fr: string | null; en: string | null } = { fr: "/audio/tutoriel-fr.mp3", en: null };
 
 const GREEN = "#00C853";
 const INK = "#0B1F14";
@@ -51,8 +51,31 @@ interface SceneDef {
   cursor?: KF[];
   typing?: [number, number][];
   sfx?: [number, SfxKind][];
+  /** Pauses [instant de l'animation, durée] : l'image se fige le temps que la voix termine. */
+  holds?: [number, number][];
   Comp: React.FC<SceneProps>;
 }
+
+/** Temps réel de la scène → temps de l'animation (tient compte des pauses). */
+const toAnim = (local: number, holds: [number, number][] = []) => {
+  let shift = 0;
+  for (const [at, ex] of holds) {
+    if (local < at + shift) return local - shift;
+    if (local < at + shift + ex) return at;
+    shift += ex;
+  }
+  return local - shift;
+};
+/** Temps de l'animation → temps réel de la scène. */
+const toReal = (anim: number, holds: [number, number][] = []) => {
+  let shift = 0;
+  for (const [at, ex] of holds) {
+    if (anim < at) break;
+    shift += ex;
+  }
+  return anim + shift;
+};
+const realDur = (s: { dur: number; holds?: [number, number][] }) => s.dur + (s.holds ?? []).reduce((n, [, ex]) => n + ex, 0);
 
 /* ------------------------------------------------------------------ */
 /*  Outils d'animation (tout est fonction du temps local t, en s)       */
@@ -505,8 +528,9 @@ const FORMULAS = [
   { d: "16h", fr: "L'Événement", en: "The Signature Event", p: 85000 },
 ];
 const CUR_VEH: KF[] = [
-  { t: 0, x: 560, y: 580 }, { t: 0.9, x: 332, y: 176 }, { t: 1.5, x: 140, y: 176, click: true },
-  { t: 2.6, x: 332, y: 304, click: true }, { t: 4.0, x: 300, y: 432, click: true }, { t: 7.4, x: 560, y: 560 },
+  { t: 0, x: 560, y: 580 }, { t: 2.3, x: 140, y: 190 }, { t: 3.3, x: 332, y: 190 }, { t: 4.5, x: 524, y: 190 },
+  { t: 5.6, x: 140, y: 176, click: true }, { t: 6.4, x: 332, y: 304, click: true }, { t: 7.6, x: 300, y: 432, click: true },
+  { t: 10.6, x: 560, y: 560 },
 ];
 const SVehicle: React.FC<SceneProps> = ({ t, tr }) => {
   const tiles = [
@@ -514,9 +538,10 @@ const SVehicle: React.FC<SceneProps> = ({ t, tr }) => {
     { tag: "N2", name: tr({ fr: "SUV Executive", en: "Executive SUV" }), price: tr({ fr: "dès 15 000 FCFA", en: "from 15,000 FCFA" }), bg: ORANGE, fg: "#fff" },
     { tag: "N3", name: "Prestige", price: tr({ fr: "Sur devis", en: "On quote" }), bg: YELLOW, fg: INK },
   ];
-  const selected = t >= 1.55;
-  const open = between(t, 2.7, 4.1);
-  const chosen = t >= 4.05;
+  const selected = t >= 5.65;
+  const open = between(t, 6.5, 7.7);
+  const chosen = t >= 7.65;
+  const cp = cursorPos(CUR_VEH, t);
   return (
     <Browser url="easybysaver.com/#reservation">
       <MiniNav tr={tr} active="resa" user={0} t={t} />
@@ -524,7 +549,7 @@ const SVehicle: React.FC<SceneProps> = ({ t, tr }) => {
       <div className="absolute" style={{ left: 50, top: 78 }}><SectionTitle n="2" label={tr({ fr: "Véhicule & formule", en: "Vehicle & package" })} /></div>
       {tiles.map((v, i) => {
         const isSel = i === 0 && selected;
-        const hover = i === 1 && between(t, 0.6, 1.25);
+        const hover = cp.x >= 50 + i * 192 && cp.x <= 230 + i * 192 && cp.y >= 116 && cp.y <= 236;
         return (
           <div
             key={v.tag}
@@ -532,14 +557,14 @@ const SVehicle: React.FC<SceneProps> = ({ t, tr }) => {
             style={{
               left: 50 + i * 192, top: 116, width: 180, height: 120, background: v.bg, color: v.fg,
               boxShadow: isSel ? `0 0 0 4px ${INK}` : "none",
-              transform: `translateY(${hover ? -4 : 0}px) scale(${i === 0 && pressed(t, 1.5) ? 0.96 : 1})`,
+              transform: `translateY(${hover ? -4 : 0}px) scale(${i === 0 && pressed(t, 5.6) ? 0.96 : 1})`,
               transition: "transform .2s",
             }}
           >
             <div className="flex items-start justify-between">
               <span className="text-[12px] font-bold opacity-90">{v.tag}</span>
               {isSel && (
-                <span style={pop(t, 1.55)} className="h-6 w-6 rounded-full bg-white flex items-center justify-center"><Check size={14} color={INK} strokeWidth={3} /></span>
+                <span style={pop(t, 5.65)} className="h-6 w-6 rounded-full bg-white flex items-center justify-center"><Check size={14} color={INK} strokeWidth={3} /></span>
               )}
             </div>
             <div>
@@ -560,17 +585,17 @@ const SVehicle: React.FC<SceneProps> = ({ t, tr }) => {
         <ChevronDown size={16} color={MUTED} style={{ transform: `rotate(${open ? 180 : 0}deg)` }} />
       </div>
       {open && (
-        <div className="absolute z-30 rounded-xl bg-white border shadow-xl overflow-hidden" style={{ left: 50, top: 332, width: 564, borderColor: LINE, transformOrigin: "top", ...pop(t, 2.7, 0.35) }}>
+        <div className="absolute z-30 rounded-xl bg-white border shadow-xl overflow-hidden" style={{ left: 50, top: 332, width: 564, borderColor: LINE, transformOrigin: "top", ...pop(t, 6.5, 0.35) }}>
           {FORMULAS.map((f, i) => (
-            <div key={f.d} className="h-10 flex items-center justify-between px-3 text-[13px]" style={{ color: INK, background: i === 2 && t >= 3.5 ? "rgba(0,200,83,.1)" : "#fff" }}>
+            <div key={f.d} className="h-10 flex items-center justify-between px-3 text-[13px]" style={{ color: INK, background: i === 2 && t >= 7.1 ? "rgba(0,200,83,.1)" : "#fff" }}>
               <span><b>{f.d}</b> — {tr({ fr: f.fr, en: f.en })}</span>
               <span className="font-semibold">{fmt(f.p)} FCFA</span>
             </div>
           ))}
         </div>
       )}
-      {t >= 4.2 && (
-        <div className="absolute rounded-2xl border p-5 flex items-center justify-between" style={{ left: 50, top: 346, width: 564, height: 130, borderColor: LINE, background: LIGHT, ...show(t, 4.2, 0.45) }}>
+      {t >= 7.8 && (
+        <div className="absolute rounded-2xl border p-5 flex items-center justify-between" style={{ left: 50, top: 346, width: 564, height: 130, borderColor: LINE, background: LIGHT, ...show(t, 7.8, 0.45) }}>
           <div>
             <span className="inline-block rounded-full px-3 py-1 text-[12px] font-bold text-white" style={{ background: INK }}>3h</span>
             <div className="font-display text-[20px] mt-2" style={{ color: INK }}>{tr({ fr: "Le RDV d'Image", en: "The Image Meeting" })}</div>
@@ -578,12 +603,12 @@ const SVehicle: React.FC<SceneProps> = ({ t, tr }) => {
           </div>
           <div className="text-right">
             <div className="text-[11px] font-semibold uppercase" style={{ color: MUTED }}>{tr({ fr: "Prix", en: "Price" })}</div>
-            <div className="font-display text-[30px]" style={{ color: GREEN }}>{fmt(count(0, 21000, t, 4.3, 5.4))}</div>
+            <div className="font-display text-[30px]" style={{ color: GREEN }}>{fmt(count(0, 21000, t, 7.9, 8.9))}</div>
             <div className="text-[12px] font-semibold" style={{ color: INK }}>FCFA</div>
           </div>
         </div>
       )}
-      <div className="absolute text-[12px]" style={{ left: 50, top: 500, color: MUTED, ...show(t, 5.6) }}>
+      <div className="absolute text-[12px]" style={{ left: 50, top: 500, color: MUTED, ...show(t, 9.2) }}>
         {tr({ fr: "Prestige (N3) : tarif sur devis, notre équipe vous recontacte.", en: "Prestige (N3): on quote, our team will get back to you." })}
       </div>
       <Cursor kf={CUR_VEH} t={t} />
@@ -847,45 +872,45 @@ const SOutro: React.FC<SceneProps> = ({ t, tr }) => (
 /* ------------------------------------------------------------------ */
 
 const SCENES: SceneDef[] = [
-  { id: "intro", dur: 5, chapter: { fr: "Introduction", en: "Intro" }, sfx: [[0.5, "pop"], [2.2, "tick"], [2.42, "tick"], [2.64, "tick"], [2.86, "tick"]], Comp: SIntro },
-  { id: "signup", dur: 9, chapter: { fr: "Créer un compte", en: "Create an account" }, cursor: CUR_SIGNUP, typing: [[1.0, 2.2], [2.7, 4.0], [4.5, 5.5], [6.0, 6.8]], sfx: [[8.0, "pop"]], Comp: SSignup },
+  { id: "intro", dur: 5, holds: [[4.6, 0.4]], chapter: { fr: "Introduction", en: "Intro" }, sfx: [[0.5, "pop"], [2.2, "tick"], [2.42, "tick"], [2.64, "tick"], [2.86, "tick"]], Comp: SIntro },
+  { id: "signup", dur: 9, holds: [[8.6, 0.4]], chapter: { fr: "Créer un compte", en: "Create an account" }, cursor: CUR_SIGNUP, typing: [[1.0, 2.2], [2.7, 4.0], [4.5, 5.5], [6.0, 6.8]], sfx: [[8.0, "pop"]], Comp: SSignup },
   { id: "login", dur: 5, chapter: { fr: "Se connecter", en: "Sign in" }, cursor: CUR_LOGIN, typing: [[0.55, 1.3], [1.65, 2.3]], sfx: [[3.5, "pop"]], Comp: SLogin },
-  { id: "trip", dur: 9, chapter: { fr: "Votre trajet", en: "Your ride" }, cursor: CUR_TRIP, typing: [[2.9, 3.5], [5.7, 6.9]], sfx: [[0.9, "pop"], [2.0, "pop"], [3.6, "pop"], [7.5, "pop"]], Comp: STrip },
-  { id: "vehicle", dur: 8, chapter: { fr: "Véhicule & formule", en: "Vehicle & package" }, cursor: CUR_VEH, sfx: [[2.7, "pop"], [5.4, "pop"]], Comp: SVehicle },
-  { id: "options", dur: 6, chapter: { fr: "Options & Terminer", en: "Extras & finish" }, cursor: CUR_OPT, Comp: SOptions },
-  { id: "confirm", dur: 7, chapter: { fr: "Confirmation", en: "Confirmation" }, cursor: CUR_CONF, sfx: [[3.7, "chime"]], Comp: SConfirm },
+  { id: "trip", dur: 9, holds: [[2.05, 1.3]], chapter: { fr: "Votre trajet", en: "Your ride" }, cursor: CUR_TRIP, typing: [[2.9, 3.5], [5.7, 6.9]], sfx: [[0.9, "pop"], [2.0, "pop"], [3.6, "pop"], [7.5, "pop"]], Comp: STrip },
+  { id: "vehicle", dur: 11, chapter: { fr: "Véhicule & formule", en: "Vehicle & package" }, cursor: CUR_VEH, sfx: [[6.5, "pop"], [8.9, "pop"]], Comp: SVehicle },
+  { id: "options", dur: 6, holds: [[2.8, 1.0]], chapter: { fr: "Options & Terminer", en: "Extras & finish" }, cursor: CUR_OPT, Comp: SOptions },
+  { id: "confirm", dur: 7, holds: [[1.4, 0.3]], chapter: { fr: "Confirmation", en: "Confirmation" }, cursor: CUR_CONF, sfx: [[3.7, "chime"]], Comp: SConfirm },
   { id: "follow", dur: 6, chapter: { fr: "Suivi", en: "Tracking" }, cursor: CUR_FOLLOW, sfx: [[0.35, "pop"], [4.2, "pop"]], Comp: SFollow },
   { id: "outro", dur: 5, chapter: { fr: "Contact", en: "Contact" }, sfx: [[0.3, "chime"]], Comp: SOutro },
 ];
 
 const STARTS: number[] = SCENES.reduce<number[]>((acc, _s, i) => {
-  acc.push(i === 0 ? 0 : acc[i - 1] + SCENES[i - 1].dur);
+  acc.push(i === 0 ? 0 : acc[i - 1] + realDur(SCENES[i - 1]));
   return acc;
 }, []);
-const TOTAL = STARTS[STARTS.length - 1] + SCENES[SCENES.length - 1].dur;
+const TOTAL = STARTS[STARTS.length - 1] + realDur(SCENES[SCENES.length - 1]);
 
 const CUES: { t: number; k: SfxKind }[] = SCENES.flatMap((s, i) => [
   ...(i > 0 ? [{ t: STARTS[i] + 0.02, k: "whoosh" as SfxKind }] : []),
-  ...(s.cursor ?? []).filter((k) => k.click).map((k) => ({ t: STARTS[i] + k.t, k: "click" as SfxKind })),
-  ...(s.sfx ?? []).map(([t, k]) => ({ t: STARTS[i] + t, k })),
+  ...(s.cursor ?? []).filter((k) => k.click).map((k) => ({ t: STARTS[i] + toReal(k.t, s.holds), k: "click" as SfxKind })),
+  ...(s.sfx ?? []).map(([t, k]) => ({ t: STARTS[i] + toReal(t, s.holds), k })),
 ]).sort((a, b) => a.t - b.t);
 
-const TYPING: [number, number][] = SCENES.flatMap((s, i) => (s.typing ?? []).map(([a, b]) => [STARTS[i] + a, STARTS[i] + b] as [number, number]));
+const TYPING: [number, number][] = SCENES.flatMap((s, i) => (s.typing ?? []).map(([a, b]) => [STARTS[i] + toReal(a, s.holds), STARTS[i] + toReal(b, s.holds)] as [number, number]));
 
-/** Texte de la voix off (et sous-titres). Temps en secondes, sur la durée totale. */
+/** Texte de la voix off (et sous-titres). Temps calés sur public/audio/tutoriel-fr.mp3 (s). */
 export const SUBTITLES: { a: number; b: number; fr: string; en: string }[] = [
-  { a: 0.3, b: 4.9, fr: "Bienvenue chez EASY. Voici comment réserver votre trajet électrique, en une minute.", en: "Welcome to EASY. Here's how to book your electric ride, in one minute." },
-  { a: 5.2, b: 9.6, fr: "Commencez par créer votre compte : votre nom, votre e-mail et votre téléphone.", en: "Start by creating your account: your name, email and phone number." },
-  { a: 9.8, b: 13.9, fr: "Choisissez un mot de passe et validez. Votre compte est prêt.", en: "Choose a password and confirm. Your account is ready." },
-  { a: 14.2, b: 18.9, fr: "Connectez-vous ensuite avec votre e-mail et votre mot de passe.", en: "Then sign in with your email and password." },
-  { a: 19.2, b: 23.4, fr: "Dans « Réserver », indiquez la date et l'heure de prise en charge.", en: "In “Book”, pick the date and time of your pickup." },
-  { a: 23.6, b: 27.9, fr: "Saisissez votre adresse, choisissez-la dans la liste, puis ajoutez votre numéro.", en: "Type your address, select it from the list, then add your number." },
-  { a: 28.2, b: 31.9, fr: "Choisissez ensuite votre véhicule : Berline, SUV Executive ou Prestige.", en: "Next, choose your vehicle: Sedan, Executive SUV or Prestige." },
-  { a: 32.1, b: 35.9, fr: "Puis la formule qui vous convient. Le prix s'affiche aussitôt.", en: "Then the package that suits you. The price appears instantly." },
-  { a: 36.2, b: 41.9, fr: "Ajoutez une option si besoin, vérifiez le total, et appuyez sur « Terminer ».", en: "Add an extra if needed, check the total, and tap “Finish”." },
-  { a: 42.2, b: 48.9, fr: "Un récapitulatif s'affiche. Confirmez : votre demande est enregistrée.", en: "A summary appears. Confirm: your request is saved." },
-  { a: 49.2, b: 54.9, fr: "Vous recevez un e-mail de confirmation, et vous suivez tout dans « Mes commandes ».", en: "You receive a confirmation email, and track everything in “My bookings”." },
-  { a: 55.2, b: 59.8, fr: "Une question ? Écrivez-nous sur WhatsApp. Bon trajet avec EASY !", en: "Any question? Message us on WhatsApp. Enjoy your ride with EASY!" },
+  { a: 0.15, b: 5.1, fr: "Bienvenue chez EASY. Voici comment réserver votre trajet électrique, en une minute.", en: "Welcome to EASY. Here's how to book your electric ride, in one minute." },
+  { a: 5.65, b: 10.2, fr: "Commencez par créer votre compte : votre nom, votre e-mail et votre téléphone.", en: "Start by creating your account: your name, email and phone number." },
+  { a: 10.95, b: 14.55, fr: "Choisissez un mot de passe et validez. Votre compte est prêt.", en: "Choose a password and confirm. Your account is ready." },
+  { a: 14.95, b: 17.9, fr: "Connectez-vous ensuite avec votre e-mail et votre mot de passe.", en: "Then sign in with your email and password." },
+  { a: 19.85, b: 23.5, fr: "Dans « Réserver », indiquez la date et l'heure de prise en charge.", en: "In “Book”, pick the date and time of your pickup." },
+  { a: 23.55, b: 28.1, fr: "Saisissez votre adresse, choisissez-la dans la liste, puis ajoutez votre numéro.", en: "Type your address, select it from the list, then add your number." },
+  { a: 30.35, b: 35.55, fr: "Choisissez ensuite votre véhicule : Berline, SUV Executive ou Prestige.", en: "Next, choose your vehicle: Sedan, Executive SUV or Prestige." },
+  { a: 35.65, b: 39.3, fr: "Puis la formule qui vous convient. Le prix s'affiche aussitôt.", en: "Then the package that suits you. The price appears instantly." },
+  { a: 41.35, b: 46.3, fr: "Ajoutez une option si besoin, vérifiez le total, et appuyez sur « Terminer ».", en: "Add an extra if needed, check the total, and tap “Finish”." },
+  { a: 48.45, b: 53.3, fr: "Un récapitulatif s'affiche. Confirmez : votre demande est enregistrée.", en: "A summary appears. Confirm: your request is saved." },
+  { a: 55.65, b: 60.1, fr: "Vous recevez un e-mail de confirmation, et vous suivez tout dans « Mes commandes ».", en: "You receive a confirmation email, and track everything in “My bookings”." },
+  { a: 61.75, b: 66.2, fr: "Une question ? Écrivez-nous sur WhatsApp. Bon trajet avec EASY !", en: "Any question? Message us on WhatsApp. Enjoy your ride with EASY!" },
 ];
 
 const sceneIndexAt = (t: number) => {
@@ -916,6 +941,7 @@ export const HowToBookWidget: React.FC<Props> = ({ currentPage, onNavigate }) =>
 
   const tRef = useRef(0);
   const lastTick = useRef(-1);
+  const waited = useRef(0);
   const sound = useMemo(() => new SoundKit(), []);
   const voiceRef = useRef<HTMLAudioElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
@@ -928,7 +954,7 @@ export const HowToBookWidget: React.FC<Props> = ({ currentPage, onNavigate }) =>
   useEffect(() => {
     if (!voiceSrc) { voiceRef.current = null; return; }
     const a = new Audio(voiceSrc);
-    a.preload = "auto";
+    a.preload = "none"; // téléchargée seulement à l'ouverture du lecteur
     voiceRef.current = a;
     return () => { a.pause(); voiceRef.current = null; };
   }, [voiceSrc]);
@@ -952,14 +978,22 @@ export const HowToBookWidget: React.FC<Props> = ({ currentPage, onNavigate }) =>
       const dt = Math.min(0.1, (now - last) / 1000);
       last = now;
       const prev = tRef.current;
-      const next = Math.min(TOTAL, prev + dt);
+      // Horloge : la voix off si elle joue (synchro parfaite), sinon le temps écoulé.
+      // Si la voix charge encore, l'image attend (2,5 s max, puis on continue sans elle).
+      const v = voiceRef.current;
+      let next: number;
+      if (v && !v.error && waited.current < 2.5) {
+        if (!v.paused && v.readyState >= 2) { next = Math.min(TOTAL, Math.max(prev, v.currentTime)); waited.current = 0; }
+        else { next = prev; waited.current += dt; }
+        if (v.ended) next = TOTAL;
+      } else {
+        next = Math.min(TOTAL, prev + dt);
+      }
       for (const c of CUES) if (c.t > prev && c.t <= next) sound.play(c.k);
       if (TYPING.some(([a, b]) => next >= a && next < b) && next - lastTick.current > 0.075) {
         lastTick.current = next;
         sound.play("tick");
       }
-      const v = voiceRef.current;
-      if (v && Math.abs(v.currentTime - next) > 0.35) v.currentTime = next;
       tRef.current = next;
       setT(next);
       if (next >= TOTAL) {
@@ -994,6 +1028,7 @@ export const HowToBookWidget: React.FC<Props> = ({ currentPage, onNavigate }) =>
     const nt = clamp(x, 0, TOTAL);
     tRef.current = nt;
     lastTick.current = nt;
+    waited.current = 0;
     setT(nt);
     setEnded(nt >= TOTAL);
     if (voiceRef.current) voiceRef.current.currentTime = nt;
@@ -1002,6 +1037,8 @@ export const HowToBookWidget: React.FC<Props> = ({ currentPage, onNavigate }) =>
   const openPlayer = () => {
     sound.init(); // geste utilisateur : autorise l'audio
     seek(0);
+    const v = voiceRef.current;
+    if (v) { v.currentTime = 0; void v.play().catch(() => undefined); } // dans le geste (iOS/Safari)
     setOpen(true);
     setPlaying(true);
   };
@@ -1134,7 +1171,7 @@ export const HowToBookWidget: React.FC<Props> = ({ currentPage, onNavigate }) =>
                         exit={{ opacity: 0 }}
                         transition={{ duration: 0.4, ease: "easeOut" }}
                       >
-                        <Comp t={local} tr={tr} />
+                        <Comp t={toAnim(local, scene.holds)} tr={tr} />
                       </motion.div>
                     </AnimatePresence>
                   </div>
