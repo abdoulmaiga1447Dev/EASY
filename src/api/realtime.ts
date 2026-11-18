@@ -38,21 +38,82 @@ export function useRealtime<T = any>(event: string, handler: (payload: T) => voi
   }, [event, enabled]);
 }
 
+// ---------------------------------------------------------------------------------------
+// Sons (bip + annonces vocales).
+// Les navigateurs mobiles (Safari iPhone surtout) refusent de jouer un son qui ne part pas
+// d'un toucher. On « déverrouille » donc le son au PREMIER toucher dans l'application, puis on
+// réutilise toujours le même contexte audio et le même lecteur : les annonces déclenchées par
+// le réseau (nouvelle demande, paiement…) peuvent alors être jouées.
+// ---------------------------------------------------------------------------------------
+
 /** Annonces vocales (fichiers générés en local avec Piper, voix « siwis »), jouées après le bip. */
 export type Annonce = "nouvelle-demande" | "recharge-payee" | "appel-manque";
+
+let ctxAudio: AudioContext | null = null;
+let lecteur: HTMLAudioElement | null = null;
+let deverrouille = false;
+
+/** Contexte audio partagé (déverrouillé au premier toucher). */
+export function contexte(): AudioContext | null {
+  if (typeof window === "undefined") return null;
+  if (!ctxAudio) {
+    const AC = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AC) return null;
+    ctxAudio = new AC();
+  }
+  return ctxAudio;
+}
+
+function lecteurAnnonces(): HTMLAudioElement {
+  if (!lecteur) {
+    lecteur = new Audio();
+    lecteur.preload = "auto";
+    (lecteur as any).playsInline = true;
+  }
+  return lecteur;
+}
+
+/** Au premier toucher / clic / touche : active le contexte audio et le lecteur (silencieusement). */
+function deverrouiller(): void {
+  if (deverrouille) return;
+  deverrouille = true;
+  try {
+    const ctx = contexte();
+    if (ctx) {
+      void ctx.resume();
+      const src = ctx.createBufferSource();
+      src.buffer = ctx.createBuffer(1, 1, 22050); // un échantillon de silence
+      src.connect(ctx.destination);
+      src.start(0);
+    }
+    const l = lecteurAnnonces();
+    l.muted = true;
+    l.src = "/audio/annonce-appel-manque.mp3";
+    void l.play().then(() => { l.pause(); l.currentTime = 0; l.muted = false; }).catch(() => { l.muted = false; deverrouille = false; });
+  } catch { deverrouille = false; }
+}
+if (typeof window !== "undefined") {
+  for (const ev of ["pointerdown", "touchend", "keydown"]) window.addEventListener(ev, deverrouiller, { capture: true, passive: true });
+}
+
 export function annoncer(nom: Annonce): void {
   bip();
   window.setTimeout(() => {
-    try { void new Audio(`/audio/annonce-${nom}.mp3`).play().catch(() => undefined); } catch { /* son indisponible */ }
+    try {
+      const l = lecteurAnnonces();
+      l.muted = false;
+      l.src = `/audio/annonce-${nom}.mp3`;
+      void l.play().catch(() => undefined);
+    } catch { /* son indisponible */ }
   }, 450);
 }
 
 /** Petit signal sonore (nouvelle demande, paiement reçu…). Silencieux si le navigateur le bloque. */
 export function bip(): void {
   try {
-    const AC = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AC) return;
-    const ctx = new AC();
+    const ctx = contexte();
+    if (!ctx) return;
+    void ctx.resume();
     const o = ctx.createOscillator();
     const g = ctx.createGain();
     o.type = "sine";
@@ -63,6 +124,5 @@ export function bip(): void {
     g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.35);
     o.connect(g); g.connect(ctx.destination);
     o.start(); o.stop(ctx.currentTime + 0.4);
-    setTimeout(() => void ctx.close(), 600);
   } catch { /* son indisponible */ }
 }

@@ -9,7 +9,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { Phone, PhoneOff, Mic, MicOff, Bell, X } from "lucide-react";
 import { api } from "../../api/fleet";
-import { useRealtime, emitRealtime, sendRealtime, annoncer } from "../../api/realtime";
+import { useRealtime, emitRealtime, sendRealtime, annoncer, contexte } from "../../api/realtime";
 import { pushSupporte, iosSansInstallation, activerNotifications, resynchroniserNotifications } from "../../api/push";
 
 type Phase = "idle" | "sortant" | "entrant" | "connexion" | "en_cours";
@@ -24,16 +24,13 @@ const mmss = (ms: number) => { const s = Math.max(0, Math.floor(ms / 1000)); ret
 
 /** Sonnerie / tonalité générée (aucun fichier) : entrant = deux notes, sortant = bip long. */
 function useTonalite() {
-  const ctxRef = useRef<AudioContext | null>(null);
   const timer = useRef<number | null>(null);
   const stop = useCallback(() => { if (timer.current) { clearInterval(timer.current); timer.current = null; } }, []);
   const jouer = useCallback((mode: "entrant" | "sortant") => {
     stop();
     try {
-      const AC = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AC) return;
-      ctxRef.current ??= new AC();
-      const ctx = ctxRef.current;
+      const ctx = contexte(); // contexte partagé, déverrouillé au premier toucher (iPhone)
+      if (!ctx) return;
       void ctx.resume();
       const note = (f: number, t: number, d: number) => {
         const o = ctx.createOscillator(), g = ctx.createGain();
