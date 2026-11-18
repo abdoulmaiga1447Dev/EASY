@@ -13,6 +13,7 @@ import { Server as SocketIOServer } from "socket.io";
 import PDFDocument from "pdfkit";
 import nodemailer from "nodemailer";
 import { createPartARouter } from "./server/partA/index";
+import { registerFleetSockets } from "./server/partA/appel";
 import { runVehicleAlerts } from "./lib/alerts";
 import { retryPendingNotifications } from "./lib/notifications";
 import { runShiftLateAlerts } from "./lib/shiftAlerts";
@@ -3007,20 +3008,12 @@ async function startServer() {
   // Store in global so REST endpoints can emit events
   (global as any).ioInstance = io;
 
+  // Espaces fleet : authentification des sockets (salle `user:<id>`) + appels intégrés (WebRTC).
+  registerFleetSockets(io, prisma);
+
   // Socket.io handlers
   io.on("connection", (socket) => {
     console.log("[Socket] New real-time subscriber connected:", socket.id);
-
-    // Espaces fleet : l'utilisateur s'authentifie avec son jeton et rejoint sa salle
-    // personnelle `user:<id>` (demandes de recharge, et plus tard les appels).
-    socket.on("fleet:auth", (token: string) => {
-      try {
-        const decoded = jwt.verify(String(token || ""), ACCESS_TOKEN_SECRET) as any;
-        if (decoded?.userId) socket.join(`user:${decoded.userId}`);
-      } catch {
-        socket.emit("fleet:auth_error");
-      }
-    });
 
     // Client/driver joins a tracking room
     socket.on("join", (reservationId: string) => {

@@ -1124,3 +1124,20 @@ model Reparation {
   @@index([siteId, statut])
   @@index([vehicleId])
 }
+
+// =============================================================================
+// Appel intégré + notifications push (2026-11)
+// =============================================================================
+
+// Abonnement Web Push d'un appareil (un utilisateur peut en avoir plusieurs).
+model PushAbonnement {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}

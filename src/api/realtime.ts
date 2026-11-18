@@ -16,6 +16,15 @@ function getSocket(): Socket {
   return socket;
 }
 
+/** Envoie un événement au serveur ; renvoie sa réponse (accusé de réception) si attendue. */
+export function emitRealtime<T = any>(event: string, payload: unknown): Promise<T> {
+  return new Promise((resolve) => getSocket().emit(event, payload, (r: T) => resolve(r)));
+}
+/** Envoi sans attendre de réponse. */
+export function sendRealtime(event: string, payload: unknown): void {
+  getSocket().emit(event, payload);
+}
+
 /** Écoute un événement temps réel tant que le composant est monté. */
 export function useRealtime<T = any>(event: string, handler: (payload: T) => void, enabled = true): void {
   const ref = useRef(handler);

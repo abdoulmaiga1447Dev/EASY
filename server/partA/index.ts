@@ -23,6 +23,7 @@ import { dettesRouter } from "./dettes";
 import { rechargeRouter } from "./recharge";
 import { demandeRechargeRouter } from "./demandeRecharge";
 import { rapprochementRouter } from "./rapprochement";
+import { appelRouter } from "./appel";
 import { panneRouter } from "./panne";
 
 export function createPartARouter(prisma: PrismaClient): express.Router {
@@ -98,6 +99,7 @@ export function createPartARouter(prisma: PrismaClient): express.Router {
   root.use(dettesRouter(prisma));
   root.use(demandeRechargeRouter(prisma));
   root.use(rapprochementRouter(prisma));
+  root.use(appelRouter(prisma));
   root.use(rechargeRouter(prisma));
   root.use(panneRouter(prisma));
   root.use(auditRouter);

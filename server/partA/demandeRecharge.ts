@@ -17,6 +17,7 @@ import { writeAudit } from "../../lib/audit";
 import { notify } from "../../lib/notifications";
 import { normalizeDay } from "../../lib/assignment";
 import { emitToUsers } from "../../lib/realtime";
+import { envoyerPush } from "../../lib/push";
 import {
   STATUTS_OUVERTS, STATUTS_ACTION_SUPERVISEUR, peut, socValide, suggestionRecharge,
   normaliserRef, anomalieFin, type DemandeStatut,
@@ -155,6 +156,7 @@ export function demandeRechargeRouter(prisma: PrismaClient): express.Router {
         await notify(prisma, { userId: uid, canal: "IN_APP", type: "recharge.demande", titre: "Nouvelle demande de recharge", message: `${ctx.name ?? "Un chauffeur"} demande une recharge pour ${vehicle.immatriculation}.` });
       }
       await diffuser(d, "nouvelle");
+      void envoyerPush(prisma, await superviseurs(d.siteId), { titre: "Nouvelle demande de recharge", message: `${ctx.name ?? "Un chauffeur"} · ${vehicle.immatriculation}`, tag: `demande-${d.id}`, url: "/" });
       res.status(201).json(await detail(d.id, ctx));
     })
   );
@@ -469,6 +471,7 @@ export function demandeRechargeRouter(prisma: PrismaClient): express.Router {
         await alerterFinance(d, "Recharge à contrôler", `payé ${montant} F pour ${d.montantSuggere} F proposés (+${pct} %) par ${ctx.name}.`);
       }
       await notify(prisma, { userId: d.driverId, canal: "IN_APP", type: "recharge.payee", titre: "Recharge payée", message: "Le paiement est fait : vous pouvez brancher le véhicule." });
+      void envoyerPush(prisma, [d.driverId], { titre: "Recharge payée", message: "Vous pouvez brancher le véhicule.", tag: `demande-${d.id}`, url: "/" });
       await diffuser(maj, "statut");
       res.json(await detail(d.id, ctx));
     })

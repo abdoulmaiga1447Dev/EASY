@@ -13,6 +13,7 @@ import { useRealtime, bip } from "../../api/realtime";
 import { useRbac } from "../../context/RbacContext";
 import { Btn, Panel, Field, Input, Select, Spinner, EmptyState, AuthImage } from "./ui";
 import { CameraCapture } from "./CameraCapture";
+import { useAppel } from "./Appel";
 
 type ToastState = { message: string; kind: "ok" | "err" } | null;
 type Notify = (t: ToastState) => void;
@@ -85,6 +86,16 @@ const Fil: React.FC<{ demande: any; moi: string; vueSuperviseur: boolean }> = ({
     <div className="space-y-3">
       {demande.messages.map((m: any) => {
         const mien = m.auteurId === moi;
+        if (m.type === "APPEL") {
+          const rate = m.meta?.etat && m.meta.etat !== "TERMINE";
+          return (
+            <div key={m.id} className="flex justify-center">
+              <div className="text-xs px-3 py-1.5 flex items-center gap-1.5" style={{ color: rate ? "#EF4444" : "#8A8A8A" }}>
+                <Phone size={12} /> {m.texte}{m.auteurNom ? ` · ${mien ? "vous" : m.auteurNom}` : ""} <span className="text-[#55555C] ml-1">{heure(m.createdAt)}</span>
+              </div>
+            </div>
+          );
+        }
         if (m.type === "SYSTEME" || m.type === "ANNULATION") {
           const anomalie = m.meta?.anomalie || /anomalie/i.test(m.texte || "");
           return (
@@ -202,6 +213,17 @@ const CapturePaiement: React.FC<{ mediaId: string | null; onUploaded: (id: strin
       </div>
       <input type="file" accept="image/*" className="hidden" onChange={onPick} />
     </label>
+  );
+};
+
+/** Bouton d'appel intégré (désactivé pendant un autre appel). */
+const BoutonAppel: React.FC<{ demandeId: string; nom: string; vehicule?: string | null; libelle: string }> = ({ demandeId, nom, vehicule, libelle }) => {
+  const { phase, appeler } = useAppel();
+  return (
+    <button onClick={() => appeler(demandeId, nom, vehicule ?? null)} disabled={phase !== "idle"}
+      className="inline-flex items-center gap-2 rounded-xl bg-[#22C55E] text-black text-sm font-semibold px-4 py-2.5 hover:brightness-110 disabled:opacity-40">
+      <Phone size={16} /> {phase !== "idle" ? "En appel…" : libelle}
+    </button>
   );
 };
 
@@ -329,9 +351,12 @@ export const ChauffeurRecharge: React.FC<{ notify: Notify }> = ({ notify }) => {
             <div className="text-xs text-[#8A8A8A]">Demande de recharge · {d.vehicule?.immatriculation}</div>
             <div className="text-lg font-semibold mt-0.5" style={{ color: st.color }}>{st.label}</div>
           </div>
-          {["DEMANDEE", "PRISE_EN_CHARGE", "SUR_PLACE"].includes(d.statut) && (
-            <button onClick={annuler} disabled={busy} className="text-xs text-[#8A8A8A] hover:text-[#EF4444]">Annuler</button>
-          )}
+          <div className="flex flex-col items-end gap-2 shrink-0">
+            <BoutonAppel demandeId={d.id} nom="Superviseur Logistique" vehicule={d.vehicule?.immatriculation} libelle="Appeler" />
+            {["DEMANDEE", "PRISE_EN_CHARGE", "SUR_PLACE"].includes(d.statut) && (
+              <button onClick={annuler} disabled={busy} className="text-xs text-[#8A8A8A] hover:text-[#EF4444]">Annuler</button>
+            )}
+          </div>
         </div>
         <Etapes statut={d.statut} />
       </Panel>
@@ -513,10 +538,11 @@ const DemandeSuperviseur: React.FC<{
             <div className="text-sm text-[#8A8A8A]">{d.vehicule?.immatriculation} · {d.vehicule?.marque} {d.vehicule?.modele} · demandée à {heure(d.createdAt)}</div>
             <div className="text-sm font-medium mt-1" style={{ color: d.anomalie ? RED : st.color }}>{d.anomalie ? "Anomalie" : st.label}</div>
           </div>
-          {tel && (
-            <a href={tel} className="shrink-0 inline-flex items-center gap-2 rounded-xl bg-[#22C55E] text-black text-sm font-semibold px-4 py-2.5 hover:brightness-110">
-              <Phone size={16} /> Appeler
-            </a>
+          {OUVERTS.includes(d.statut) && (
+            <div className="shrink-0 flex flex-col items-end gap-1.5">
+              <BoutonAppel demandeId={d.id} nom={d.chauffeur?.name ?? "Chauffeur"} vehicule={d.vehicule?.immatriculation} libelle="Appeler" />
+              {tel && <a href={tel} className="text-[11px] text-[#8A8A8A] hover:text-[#EDEDED]">ou par téléphone</a>}
+            </div>
           )}
         </div>
         <Etapes statut={d.statut} />

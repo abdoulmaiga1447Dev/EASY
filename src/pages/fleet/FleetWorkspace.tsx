@@ -22,6 +22,8 @@ import { FleetShifts } from "./FleetShifts";
 import { FleetReversements } from "./FleetReversements";
 import { FleetRecharges } from "./FleetRecharges";
 import { useDemandesATraiter, useRechargesAControler } from "./RechargeDemandes";
+import { CallProvider, PushBanner } from "./Appel";
+import { enregistrerServiceWorker } from "../../api/push";
 import { usePropositionsEnAttente } from "./FleetRecharges";
 import { FleetPannes } from "./FleetPannes";
 import { Spinner, EmptyState, StatCard, Panel, Reveal } from "./ui";
@@ -271,6 +273,9 @@ export const FleetWorkspace: React.FC = () => {
   const { ctx, loading } = useRbac();
   const [section, setSection] = useState<Section>("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // Appels intégrés + notifications push : chauffeurs et superviseurs logistique.
+  const appelsActifs = !!ctx && (ctx.permissions.includes("recharge.superviser") || ctx.permissions.includes("recharge.enregistrer"));
+  useEffect(() => { if (appelsActifs) void enregistrerServiceWorker()?.catch(() => undefined); }, [appelsActifs]);
   // Demandes de recharge qui attendent le Superviseur (compteur du menu, en temps réel).
   // + recharges à contrôler et bornes à valider pour la Finance / l'Admin.
   const rechargesATraiter = useDemandesATraiter(!!ctx?.permissions.includes("recharge.superviser"))
@@ -312,6 +317,7 @@ export const FleetWorkspace: React.FC = () => {
   };
 
   return (
+    <CallProvider>
     <div className="min-h-screen bg-[#0A0A0B] text-[#EDEDED]">
       {/* En-tête mobile */}
       <header className="lg:hidden sticky top-0 z-30 flex items-center justify-between px-4 h-14 bg-[#0A0A0B] border-b border-[#1A1A1D]">
@@ -354,6 +360,7 @@ export const FleetWorkspace: React.FC = () => {
 
         {/* Contenu */}
         <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 overflow-x-hidden">
+          <PushBanner actif={appelsActifs} />
           <AnimatePresence mode="wait">
             <motion.div key={section}
               initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
@@ -372,5 +379,6 @@ export const FleetWorkspace: React.FC = () => {
         </main>
       </div>
     </div>
+    </CallProvider>
   );
 };
