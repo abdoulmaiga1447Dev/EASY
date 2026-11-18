@@ -128,8 +128,9 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (etatRef.current.phase !== "idle") return;
     if (!(await prendreMicro())) return;
     setEtat({ phase: "sortant", callId: null, demandeId, nom, vehicule, debut: null });
-    const r = await emitRealtime<{ ok: boolean; callId?: string; error?: string }>("call:invite", { demandeId });
+    const r = await emitRealtime<{ ok: boolean; callId?: string; error?: string; info?: string | null }>("call:invite", { demandeId });
     if (!r?.ok) { afficher(r?.error || "Appel impossible"); nettoyer(); return; }
+    if (r.info) afficher(r.info);
     setEtat((s) => ({ ...s, callId: r.callId! }));
     jouer("sortant");
   }, [jouer, nettoyer]);

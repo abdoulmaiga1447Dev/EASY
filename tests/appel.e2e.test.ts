@@ -101,10 +101,22 @@ describe("Appel Superviseur → chauffeur", () => {
     sup.close(); ch.close();
   });
 
+  it("appelé ni connecté ni abonné aux notifications : l'appel est refusé tout de suite", async () => {
+    await prisma.pushAbonnement.deleteMany({ where: { userId: DEMO.chauffeur } });
+    const sup = await client(DEMO.superviseur);
+    const r = await emettre(sup, "call:invite", { demandeId });
+    expect(r.ok).toBe(false);
+    expect(r.error).toMatch(/par téléphone/);
+    sup.close();
+  });
+
   it("l'appelé qui se connecte pendant la sonnerie reçoit l'appel (retour depuis la notification)", async () => {
+    // Le chauffeur n'a pas EASY ouvert mais a activé les notifications.
+    await prisma.pushAbonnement.create({ data: { userId: DEMO.chauffeur, endpoint: "https://push.exemple.invalid/test-" + Date.now(), p256dh: "k", auth: "a" } });
     const sup = await client(DEMO.superviseur);
     const r = await emettre(sup, "call:invite", { demandeId });
     expect(r.ok).toBe(true);
+    expect(r.info).toMatch(/notification/);
     const ch = ioc(url, { transports: ["websocket"], forceNew: true });
     clients.push(ch);
     const inv = attendre(ch, "call:incoming");
@@ -112,6 +124,7 @@ describe("Appel Superviseur → chauffeur", () => {
     expect((await inv as any).callId).toBe(r.callId);
     sup.emit("call:cancel", { callId: r.callId });
     await pause(200);
+    await prisma.pushAbonnement.deleteMany({ where: { userId: DEMO.chauffeur, endpoint: { startsWith: "https://push.exemple.invalid/" } } });
     sup.close(); ch.close();
   });
 });

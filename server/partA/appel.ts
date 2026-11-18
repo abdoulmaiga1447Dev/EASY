@@ -107,6 +107,17 @@ export function registerFleetSockets(io: IOServer, prisma: PrismaClient, opts: {
           return reply(ERR("Vous ne pouvez pas appeler pour cette demande"));
         }
 
+        // Le destinataire est-il joignable ? (EASY ouvert = socket connecté, ou notification push possible)
+        const connectes = await Promise.all(appelesIds.map(async (id) => (await io.in(`user:${id}`).fetchSockets()).length));
+        const ouverts = connectes.reduce((s, n) => s + n, 0);
+        const abonnementsPush = await prisma.pushAbonnement.count({ where: { userId: { in: appelesIds } } });
+        console.log(`[Appel] invitation demande=${d.id} de=${userId} vers=${appelesIds.join(",")} appareils_connectés=${connectes.join(",")} abonnements_push=${abonnementsPush}`);
+        if (!ouverts && !abonnementsPush) {
+          return reply(ERR(d.driverId === userId
+            ? "Aucun superviseur n'a EASY ouvert ni les notifications activées : appelez par téléphone."
+            : "Le chauffeur n'a pas EASY ouvert et n'a pas activé les notifications : appelez-le par téléphone."));
+        }
+
         const a = registreAppels.creer({ id: randomUUID(), demandeId: d.id, appelantId: userId, appelesIds }, Date.now());
         if (!a) return reply(ERR("Un appel est déjà en cours pour cette demande"));
 
@@ -126,7 +137,7 @@ export function registerFleetSockets(io: IOServer, prisma: PrismaClient, opts: {
             void envoyerPush(prisma, appelesIds, { titre: "Appel manqué", message: `${ctx.name} a essayé de vous joindre (recharge ${vehicle?.immatriculation ?? ""}).`, tag: `appel-${a.id}`, url: "/" });
           }
         }, sonnerieMs));
-        reply({ ok: true, callId: a.id });
+        reply({ ok: true, callId: a.id, info: ouverts ? null : "EASY n'est pas ouvert chez le destinataire : il est prévenu par notification." });
       } catch (e) {
         console.error("[Appel] invite", e);
         reply(ERR("Erreur serveur"));
