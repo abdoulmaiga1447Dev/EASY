@@ -922,6 +922,14 @@ model DemandeRecharge {
 
   anomalie Boolean @default(false) // ex. batterie qui n'a pas monté
 
+  preuvePaiementMediaId String? // capture de la confirmation Wave jointe par le Superviseur (invisible pour le chauffeur)
+  ecartMontant          Boolean @default(false) // payé > montant proposé + 20 % → contrôle Finance
+
+  // Contrôle par la Finance (séparation payeur / contrôleur)
+  controleParId String?
+  controleLe    DateTime?
+  controleNote  String?
+
   messages DemandeRechargeMessage[]
 
   createdAt DateTime @default(now())
@@ -930,6 +938,32 @@ model DemandeRecharge {
   @@index([siteId, statut, createdAt])
   @@index([driverId, createdAt])
   @@index([vehicleId, statut])
+}
+
+// Création d'une borne ou modification (prix du kWh, coordonnées, réactivation…) proposée par
+// le Superviseur : rien ne s'applique avant validation par l'Admin OU la Finance (pas l'auteur).
+enum PropositionBorneStatut {
+  EN_ATTENTE
+  VALIDEE
+  REFUSEE
+}
+
+model PropositionBorne {
+  id           String                 @id @default(cuid())
+  type         String // CREATION | MODIFICATION
+  borneId      String? // borne concernée (MODIFICATION) ou créée (après validation d'une CREATION)
+  siteId       String?
+  donnees      Json // champs proposés
+  avant        Json? // valeurs actuelles (MODIFICATION)
+  statut       PropositionBorneStatut @default(EN_ATTENTE)
+  proposeParId String
+  traiteParId  String?
+  traiteLe     DateTime?
+  motifRefus   String?
+  createdAt    DateTime               @default(now())
+
+  @@index([statut, createdAt])
+  @@index([borneId])
 }
 
 model DemandeRechargeMessage {

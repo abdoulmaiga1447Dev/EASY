@@ -139,10 +139,14 @@ describe("Parcours complet", () => {
   it("le Superviseur enregistre le paiement (montant + n° de transaction)", async () => {
     const sansRef = await request(app).post(`/api/fleet/recharge-demandes/${id}/paiement`).set(auth(DEMO.superviseur)).send({ montant: 4500 });
     expect(sansRef.status).toBe(400);
-    const res = await request(app).post(`/api/fleet/recharge-demandes/${id}/paiement`).set(auth(DEMO.superviseur)).send({ montant: 4500, refTransaction: " tx-dr 0001 " });
+    const sansCapture = await request(app).post(`/api/fleet/recharge-demandes/${id}/paiement`).set(auth(DEMO.superviseur)).send({ montant: 4500, refTransaction: "TX-DR0001" });
+    expect(sansCapture.status).toBe(400);
+    const res = await request(app).post(`/api/fleet/recharge-demandes/${id}/paiement`).set(auth(DEMO.superviseur))
+      .send({ montant: 4500, refTransaction: " tx-dr 0001 ", preuveMediaId: await upload(DEMO.superviseur) });
     expect(res.status).toBe(200);
     expect(res.body.statut).toBe("PAYEE");
     expect(res.body.refTransaction).toBe("TX-DR0001");
+    expect(res.body.ecartMontant).toBe(false); // payé = montant proposé
   });
 
   it("le chauffeur termine : une recharge est enregistrée (coût = montant payé)", async () => {
@@ -198,13 +202,15 @@ describe("Anti-fraude", () => {
     const ok = await request(app).post(`/api/fleet/recharge-demandes/${id}/sur-place`).set(auth(DEMO.chauffeur))
       .send({ qrMediaId: await upload(DEMO.chauffeur), tableauMediaId: await upload(DEMO.chauffeur), socDebut: 40 });
     expect(ok.status).toBe(200);
-    const res = await request(app).post(`/api/fleet/recharge-demandes/${id}/paiement`).set(auth(DEMO.superviseur)).send({ montant: 3000, refTransaction: "TX-DR 0001" });
+    const res = await request(app).post(`/api/fleet/recharge-demandes/${id}/paiement`).set(auth(DEMO.superviseur))
+      .send({ montant: 3000, refTransaction: "TX-DR 0001", preuveMediaId: await upload(DEMO.superviseur) });
     expect(res.status).toBe(409);
     expect(res.body.anomalie).toBe(true);
   });
 
   it("signale une anomalie si la batterie n'a pas monté", async () => {
-    const pay = await request(app).post(`/api/fleet/recharge-demandes/${id}/paiement`).set(auth(DEMO.superviseur)).send({ montant: 3000, refTransaction: "TX-DR0002" });
+    const pay = await request(app).post(`/api/fleet/recharge-demandes/${id}/paiement`).set(auth(DEMO.superviseur))
+      .send({ montant: 3000, refTransaction: "TX-DR0002", preuveMediaId: await upload(DEMO.superviseur) });
     expect(pay.status).toBe(200);
     const res = await request(app).post(`/api/fleet/recharge-demandes/${id}/terminer`).set(auth(DEMO.chauffeur))
       .send({ tableauFinMediaId: await upload(DEMO.chauffeur), socFin: 40 });
@@ -240,5 +246,62 @@ describe("Annulation, cloisonnement et permissions", () => {
     const res = await request(app).post("/api/fleet/recharges").set(auth(DEMO.chauffeur))
       .send({ vehicleId: VEH, typeCharge: "DOMESTIQUE", borneId: "borne_saver_abidjan", kwh: 24, cout: 2400, socDebut: 20, socFin: 60, justificatifMediaId: "x" });
     expect(res.status).toBe(403);
+  });
+});
+
+describe("Contrôle par la Finance (séparation payeur / contrôleur)", () => {
+  let id: string;
+  let preuve: string;
+
+  it("un paiement supérieur de plus de 20 % au montant proposé est signalé", async () => {
+    const d = await request(app).post("/api/fleet/recharge-demandes").set(auth(DEMO.chauffeur)).send({ vehicleId: VEH });
+    expect(d.status).toBe(201);
+    id = d.body.id;
+    await request(app).post(`/api/fleet/recharge-demandes/${id}/borne`).set(auth(DEMO.superviseur)).send({ borneId });
+    const sp = await request(app).post(`/api/fleet/recharge-demandes/${id}/sur-place`).set(auth(DEMO.chauffeur))
+      .send({ qrMediaId: await upload(DEMO.chauffeur), tableauMediaId: await upload(DEMO.chauffeur), socDebut: 30 });
+    expect(sp.body.montantSuggere).toBe(4500);
+    preuve = await upload(DEMO.superviseur);
+    const pay = await request(app).post(`/api/fleet/recharge-demandes/${id}/paiement`).set(auth(DEMO.superviseur))
+      .send({ montant: 6000, refTransaction: "TX-DR-ECART", preuveMediaId: preuve });
+    expect(pay.status).toBe(200);
+    expect(pay.body.ecartMontant).toBe(true);
+  });
+
+  it("la Finance voit la recharge à contrôler (+33 %) et son compteur", async () => {
+    const res = await request(app).get("/api/fleet/recharge-demandes/controle").set(auth(DEMO.finance));
+    expect(res.status).toBe(200);
+    const d = res.body.demandes.find((x: any) => x.id === id);
+    expect(d).toBeDefined();
+    expect(d.ecartPct).toBe(33);
+    const c = await request(app).get("/api/fleet/recharge-demandes/controle/compteur").set(auth(DEMO.finance));
+    expect(c.body.aControler).toBeGreaterThanOrEqual(1);
+  });
+
+  it("la capture du paiement est visible par la Finance, pas par le chauffeur", async () => {
+    expect((await request(app).get(`/api/media/${preuve}`).set(auth(DEMO.finance))).status).toBe(200);
+    expect((await request(app).get(`/api/media/${preuve}`).set(auth(DEMO.chauffeur))).status).toBe(403);
+    const vueChauffeur = await request(app).get(`/api/fleet/recharge-demandes/${id}`).set(auth(DEMO.chauffeur));
+    expect(vueChauffeur.body.preuvePaiementMediaId).toBeNull();
+    const vueFinance = await request(app).get(`/api/fleet/recharge-demandes/${id}`).set(auth(DEMO.finance));
+    expect(vueFinance.body.preuvePaiementMediaId).toBe(preuve);
+  });
+
+  it("le Superviseur n'accède pas au contrôle (403)", async () => {
+    expect((await request(app).get("/api/fleet/recharge-demandes/controle").set(auth(DEMO.superviseur))).status).toBe(403);
+    expect((await request(app).post(`/api/fleet/recharge-demandes/${id}/controle`).set(auth(DEMO.superviseur)).send({ note: "ok" })).status).toBe(403);
+  });
+
+  it("la Finance marque la recharge comme contrôlée (conclusion obligatoire)", async () => {
+    const sansNote = await request(app).post(`/api/fleet/recharge-demandes/${id}/controle`).set(auth(DEMO.finance)).send({});
+    expect(sansNote.status).toBe(400);
+    const ok = await request(app).post(`/api/fleet/recharge-demandes/${id}/controle`).set(auth(DEMO.finance)).send({ note: "Prix réel de la borne plus élevé, justifié." });
+    expect(ok.status).toBe(200);
+    expect(ok.body.controleNote).toMatch(/justifié/);
+    const controlees = await request(app).get("/api/fleet/recharge-demandes/controle?vue=controlees").set(auth(DEMO.finance));
+    expect(controlees.body.demandes.find((x: any) => x.id === id)).toBeDefined();
+    const deux = await request(app).post(`/api/fleet/recharge-demandes/${id}/controle`).set(auth(DEMO.finance)).send({ note: "encore" });
+    expect(deux.status).toBe(409);
+    await request(app).post(`/api/fleet/recharge-demandes/${id}/annuler`).set(auth(DEMO.superviseur)).send({ motif: "fin du test" });
   });
 });

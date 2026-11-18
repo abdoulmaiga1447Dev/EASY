@@ -25,6 +25,7 @@ async function cleanup() {
   await prisma.rechargeRecord.deleteMany({ where: { vehicleId: { in: ["v_f1", "v_f2", "v_f5"] } } });
   await prisma.assignment.deleteMany({ where: { driverId: DEMO.chauffeur, vehicleId: "v_f2", date: jour, shift: "B" } });
   await prisma.borneRecharge.deleteMany({ where: { nom: { startsWith: "TEST-" } } });
+  await prisma.propositionBorne.deleteMany({ where: { proposeParId: { in: [DEMO.superviseur, DEMO.admin] } } });
 }
 
 beforeAll(async () => {
@@ -101,21 +102,17 @@ describe("Supervision & RBAC", () => {
   });
 });
 
-describe("Gestion des bornes (Superviseur Logistique)", () => {
+describe("Bornes : le Superviseur propose, l'Admin ou la Finance valide", () => {
+  let propId: string;
   let borneId: string;
 
-  it("le Superviseur Logistique crée une borne", async () => {
+  it("le Superviseur propose une borne : rien n'est créé avant validation (202)", async () => {
     const res = await request(app).post("/api/fleet/bornes").set(auth(DEMO.superviseur))
-      .send({ nom: "TEST-Borne Cocody", type: "DOMESTIQUE", operateur: "SAVER", siteId: "site_abidjan" });
-    expect(res.status).toBe(201);
-    expect(res.body.active).toBe(true);
-    borneId = res.body.id;
-  });
-
-  it("enregistre le prix du kWh d'une borne", async () => {
-    const res = await request(app).patch(`/api/fleet/bornes/${borneId}`).set(auth(DEMO.superviseur)).send({ prixKwh: 150 });
-    expect(res.status).toBe(200);
-    expect(res.body.prixKwh).toBe(150);
+      .send({ nom: "TEST-Borne Cocody", type: "PARTENAIRE", operateur: "Test", siteId: "site_abidjan", prixKwh: 150 });
+    expect(res.status).toBe(202);
+    expect(res.body.proposition.statut).toBe("EN_ATTENTE");
+    propId = res.body.proposition.id;
+    expect(await prisma.borneRecharge.findFirst({ where: { nom: "TEST-Borne Cocody" } })).toBeNull();
   });
 
   it("refuse une borne sans nom (400)", async () => {
@@ -123,20 +120,61 @@ describe("Gestion des bornes (Superviseur Logistique)", () => {
     expect(res.status).toBe(400);
   });
 
-  it("désactive une borne (elle sort de la liste de saisie mais reste en gestion)", async () => {
+  it("la Finance voit la proposition et la valide : la borne est créée", async () => {
+    const list = await request(app).get("/api/fleet/bornes/propositions").set(auth(DEMO.finance));
+    expect(list.status).toBe(200);
+    expect(list.body.propositions.find((p: any) => p.id === propId)).toBeDefined();
+    const res = await request(app).post(`/api/fleet/bornes/propositions/${propId}/valider`).set(auth(DEMO.finance));
+    expect(res.status).toBe(200);
+    expect(res.body.borne.prixKwh).toBe(150);
+    expect(res.body.borne.active).toBe(true);
+    borneId = res.body.borne.id;
+  });
+
+  it("une proposition déjà traitée ne peut plus être validée (409)", async () => {
+    const res = await request(app).post(`/api/fleet/bornes/propositions/${propId}/valider`).set(auth(DEMO.admin));
+    expect(res.status).toBe(409);
+  });
+
+  it("un changement de prix est une proposition ; l'auteur ne peut pas la valider lui-même", async () => {
+    const prop = await request(app).post("/api/fleet/bornes").set(auth(DEMO.admin))
+      .send({ nom: "TEST-Borne Admin", type: "DOMESTIQUE", siteId: "site_abidjan" });
+    expect(prop.status).toBe(202);
+    const soi = await request(app).post(`/api/fleet/bornes/propositions/${prop.body.proposition.id}/valider`).set(auth(DEMO.admin));
+    expect(soi.status).toBe(403);
+    // La Finance (l'autre valideur) peut la refuser, avec un motif.
+    const sansMotif = await request(app).post(`/api/fleet/bornes/propositions/${prop.body.proposition.id}/refuser`).set(auth(DEMO.finance)).send({});
+    expect(sansMotif.status).toBe(400);
+    const refus = await request(app).post(`/api/fleet/bornes/propositions/${prop.body.proposition.id}/refuser`).set(auth(DEMO.finance)).send({ motif: "Doublon" });
+    expect(refus.status).toBe(200);
+    expect(refus.body.proposition.statut).toBe("REFUSEE");
+  });
+
+  it("le prix du kWh ne change qu'après validation", async () => {
+    const prop = await request(app).patch(`/api/fleet/bornes/${borneId}`).set(auth(DEMO.superviseur)).send({ prixKwh: 250 });
+    expect(prop.status).toBe(202);
+    expect((await prisma.borneRecharge.findUnique({ where: { id: borneId } }))?.prixKwh).toBe(150);
+    const doublon = await request(app).patch(`/api/fleet/bornes/${borneId}`).set(auth(DEMO.superviseur)).send({ prixKwh: 300 });
+    expect(doublon.status).toBe(409);
+    const ok = await request(app).post(`/api/fleet/bornes/propositions/${prop.body.proposition.id}/valider`).set(auth(DEMO.admin));
+    expect(ok.status).toBe(200);
+    expect((await prisma.borneRecharge.findUnique({ where: { id: borneId } }))?.prixKwh).toBe(250);
+  });
+
+  it("la désactivation est immédiate ; la réactivation passe par une validation", async () => {
     const off = await request(app).patch(`/api/fleet/bornes/${borneId}`).set(auth(DEMO.superviseur)).send({ active: false });
     expect(off.status).toBe(200);
     expect(off.body.active).toBe(false);
-    // Liste de saisie (actives) : la borne désactivée n'y est pas.
     const active = await request(app).get("/api/fleet/bornes").set(auth(DEMO.superviseur));
     expect(active.body.bornes.find((b: any) => b.id === borneId)).toBeUndefined();
-    // Liste de gestion (?all=1) : elle y est.
-    const all = await request(app).get("/api/fleet/bornes?all=1").set(auth(DEMO.superviseur));
-    expect(all.body.bornes.find((b: any) => b.id === borneId)).toBeDefined();
+    const on = await request(app).patch(`/api/fleet/bornes/${borneId}`).set(auth(DEMO.superviseur)).send({ active: true });
+    expect(on.status).toBe(202);
+    expect((await prisma.borneRecharge.findUnique({ where: { id: borneId } }))?.active).toBe(false);
   });
 
-  it("un chauffeur ne peut pas gérer les bornes (403)", async () => {
-    const res = await request(app).post("/api/fleet/bornes").set(auth(DEMO.chauffeur)).send({ nom: "TEST-X", type: "DOMESTIQUE" });
-    expect(res.status).toBe(403);
+  it("permissions : le chauffeur ne propose pas, le Superviseur ne valide pas, la Finance ne propose pas (403)", async () => {
+    expect((await request(app).post("/api/fleet/bornes").set(auth(DEMO.chauffeur)).send({ nom: "TEST-X", type: "DOMESTIQUE" })).status).toBe(403);
+    expect((await request(app).post(`/api/fleet/bornes/propositions/${propId}/valider`).set(auth(DEMO.superviseur))).status).toBe(403);
+    expect((await request(app).post("/api/fleet/bornes").set(auth(DEMO.finance)).send({ nom: "TEST-Y", type: "DOMESTIQUE" })).status).toBe(403);
   });
 });

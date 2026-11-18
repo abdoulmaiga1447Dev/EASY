@@ -24,7 +24,7 @@ export function mediaRouter(prisma: PrismaClient): express.Router {
   // --- Upload d'un fichier (photo ou document) ---
   r.post(
     "/api/media",
-    authorize("vehicule.creer", "vehicule.modifier", "document.gerer", "self.checkin", "self.reversement", "self.profil", "maintenance.gerer"),
+    authorize("vehicule.creer", "vehicule.modifier", "document.gerer", "self.checkin", "self.reversement", "self.profil", "maintenance.gerer", "recharge.superviser"),
     (req, res) => {
       uploadMiddleware(req, res, async (err: any) => {
         if (err) return res.status(400).json({ error: { fr: err.message || "Upload invalide", en: "Invalid upload" } });
@@ -64,7 +64,7 @@ export function mediaRouter(prisma: PrismaClient): express.Router {
         if (!(await canReadRechargeMedia(prisma, ctx, media.resourceId))) return res.status(403).json({ error: { fr: "Accès refusé à ce fichier", en: "Access denied" } });
       } else if (media.resourceType === "DemandeRecharge" && media.resourceId) {
         // Photos d'une demande de recharge : le chauffeur concerné ou le Superviseur Logistique du site.
-        if (!(await canReadDemandeRechargeMedia(prisma, ctx, media.resourceId))) return res.status(403).json({ error: { fr: "Accès refusé à ce fichier", en: "Access denied" } });
+        if (!(await canReadDemandeRechargeMedia(prisma, ctx, media.resourceId, media.id))) return res.status(403).json({ error: { fr: "Accès refusé à ce fichier", en: "Access denied" } });
       } else if (media.resourceType === "Panne" && media.resourceId) {
         // Photos de panne : le chauffeur déclarant, le Responsable terrain ou la Maintenance du site.
         if (!(await canReadPanneMedia(prisma, ctx, media.resourceId))) return res.status(403).json({ error: { fr: "Accès refusé à ce fichier", en: "Access denied" } });

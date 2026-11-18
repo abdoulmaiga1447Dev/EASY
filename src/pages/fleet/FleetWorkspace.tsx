@@ -21,7 +21,8 @@ import { FleetChauffeur } from "./FleetChauffeur";
 import { FleetShifts } from "./FleetShifts";
 import { FleetReversements } from "./FleetReversements";
 import { FleetRecharges } from "./FleetRecharges";
-import { useDemandesATraiter } from "./RechargeDemandes";
+import { useDemandesATraiter, useRechargesAControler } from "./RechargeDemandes";
+import { usePropositionsEnAttente } from "./FleetRecharges";
 import { FleetPannes } from "./FleetPannes";
 import { Spinner, EmptyState, StatCard, Panel, Reveal } from "./ui";
 
@@ -271,7 +272,10 @@ export const FleetWorkspace: React.FC = () => {
   const [section, setSection] = useState<Section>("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   // Demandes de recharge qui attendent le Superviseur (compteur du menu, en temps réel).
-  const rechargesATraiter = useDemandesATraiter(!!ctx?.permissions.includes("recharge.superviser"));
+  // + recharges à contrôler et bornes à valider pour la Finance / l'Admin.
+  const rechargesATraiter = useDemandesATraiter(!!ctx?.permissions.includes("recharge.superviser"))
+    + useRechargesAControler(!!ctx?.permissions.includes("recharge.controler"))
+    + usePropositionsEnAttente(!!ctx?.permissions.includes("borne.valider"));
 
   if (loading) return <div className="min-h-screen bg-[#0A0A0B]"><Spinner /></div>;
   if (!ctx) return <div className="min-h-screen bg-[#0A0A0B] flex items-center justify-center"><EmptyState>Contexte indisponible. Reconnectez-vous.</EmptyState></div>;
@@ -287,7 +291,7 @@ export const FleetWorkspace: React.FC = () => {
     { key: "attribution", label: "Attribution", icon: <CalendarClock size={18} />, show: ctx.permissions.includes("attribution.voir") },
     { key: "terrain", label: "Terrain", icon: <ClipboardCheck size={18} />, show: ctx.permissions.includes("shift.superviser") },
     { key: "reversements", label: "Reversements", icon: <Banknote size={18} />, show: ctx.permissions.includes("reversement.voir") },
-    { key: "recharges", label: "Recharges", icon: <BatteryCharging size={18} />, show: ctx.permissions.includes("recharge.superviser") || ctx.permissions.includes("recharge.enregistrer") },
+    { key: "recharges", label: "Recharges", icon: <BatteryCharging size={18} />, show: ["recharge.superviser", "recharge.enregistrer", "recharge.controler", "borne.valider"].some((p) => ctx.permissions.includes(p)) },
     { key: "pannes", label: "Pannes", icon: <AlertTriangle size={18} />, show: ctx.permissions.includes("panne.qualifier") || ctx.permissions.includes("maintenance.gerer") },
     { key: "moi", label: "Mon espace", icon: <User size={18} />, show: ctx.roleCode === "chauffeur" },
   ];
@@ -301,7 +305,7 @@ export const FleetWorkspace: React.FC = () => {
         className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${active ? "bg-[#1C1C20] text-[#EDEDED]" : "text-[#8A8A8A] hover:text-[#EDEDED] hover:bg-[#141416]"}`}>
         {n.icon} {n.label}
         {n.key === "recharges" && rechargesATraiter > 0 && (
-          <span className="ml-auto text-xs font-semibold text-[#F59E0B]" aria-label={`${rechargesATraiter} demande(s) de recharge à traiter`}>{rechargesATraiter}</span>
+          <span className="ml-auto text-xs font-semibold text-[#F59E0B]" aria-label={`${rechargesATraiter} élément(s) de recharge à traiter`}>{rechargesATraiter}</span>
         )}
       </button>
     );

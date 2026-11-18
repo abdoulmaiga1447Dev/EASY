@@ -7,8 +7,8 @@
  * Mise à jour en temps réel (Socket.IO) avec une relecture périodique en secours.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BatteryCharging, MapPin, Phone, Send, ArrowLeft, AlertTriangle, CheckCircle2, QrCode, Gauge, Banknote } from "lucide-react";
-import { api, type ApiError } from "../../api/fleet";
+import { BatteryCharging, MapPin, Phone, Send, ArrowLeft, AlertTriangle, CheckCircle2, QrCode, Gauge, Banknote, Upload, ShieldCheck } from "lucide-react";
+import { api, uploadMedia, type ApiError } from "../../api/fleet";
 import { useRealtime, bip } from "../../api/realtime";
 import { useRbac } from "../../context/RbacContext";
 import { Btn, Panel, Field, Input, Select, Spinner, EmptyState, AuthImage } from "./ui";
@@ -179,6 +179,29 @@ const Composer: React.FC<{ demandeId: string; onSent: (d: any) => void; notify: 
         onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); envoyer(); } }} />
       <Btn onClick={envoyer} disabled={busy || !texte.trim()} aria-label="Envoyer"><Send size={16} /></Btn>
     </div>
+  );
+};
+
+/** Capture d'écran de la confirmation de paiement (choisie dans la galerie : c'est une capture d'écran). */
+const CapturePaiement: React.FC<{ mediaId: string | null; onUploaded: (id: string) => void; notify: Notify }> = ({ mediaId, onUploaded, notify }) => {
+  const [busy, setBusy] = useState(false);
+  const [apercu, setApercu] = useState<string | null>(null);
+  const onPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setBusy(true);
+    try { const m = await uploadMedia(file); onUploaded(m.id); setApercu(URL.createObjectURL(file)); }
+    catch (err) { notify({ message: errMsg(err), kind: "err" }); } finally { setBusy(false); e.target.value = ""; }
+  };
+  return (
+    <label className="flex flex-col gap-1.5 cursor-pointer text-sm">
+      <span className="text-[#8A8A8A] font-medium">Capture de la confirmation Wave *</span>
+      <div className={`h-24 rounded-xl border overflow-hidden flex items-center justify-center bg-[#0F0F11] ${mediaId ? "border-[#22C55E]" : "border-dashed border-[#33363F]"}`}>
+        {apercu ? <img src={apercu} alt="Capture du paiement" className="h-full w-full object-contain" />
+          : <span className="flex items-center gap-2 text-[#8A8A8A]"><Upload size={16} /> {busy ? "Envoi…" : "Choisir la capture"}</span>}
+      </div>
+      <input type="file" accept="image/*" className="hidden" onChange={onPick} />
+    </label>
   );
 };
 
@@ -425,7 +448,7 @@ export const SuperviseurBoite: React.FC<{ notify: Notify }> = ({ notify }) => {
                 const sel = x.id === selId;
                 return (
                   <button key={x.id} onClick={() => setSelId(x.id)}
-                    className={`w-full text-left px-4 py-3 border-t border-[#232327] first:border-t-0 border-l-2 transition-colors ${sel ? "bg-[#1C1C20]" : "hover:bg-[#18181B]"}`}
+                    className={`w-full text-left px-4 py-3 border-t border-[#232327] first:border-t-0 border-l-2 transition-colors normal-case! font-sans! tracking-normal! ${sel ? "bg-[#1C1C20]" : "hover:bg-[#18181B]"}`}
                     style={{ borderLeftColor: x.actionRequise ? AMBER : x.anomalie ? RED : "transparent" }}>
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-sm font-medium text-[#EDEDED] truncate">{x.chauffeurNom ?? "—"}</span>
@@ -462,11 +485,14 @@ const DemandeSuperviseur: React.FC<{
   const [borneId, setBorneId] = useState("");
   const [montant, setMontant] = useState("");
   const [ref, setRef] = useState("");
+  const [preuve, setPreuve] = useState<string | null>(null);
+  const [cleCapture, setCleCapture] = useState(0);
   const [annulation, setAnnulation] = useState<string | null>(null);
   const st = STATUT[d.statut];
 
   // Montant pré-rempli avec la proposition, quand elle arrive.
-  useEffect(() => { setMontant(d.montantSuggere != null ? String(d.montantSuggere) : ""); setRef(""); setAnnulation(null); }, [d.id, d.montantSuggere]);
+  useEffect(() => { setMontant(d.montantSuggere != null ? String(d.montantSuggere) : ""); setRef(""); setPreuve(null); setCleCapture((k) => k + 1); setAnnulation(null); }, [d.id, d.montantSuggere]);
+  const ecartPct = d.montantSuggere && Number(montant) > 0 ? Math.round(((Number(montant) - d.montantSuggere) / d.montantSuggere) * 100) : null;
   useEffect(() => { setBorneId(d.borneId ?? ""); }, [d.id, d.borneId]);
 
   const act = async (path: string, body: any, ok: string) => {
@@ -527,14 +553,25 @@ const DemandeSuperviseur: React.FC<{
             <Field label="Montant payé (FCFA)"><Input type="number" inputMode="numeric" value={montant} onChange={(e) => setMontant(e.target.value)} placeholder="ex. 4500" /></Field>
             <Field label="N° de transaction"><Input value={ref} onChange={(e) => setRef(e.target.value)} placeholder="ex. TX123456" /></Field>
           </div>
-          <Btn onClick={() => act("paiement", { montant: Number(montant), refTransaction: ref }, "Paiement enregistré : le chauffeur est prévenu")}
-            disabled={busy || !(Number(montant) > 0) || ref.trim().length < 4} className="w-full" size="lg">
+          <CapturePaiement key={cleCapture} mediaId={preuve} onUploaded={setPreuve} notify={notify} />
+          {ecartPct != null && ecartPct > 20 && (
+            <Callout color={AMBER}>Montant supérieur de {ecartPct} % au montant proposé : la Finance sera prévenue et contrôlera ce paiement.</Callout>
+          )}
+          <Btn onClick={() => act("paiement", { montant: Number(montant), refTransaction: ref, preuveMediaId: preuve }, "Paiement enregistré : le chauffeur est prévenu")}
+            disabled={busy || !(Number(montant) > 0) || ref.trim().length < 4 || !preuve} className="w-full" size="lg">
             Paiement effectué
           </Btn>
+          <p className="text-xs text-[#8A8A8A]">La Finance rapproche chaque paiement avec le relevé du compte Wave de l'entreprise.</p>
         </Panel>
       )}
       {d.statut === "PAYEE" && (
         <Callout color={GREEN}>Payé {fcfa(d.montantPaye)} (n° {d.refTransaction}). En attente de la photo du tableau de bord à la fin de la recharge.</Callout>
+      )}
+      {d.preuvePaiementMediaId && (
+        <Panel className="p-4">
+          <div className="text-xs uppercase tracking-wide text-[#8A8A8A] mb-2">Capture du paiement Wave</div>
+          <AuthImage mediaId={d.preuvePaiementMediaId} className="w-full max-h-72 rounded-lg" zoomable />
+        </Panel>
       )}
       {d.statut === "TERMINEE" && (
         <Callout color={d.anomalie ? RED : MUTED}>
@@ -570,5 +607,121 @@ export function useDemandesATraiter(actif: boolean): number {
   }, [actif]);
   useEffect(() => { load(); if (!actif) return; const t = setInterval(load, 30000); return () => clearInterval(t); }, [load, actif]);
   useRealtime("recharge:update", () => load(), actif);
+  return n;
+}
+
+// =====================================================================================
+// Finance : contrôle des recharges payées (le payeur n'est pas le contrôleur)
+// =====================================================================================
+
+export const ControleRecharges: React.FC<{ notify: Notify }> = ({ notify }) => {
+  const [vue, setVue] = useState<"a_controler" | "controlees">("a_controler");
+  const [list, setList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selId, setSelId] = useState<string | null>(null);
+  const [detail, setDetail] = useState<any>(null);
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const loadList = useCallback(async () => {
+    try { setList((await api.get<{ demandes: any[] }>(`/api/fleet/recharge-demandes/controle?vue=${vue}`)).demandes); }
+    catch (e) { notify({ message: errMsg(e), kind: "err" }); } finally { setLoading(false); }
+  }, [vue, notify]);
+  useEffect(() => { setLoading(true); loadList(); }, [loadList]);
+  useEffect(() => {
+    setNote("");
+    if (!selId) { setDetail(null); return; }
+    api.get<any>(`/api/fleet/recharge-demandes/${selId}`).then(setDetail).catch((e) => notify({ message: errMsg(e), kind: "err" }));
+  }, [selId, notify]);
+  useRealtime("recharge:controle", () => loadList());
+
+  const controler = async () => {
+    setBusy(true);
+    try {
+      setDetail(await api.post<any>(`/api/fleet/recharge-demandes/${selId}/controle`, { note }));
+      notify({ message: "Recharge marquée comme contrôlée", kind: "ok" });
+      setNote(""); loadList();
+    } catch (e) { notify({ message: errMsg(e), kind: "err" }); } finally { setBusy(false); }
+  };
+
+  const motif = (x: any) => [x.ecartMontant ? `Payé ${fcfa(x.montantPaye)} pour ${fcfa(x.montantSuggere)} proposés (+${x.ecartPct} %)` : null, x.anomalie ? `Batterie ${x.socDebut ?? "—"} % → ${x.socFin ?? "—"} %` : null].filter(Boolean).join(" · ");
+  const tabCls = (a: boolean) => `px-3 py-2 text-sm border-b-2 ${a ? "border-[#22C55E] text-[#EDEDED]" : "border-transparent text-[#8A8A8A] hover:text-[#EDEDED]"}`;
+
+  return (
+    <div className="grid lg:grid-cols-[380px_1fr] gap-4">
+      <div className={selId ? "hidden lg:block" : ""}>
+        <Panel className="overflow-hidden">
+          <div className="flex gap-1 px-3 border-b border-[#232327]">
+            <button className={tabCls(vue === "a_controler")} onClick={() => { setVue("a_controler"); setSelId(null); }}>À contrôler</button>
+            <button className={tabCls(vue === "controlees")} onClick={() => { setVue("controlees"); setSelId(null); }}>Contrôlées</button>
+          </div>
+          {loading ? <Spinner /> : !list.length ? (
+            <EmptyState>{vue === "a_controler" ? "Aucune recharge à contrôler." : "Aucune recharge contrôlée."}</EmptyState>
+          ) : (
+            <div className="max-h-[70vh] overflow-y-auto">
+              {list.map((x) => (
+                <button key={x.id} onClick={() => setSelId(x.id)}
+                  className={`w-full text-left px-4 py-3 border-t border-[#232327] first:border-t-0 border-l-2 normal-case! font-sans! tracking-normal! ${x.id === selId ? "bg-[#1C1C20]" : "hover:bg-[#18181B]"}`}
+                  style={{ borderLeftColor: vue === "a_controler" ? (x.anomalie ? RED : AMBER) : "transparent" }}>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium text-[#EDEDED]">{x.vehicule ?? "—"} · {x.chauffeurNom ?? "—"}</span>
+                    <span className="text-[11px] text-[#8A8A8A] shrink-0">{new Date(x.createdAt).toLocaleDateString("fr-FR")}</span>
+                  </div>
+                  <div className="text-xs mt-0.5" style={{ color: x.anomalie ? RED : AMBER }}>{motif(x)}</div>
+                  <div className="text-[11px] text-[#8A8A8A] mt-0.5">Payé par {x.payeParNom ?? "—"}{x.refTransaction ? ` · n° ${x.refTransaction}` : ""}</div>
+                </button>
+              ))}
+            </div>
+          )}
+        </Panel>
+      </div>
+
+      <div className={selId ? "" : "hidden lg:block"}>
+        {!detail ? <Panel className="p-6"><EmptyState>Sélectionnez une recharge pour voir le détail.</EmptyState></Panel> : (
+          <div className="space-y-4">
+            <Panel className="p-5 space-y-2">
+              <button onClick={() => setSelId(null)} className="lg:hidden flex items-center gap-1 text-xs text-[#8A8A8A] mb-1"><ArrowLeft size={14} /> Liste</button>
+              <div className="text-lg font-semibold text-[#EDEDED]">{detail.vehicule?.immatriculation} · {detail.chauffeur?.name}</div>
+              <div className="grid sm:grid-cols-3 gap-3 text-sm pt-1">
+                <div><div className="text-xs text-[#8A8A8A]">Montant proposé</div><div className="text-[#EDEDED]">{detail.montantSuggere != null ? fcfa(detail.montantSuggere) : "—"}</div></div>
+                <div><div className="text-xs text-[#8A8A8A]">Montant payé</div><div style={{ color: detail.ecartMontant ? AMBER : "#EDEDED" }}>{fcfa(detail.montantPaye)}</div></div>
+                <div><div className="text-xs text-[#8A8A8A]">Batterie</div><div style={{ color: detail.anomalie ? RED : "#EDEDED" }}>{detail.socDebut ?? "—"} % → {detail.socFin ?? "—"} %</div></div>
+              </div>
+              <div className="text-xs text-[#8A8A8A]">N° de transaction : <span className="text-[#EDEDED]">{detail.refTransaction ?? "—"}</span></div>
+            </Panel>
+            {detail.preuvePaiementMediaId && (
+              <Panel className="p-4">
+                <div className="text-xs uppercase tracking-wide text-[#8A8A8A] mb-2">Capture du paiement Wave</div>
+                <AuthImage mediaId={detail.preuvePaiementMediaId} className="w-full max-h-72 rounded-lg" zoomable />
+              </Panel>
+            )}
+            <Panel className="p-4 max-h-[50vh] overflow-y-auto"><Fil demande={detail} moi="" vueSuperviseur /></Panel>
+            {detail.controleLe ? (
+              <Callout color={GREEN}>
+                <div className="flex items-center gap-1.5 font-medium text-[#22C55E] mb-1"><ShieldCheck size={15} /> Contrôlée le {new Date(detail.controleLe).toLocaleDateString("fr-FR")}</div>
+                {detail.controleNote}
+              </Callout>
+            ) : (
+              <Panel className="p-5 space-y-3">
+                <Field label="Conclusion du contrôle"><Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="ex. Conforme au relevé Wave / écart justifié / à sanctionner" /></Field>
+                <Btn onClick={controler} disabled={busy || !note.trim()} className="w-full">Marquer comme contrôlée</Btn>
+              </Panel>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+/** Nombre de recharges à contrôler (Finance). */
+export function useRechargesAControler(actif: boolean): number {
+  const [n, setN] = useState(0);
+  const load = useCallback(async () => {
+    if (!actif) return;
+    try { setN((await api.get<{ aControler: number }>("/api/fleet/recharge-demandes/controle/compteur")).aControler); } catch { /* silencieux */ }
+  }, [actif]);
+  useEffect(() => { load(); if (!actif) return; const t = setInterval(load, 30000); return () => clearInterval(t); }, [load, actif]);
+  useRealtime("recharge:controle", () => load(), actif);
   return n;
 }

@@ -75,6 +75,8 @@ export const PERMISSIONS: PermissionDef[] = [
   // --- Recharge EV (Flux 3, C) ---
   { code: "recharge.enregistrer", libelle: "Enregistrer une recharge", categorie: "Recharge" },
   { code: "recharge.superviser", libelle: "Superviser les recharges (anti-fraude)", categorie: "Recharge" },
+  { code: "recharge.controler", libelle: "Contrôler les recharges payées par le Superviseur (écarts, anomalies)", categorie: "Recharge" },
+  { code: "borne.valider", libelle: "Valider les bornes de recharge et les prix du kWh proposés", categorie: "Recharge" },
 
   // --- Maintenance & pannes (Flux 4, C) ---
   { code: "maintenance.gerer", libelle: "Gérer la maintenance et les réparations", categorie: "Maintenance" },
@@ -171,6 +173,8 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
     "reversement.voir", "reversement.rapprocher",
     "paie.calculer", "paie.valider",
     "finance.exporter",
+    "recharge.controler", // contrôle les recharges payées par le Superviseur (séparation payeur / contrôleur)
+    "borne.valider", // valide les bornes et prix du kWh proposés par le Superviseur (ou l'Admin)
     "parametre.voir",
   ],
 

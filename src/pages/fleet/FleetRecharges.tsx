@@ -10,7 +10,8 @@ import { BatteryCharging, AlertTriangle } from "lucide-react";
 import { useRbac } from "../../context/RbacContext";
 import { api, uploadMedia, type ApiError } from "../../api/fleet";
 import { Btn, Reveal, Field, Input, Select, Spinner, EmptyState, Toast, Modal, AuthImage } from "./ui";
-import { ChauffeurRecharge, SuperviseurBoite, useDemandesATraiter } from "./RechargeDemandes";
+import { ChauffeurRecharge, SuperviseurBoite, ControleRecharges, useDemandesATraiter, useRechargesAControler } from "./RechargeDemandes";
+import { useRealtime } from "../../api/realtime";
 import rechargeHero from "../../assets/recharge-hero.webp";
 import easyLogo from "../../assets/images/easy-logo-green.png";
 
@@ -239,12 +240,20 @@ const BornesManager: React.FC<{ notify: (t: ToastState) => void }> = ({ notify }
   const [saving, setSaving] = useState(false);
   const set = (p: any) => setForm((f: any) => ({ ...f, ...p }));
 
+  const [props, setProps] = useState<any[]>([]);
   const load = async () => {
     setLoading(true);
-    try { setList((await api.get<{ bornes: any[] }>("/api/fleet/bornes?all=1")).bornes); }
-    catch (e) { notify({ message: errMsg(e), kind: "err" }); } finally { setLoading(false); }
+    try {
+      const [b, p] = await Promise.all([
+        api.get<{ bornes: any[] }>("/api/fleet/bornes?all=1"),
+        api.get<{ propositions: any[] }>("/api/fleet/bornes/propositions?statut=TOUTES"),
+      ]);
+      setList(b.bornes);
+      setProps(p.propositions.filter((x) => x.proposeParId === ctx?.userId).slice(0, 8));
+    } catch (e) { notify({ message: errMsg(e), kind: "err" }); } finally { setLoading(false); }
   };
   useEffect(() => { load(); }, []);
+  useRealtime("borne:proposition", () => load());
 
   const ouvrirNouveau = () => { setForm(emptyBorne); setModal({}); };
   const ouvrirEdition = (b: any) => { setForm({ nom: b.nom, type: b.type, operateur: b.operateur ?? "", siteId: b.siteId ?? "", gpsLat: b.gpsLat ?? "", gpsLng: b.gpsLng ?? "", prixKwh: b.prixKwh ?? "" }); setModal({ id: b.id }); };
@@ -259,21 +268,42 @@ const BornesManager: React.FC<{ notify: (t: ToastState) => void }> = ({ notify }
       };
       if (modal?.id) await api.patch(`/api/fleet/bornes/${modal.id}`, payload);
       else await api.post("/api/fleet/bornes", payload);
-      notify({ message: modal?.id ? "Borne modifiée" : "Borne ajoutée", kind: "ok" });
+      notify({ message: "Proposition envoyée : appliquée après validation par l'Admin ou la Finance", kind: "ok" });
       setModal(null); load();
     } catch (e) { notify({ message: errMsg(e), kind: "err" }); } finally { setSaving(false); }
   };
 
   const toggle = async (b: any) => {
-    try { await api.patch(`/api/fleet/bornes/${b.id}`, { active: !b.active }); load(); }
-    catch (e) { notify({ message: errMsg(e), kind: "err" }); }
+    try {
+      await api.patch(`/api/fleet/bornes/${b.id}`, { active: !b.active });
+      notify({ message: b.active ? "Borne désactivée" : "Réactivation envoyée pour validation (Admin ou Finance)", kind: "ok" });
+      load();
+    } catch (e) { notify({ message: errMsg(e), kind: "err" }); }
   };
 
   const siteNom = (id: string | null) => ctx?.sites.find((s) => s.id === id)?.nom ?? "—";
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end"><Btn onClick={ouvrirNouveau}>Ajouter une borne</Btn></div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs text-[#8A8A8A] max-w-xl">Toute nouvelle borne, tout changement de prix du kWh et toute réactivation s'appliquent après validation par l'Admin ou la Finance. La désactivation est immédiate.</p>
+        <Btn onClick={ouvrirNouveau}>Proposer une borne</Btn>
+      </div>
+      {!!props.length && (
+        <div className="bg-[#141416] border border-[#232327] rounded-2xl p-4">
+          <div className="text-xs uppercase tracking-wide text-[#8A8A8A] mb-2">Mes propositions</div>
+          <div className="space-y-1.5">
+            {props.map((p) => (
+              <div key={p.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                <span className="text-[#EDEDED]">{p.type === "CREATION" ? "Nouvelle borne" : "Modification"} · {p.borneNom ?? "—"}</span>
+                <span className="text-xs font-medium" style={{ color: p.statut === "VALIDEE" ? "#22C55E" : p.statut === "REFUSEE" ? "#EF4444" : "#F59E0B" }}>
+                  {p.statut === "VALIDEE" ? `Validée par ${p.traiteParNom ?? "—"}` : p.statut === "REFUSEE" ? `Refusée : ${p.motifRefus}` : "En attente de validation"}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       {loading ? <Spinner /> : !list.length ? <EmptyState>Aucune borne enregistrée. Ajoutez-en une pour alimenter la liste autorisée.</EmptyState> : (
         <div className="overflow-x-auto bg-[#0B0B0D]/65 border border-white/10 rounded-2xl">
           <table className="w-full text-sm">
@@ -301,7 +331,7 @@ const BornesManager: React.FC<{ notify: (t: ToastState) => void }> = ({ notify }
       )}
 
       {modal && (
-        <Modal title={modal.id ? "Modifier la borne" : "Ajouter une borne"} onClose={() => setModal(null)}>
+        <Modal title={modal.id ? "Proposer une modification" : "Proposer une borne"} onClose={() => setModal(null)}>
           <div className="space-y-3">
             <Field label="Nom *"><Input value={form.nom} onChange={(e) => set({ nom: e.target.value })} placeholder="ex. Hub SAVER Cocody" /></Field>
             <div className="grid grid-cols-2 gap-3">
@@ -314,9 +344,124 @@ const BornesManager: React.FC<{ notify: (t: ToastState) => void }> = ({ notify }
               <Field label="GPS latitude"><Input type="number" value={form.gpsLat} onChange={(e) => set({ gpsLat: e.target.value })} placeholder="5.36" /></Field>
               <Field label="GPS longitude"><Input type="number" value={form.gpsLng} onChange={(e) => set({ gpsLng: e.target.value })} placeholder="-4.00" /></Field>
             </div>
-            <Btn onClick={submit} disabled={!form.nom || saving} className="w-full">{modal.id ? "Enregistrer" : "Ajouter la borne"}</Btn>
+            <Btn onClick={submit} disabled={!form.nom || saving} className="w-full">Envoyer pour validation</Btn>
+            <p className="text-xs text-[#8A8A8A]">La proposition sera appliquée après validation par l'Admin ou la Finance.</p>
           </div>
         </Modal>
+      )}
+    </div>
+  );
+};
+
+// ------------------------------ Validation des bornes (Admin ou Finance) ------------------------------
+const CHAMP_LABEL: Record<string, string> = { nom: "Nom", type: "Type", operateur: "Opérateur", siteId: "Site", gpsLat: "Latitude", gpsLng: "Longitude", prixKwh: "Prix du kWh", active: "Active" };
+
+export function usePropositionsEnAttente(actif: boolean): number {
+  const [n, setN] = useState(0);
+  const load = async () => {
+    if (!actif) return;
+    try { setN((await api.get<{ propositions: any[] }>("/api/fleet/bornes/propositions")).propositions.length); } catch { /* silencieux */ }
+  };
+  useEffect(() => { load(); if (!actif) return; const t = setInterval(load, 30000); return () => clearInterval(t); }, [actif]);
+  useRealtime("borne:proposition", () => load(), actif);
+  return n;
+}
+
+const ValidationsBornes: React.FC<{ notify: (t: ToastState) => void }> = ({ notify }) => {
+  const { ctx } = useRbac();
+  const [enAttente, setEnAttente] = useState<any[]>([]);
+  const [traitees, setTraitees] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refus, setRefus] = useState<{ id: string; motif: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const load = async () => {
+    try {
+      const [a, t] = await Promise.all([
+        api.get<{ propositions: any[] }>("/api/fleet/bornes/propositions"),
+        api.get<{ propositions: any[] }>("/api/fleet/bornes/propositions?statut=TOUTES"),
+      ]);
+      setEnAttente(a.propositions);
+      setTraitees(t.propositions.filter((p) => p.statut !== "EN_ATTENTE").slice(0, 15));
+    } catch (e) { notify({ message: errMsg(e), kind: "err" }); } finally { setLoading(false); }
+  };
+  useEffect(() => { load(); }, []);
+  useRealtime("borne:proposition", () => load());
+
+  const fmt = (k: string, v: any) => {
+    if (v === null || v === undefined || v === "") return "—";
+    if (k === "prixKwh") return `${v} F`;
+    if (k === "type") return TYPE_LABEL[v] ?? v;
+    if (k === "siteId") return ctx?.sites.find((s) => s.id === v)?.nom ?? v;
+    if (k === "active") return v ? "Oui" : "Non";
+    return String(v);
+  };
+  const act = async (id: string, action: "valider" | "refuser", body?: any) => {
+    setBusy(true);
+    try {
+      await api.post(`/api/fleet/bornes/propositions/${id}/${action}`, body ?? {});
+      notify({ message: action === "valider" ? "Proposition validée et appliquée" : "Proposition refusée", kind: "ok" });
+      setRefus(null); load();
+    } catch (e) { notify({ message: errMsg(e), kind: "err" }); } finally { setBusy(false); }
+  };
+
+  if (loading) return <Spinner />;
+  return (
+    <div className="space-y-5 max-w-3xl">
+      {!enAttente.length ? <div className="bg-[#141416] border border-[#232327] rounded-2xl"><EmptyState>Aucune proposition en attente.</EmptyState></div> : enAttente.map((p) => {
+        const d = p.donnees || {};
+        const mienne = p.proposeParId === ctx?.userId;
+        return (
+          <div key={p.id} className="bg-[#141416] border border-[#232327] border-l-2 border-l-[#F59E0B] rounded-2xl p-5 space-y-3">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <div className="text-xs text-[#F59E0B] font-medium">{p.type === "CREATION" ? "Nouvelle borne" : "Modification de borne"}</div>
+                <div className="text-lg font-semibold text-[#EDEDED]">{p.borneNom ?? d.nom ?? "—"}</div>
+                <div className="text-xs text-[#8A8A8A]">Proposée par {p.proposeParNom ?? "—"} · {new Date(p.createdAt).toLocaleString("fr-FR")}</div>
+              </div>
+            </div>
+            <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+              {Object.keys(d).map((k) => (
+                <React.Fragment key={k}>
+                  <span className="text-[#8A8A8A]">{CHAMP_LABEL[k] ?? k}</span>
+                  <span className="text-[#EDEDED]">
+                    {p.type === "MODIFICATION" && p.avant ? <><span className="text-[#8A8A8A]">{fmt(k, p.avant[k])}</span> → </> : null}
+                    <b>{fmt(k, d[k])}</b>
+                  </span>
+                </React.Fragment>
+              ))}
+            </div>
+            {mienne ? (
+              <p className="text-xs text-[#8A8A8A]">C'est votre proposition : un autre valideur (Admin ou Finance) doit la traiter.</p>
+            ) : refus?.id === p.id ? (
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Input value={refus.motif} onChange={(e) => setRefus({ id: p.id, motif: e.target.value })} placeholder="Motif du refus" className="flex-1" />
+                <Btn variant="secondary" onClick={() => setRefus(null)} disabled={busy}>Retour</Btn>
+                <Btn variant="danger" onClick={() => act(p.id, "refuser", { motif: refus.motif })} disabled={busy || !refus.motif.trim()}>Refuser</Btn>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <Btn onClick={() => act(p.id, "valider")} disabled={busy}>Valider</Btn>
+                <Btn variant="secondary" onClick={() => setRefus({ id: p.id, motif: "" })} disabled={busy}>Refuser</Btn>
+              </div>
+            )}
+          </div>
+        );
+      })}
+      {!!traitees.length && (
+        <div className="bg-[#141416] border border-[#232327] rounded-2xl p-4">
+          <div className="text-xs uppercase tracking-wide text-[#8A8A8A] mb-2">Dernières décisions</div>
+          <div className="space-y-1.5">
+            {traitees.map((p) => (
+              <div key={p.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                <span className="text-[#EDEDED]">{p.type === "CREATION" ? "Nouvelle borne" : "Modification"} · {p.borneNom ?? "—"} <span className="text-[#8A8A8A]">· par {p.proposeParNom ?? "—"}</span></span>
+                <span className="text-xs font-medium" style={{ color: p.statut === "VALIDEE" ? "#22C55E" : "#EF4444" }}>
+                  {p.statut === "VALIDEE" ? "Validée" : "Refusée"} par {p.traiteParNom ?? "—"}{p.motifRefus ? ` : ${p.motifRefus}` : ""}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );
@@ -326,12 +471,27 @@ export const FleetRecharges: React.FC = () => {
   const { can } = useRbac();
   const [toast, setToast] = useState<ToastState>(null);
   const notify = useMemo(() => (t: ToastState) => { setToast(t); if (t) setTimeout(() => setToast(null), 3500); }, []);
-  const [tab, setTab] = useState<"demandes" | "suivi" | "enregistrer" | "bornes">("demandes");
-
   const estSuperviseur = can("recharge.superviser");
   const peutEnregistrer = can("recharge.enregistrer");
   const peutGererBornes = can("borne.gerer");
+  const peutControler = can("recharge.controler");
+  const peutValider = can("borne.valider");
   const aTraiter = useDemandesATraiter(estSuperviseur);
+  const aControler = useRechargesAControler(peutControler);
+  const aValider = usePropositionsEnAttente(peutValider);
+
+  type Tab = "demandes" | "suivi" | "enregistrer" | "bornes" | "controle" | "validations";
+  const tabs: { key: Tab; label: string; n?: number; show: boolean }[] = [
+    { key: "demandes", label: "Demandes", n: aTraiter, show: estSuperviseur },
+    { key: "controle", label: "À contrôler", n: aControler, show: peutControler },
+    { key: "validations", label: "Validations bornes", n: aValider, show: peutValider },
+    { key: "suivi", label: "Suivi", show: estSuperviseur },
+    { key: "enregistrer", label: "Enregistrer", show: estSuperviseur },
+    { key: "bornes", label: "Bornes", show: estSuperviseur && peutGererBornes },
+  ];
+  const visibles = tabs.filter((t) => t.show);
+  const [tab, setTab] = useState<Tab | null>(null);
+  const courant: Tab | null = tab && visibles.some((t) => t.key === tab) ? tab : visibles[0]?.key ?? null;
   const tabCls = (active: boolean) => `px-4 py-2.5 text-sm border-b-2 transition ${active ? "border-[#22C55E] text-[#22C55E]" : "border-transparent text-[#8A8A8A] hover:text-[#EDEDED]"}`;
 
   return (
@@ -341,20 +501,21 @@ export const FleetRecharges: React.FC = () => {
       <div className="absolute inset-0 bg-no-repeat bg-center" style={{ backgroundImage: `url(${easyLogo})`, backgroundSize: "min(70%, 700px)", opacity: 0.16 }} />
       <div className="relative z-10">
       <RechargeHero />
-      {estSuperviseur ? (
+      {visibles.length ? (
         <>
-          <div className="flex gap-1 border-b border-[#232327] mb-6">
-            <button onClick={() => setTab("demandes")} className={tabCls(tab === "demandes")}>
-              Demandes{aTraiter > 0 && <span className="ml-1.5 font-semibold text-[#F59E0B]">{aTraiter}</span>}
-            </button>
-            <button onClick={() => setTab("suivi")} className={tabCls(tab === "suivi")}>Suivi</button>
-            <button onClick={() => setTab("enregistrer")} className={tabCls(tab === "enregistrer")}>Enregistrer</button>
-            {peutGererBornes && <button onClick={() => setTab("bornes")} className={tabCls(tab === "bornes")}>Bornes</button>}
+          <div className="flex gap-1 border-b border-[#232327] mb-6 overflow-x-auto">
+            {visibles.map((t) => (
+              <button key={t.key} onClick={() => setTab(t.key)} className={`${tabCls(courant === t.key)} whitespace-nowrap`}>
+                {t.label}{!!t.n && <span className="ml-1.5 font-semibold text-[#F59E0B]">{t.n}</span>}
+              </button>
+            ))}
           </div>
-          <Reveal>
-            {tab === "demandes" ? <SuperviseurBoite notify={notify} />
-              : tab === "enregistrer" ? <SupervisorRechargeForm notify={notify} />
-              : tab === "bornes" && peutGererBornes ? <BornesManager notify={notify} />
+          <Reveal key={courant ?? ""}>
+            {courant === "demandes" ? <SuperviseurBoite notify={notify} />
+              : courant === "controle" ? <ControleRecharges notify={notify} />
+              : courant === "validations" ? <ValidationsBornes notify={notify} />
+              : courant === "enregistrer" ? <SupervisorRechargeForm notify={notify} />
+              : courant === "bornes" ? <BornesManager notify={notify} />
               : <RechargesDashboard notify={notify} />}
           </Reveal>
         </>

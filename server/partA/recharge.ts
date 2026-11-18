@@ -13,6 +13,7 @@ import { notify } from "../../lib/notifications";
 import { rechargeMissing, computeRechargeAnomalies } from "../../lib/recharge";
 import { normalizeDay } from "../../lib/assignment";
 import { wrap, serverError, notFound } from "./helpers";
+import { emitToUsers } from "../../lib/realtime";
 
 /** Destinataires d'alerte : utilisateurs actifs ayant une permission sur un site. */
 export async function recipients(prisma: PrismaClient, siteId: string, code: string) {
@@ -62,33 +63,65 @@ export function rechargeRouter(prisma: PrismaClient): express.Router {
     })
   );
 
-  // --- Créer une borne (Superviseur Logistique) ---
+  // ------------------------------ Bornes : propositions + validation ------------------------------
+  // Le Superviseur ne crée ni ne modifie plus une borne directement : il PROPOSE, et l'Admin OU la
+  // Finance valide (jamais l'auteur de la proposition). Seule la désactivation est immédiate
+  // (elle réduit le risque). Évite qu'un payeur ajoute sa propre « borne » ou gonfle un prix du kWh.
+
+  /** Lit et valide les champs d'une borne. Renvoie { data } ou { error }. */
+  const lireBorne = (ctx: AuthContext, b: any, partiel: boolean): { data?: any; error?: { fr: string; en: string }; status?: number } => {
+    const data: any = {};
+    if (!partiel || b.nom != null) { const n = String(b.nom ?? "").trim(); if (!n) return { error: { fr: "Le nom de la borne est obligatoire", en: "Station name required" } }; data.nom = n; }
+    if (!partiel || b.type != null) { if (!["DOMESTIQUE", "PARTENAIRE"].includes(String(b.type))) return { error: { fr: "Type de borne invalide", en: "Invalid station type" } }; data.type = b.type; }
+    if (!partiel || b.operateur !== undefined) data.operateur = b.operateur ? String(b.operateur) : null;
+    if (!partiel || b.siteId !== undefined) {
+      if (b.siteId && !canAccessSite(ctx, String(b.siteId))) return { error: { fr: "Site hors de votre périmètre", en: "Site outside your scope" }, status: 403 };
+      data.siteId = b.siteId ? String(b.siteId) : null;
+    }
+    if (!partiel || b.gpsLat !== undefined) data.gpsLat = Number.isFinite(Number(b.gpsLat)) && b.gpsLat !== null && b.gpsLat !== "" ? Number(b.gpsLat) : null;
+    if (!partiel || b.gpsLng !== undefined) data.gpsLng = Number.isFinite(Number(b.gpsLng)) && b.gpsLng !== null && b.gpsLng !== "" ? Number(b.gpsLng) : null;
+    if (!partiel || b.prixKwh !== undefined) data.prixKwh = prixKwhValide(b.prixKwh);
+    if (partiel && b.active === true) data.active = true; // réactivation = sensible → validation
+    return { data };
+  };
+
+  /** Valideurs (Admin / Finance) à prévenir. */
+  const valideurs = async () => {
+    const users = await prisma.user.findMany({
+      where: { active: true },
+      include: {
+        rolePrincipal: { include: { permissions: { include: { permission: true } } } },
+        roleSecondaire: { include: { permissions: { include: { permission: true } } } },
+      },
+    });
+    return users.filter((u) => [...(u.rolePrincipal?.permissions ?? []), ...(u.roleSecondaire?.permissions ?? [])].some((rp) => rp.permission.code === "borne.valider"));
+  };
+  const prevenirValideurs = async (ctx: AuthContext, propositionId: string, texte: string) => {
+    for (const u of await valideurs()) {
+      if (u.id === ctx.userId) continue;
+      await notify(prisma, { userId: u.id, canal: "IN_APP", type: "borne.proposition", titre: "Borne à valider", message: texte });
+    }
+    emitToUsers((await valideurs()).map((u) => u.id), "borne:proposition", { propositionId });
+  };
+
+  // --- Proposer une nouvelle borne (Superviseur Logistique) ---
   r.post(
     "/api/fleet/bornes",
     authorize("borne.gerer"),
     wrap(async (req, res) => {
       const ctx = actor(req);
-      const b = req.body || {};
-      const nom = String(b.nom || "").trim();
-      if (!nom) return res.status(400).json({ error: { fr: "Le nom de la borne est obligatoire", en: "Station name required" } });
-      if (!["DOMESTIQUE", "PARTENAIRE"].includes(String(b.type))) return res.status(400).json({ error: { fr: "Type de borne invalide", en: "Invalid station type" } });
-      if (b.siteId && !canAccessSite(ctx, String(b.siteId))) return res.status(403).json({ error: { fr: "Site hors de votre périmètre", en: "Site outside your scope" } });
-      const borne = await prisma.borneRecharge.create({
-        data: {
-          nom, type: b.type, operateur: b.operateur ? String(b.operateur) : null,
-          siteId: b.siteId ? String(b.siteId) : null,
-          gpsLat: Number.isFinite(Number(b.gpsLat)) ? Number(b.gpsLat) : null,
-          gpsLng: Number.isFinite(Number(b.gpsLng)) ? Number(b.gpsLng) : null,
-          prixKwh: prixKwhValide(b.prixKwh),
-          active: b.active === false ? false : true,
-        },
+      const lu = lireBorne(ctx, req.body || {}, false);
+      if (lu.error) return res.status(lu.status ?? 400).json({ error: lu.error });
+      const prop = await prisma.propositionBorne.create({
+        data: { type: "CREATION", siteId: lu.data.siteId, donnees: lu.data, proposeParId: ctx.userId },
       });
-      await writeAudit(prisma, ctx, { action: "borne.create", resourceType: "BorneRecharge", resourceId: borne.id, siteId: borne.siteId, after: { nom, type: borne.type } });
-      res.status(201).json(borne);
+      await writeAudit(prisma, ctx, { action: "borne.proposition", resourceType: "PropositionBorne", resourceId: prop.id, siteId: lu.data.siteId, after: lu.data });
+      await prevenirValideurs(ctx, prop.id, `${ctx.name} propose une nouvelle borne : ${lu.data.nom}${lu.data.prixKwh ? ` (${lu.data.prixKwh} F/kWh)` : ""}.`);
+      res.status(202).json({ proposition: prop, message: { fr: "Proposition envoyée : elle sera appliquée après validation par l'Admin ou la Finance", en: "Proposal sent for validation" } });
     })
   );
 
-  // --- Modifier / activer-désactiver une borne (Superviseur Logistique) ---
+  // --- Modifier une borne : désactivation immédiate, tout le reste en proposition ---
   r.patch(
     "/api/fleet/bornes/:id",
     authorize("borne.gerer"),
@@ -97,21 +130,105 @@ export function rechargeRouter(prisma: PrismaClient): express.Router {
       const existing = await prisma.borneRecharge.findUnique({ where: { id: req.params.id } });
       if (!existing) return res.status(404).json({ error: notFound });
       const b = req.body || {};
-      const data: any = {};
-      if (b.nom != null) { const n = String(b.nom).trim(); if (!n) return res.status(400).json({ error: { fr: "Nom invalide", en: "Invalid name" } }); data.nom = n; }
-      if (b.type != null) { if (!["DOMESTIQUE", "PARTENAIRE"].includes(String(b.type))) return res.status(400).json({ error: { fr: "Type invalide", en: "Invalid type" } }); data.type = b.type; }
-      if (b.operateur !== undefined) data.operateur = b.operateur ? String(b.operateur) : null;
-      if (b.siteId !== undefined) {
-        if (b.siteId && !canAccessSite(ctx, String(b.siteId))) return res.status(403).json({ error: { fr: "Site hors de votre périmètre", en: "Site outside your scope" } });
-        data.siteId = b.siteId ? String(b.siteId) : null;
+
+      // Désactivation : immédiate (réduit le risque), seule ou avec d'autres champs ignorés.
+      if (b.active === false) {
+        const borne = await prisma.borneRecharge.update({ where: { id: existing.id }, data: { active: false } });
+        await writeAudit(prisma, ctx, { action: "borne.desactiver", resourceType: "BorneRecharge", resourceId: borne.id, siteId: borne.siteId, after: { active: false } });
+        return res.json(borne);
       }
-      if (b.gpsLat !== undefined) data.gpsLat = Number.isFinite(Number(b.gpsLat)) ? Number(b.gpsLat) : null;
-      if (b.gpsLng !== undefined) data.gpsLng = Number.isFinite(Number(b.gpsLng)) ? Number(b.gpsLng) : null;
-      if (b.prixKwh !== undefined) data.prixKwh = prixKwhValide(b.prixKwh);
-      if (b.active !== undefined) data.active = !!b.active;
-      const borne = await prisma.borneRecharge.update({ where: { id: existing.id }, data });
-      await writeAudit(prisma, ctx, { action: "borne.update", resourceType: "BorneRecharge", resourceId: borne.id, siteId: borne.siteId, after: data });
-      res.json(borne);
+
+      const lu = lireBorne(ctx, b, true);
+      if (lu.error) return res.status(lu.status ?? 400).json({ error: lu.error });
+      // Ne garde que les champs qui changent vraiment.
+      const donnees: any = {}; const avant: any = {};
+      for (const [k, v] of Object.entries(lu.data)) {
+        if ((existing as any)[k] !== v) { donnees[k] = v; avant[k] = (existing as any)[k]; }
+      }
+      if (!Object.keys(donnees).length) return res.status(400).json({ error: { fr: "Aucune modification", en: "No change" } });
+      const enCours = await prisma.propositionBorne.findFirst({ where: { borneId: existing.id, statut: "EN_ATTENTE" } });
+      if (enCours) return res.status(409).json({ error: { fr: "Une modification de cette borne attend déjà une validation", en: "A change is already pending" } });
+
+      const prop = await prisma.propositionBorne.create({
+        data: { type: "MODIFICATION", borneId: existing.id, siteId: existing.siteId, donnees, avant, proposeParId: ctx.userId },
+      });
+      await writeAudit(prisma, ctx, { action: "borne.proposition", resourceType: "PropositionBorne", resourceId: prop.id, siteId: existing.siteId, before: avant, after: donnees });
+      const detailPrix = donnees.prixKwh !== undefined ? ` — prix du kWh : ${avant.prixKwh ?? "—"} → ${donnees.prixKwh ?? "—"} F` : "";
+      await prevenirValideurs(ctx, prop.id, `${ctx.name} propose de modifier la borne ${existing.nom}${detailPrix}.`);
+      res.status(202).json({ proposition: prop, message: { fr: "Modification envoyée : elle sera appliquée après validation par l'Admin ou la Finance", en: "Change sent for validation" } });
+    })
+  );
+
+  // --- Liste des propositions (auteur : Superviseur ; valideurs : Admin / Finance) ---
+  r.get(
+    "/api/fleet/bornes/propositions",
+    authorize("borne.gerer", "borne.valider"),
+    wrap(async (req, res) => {
+      const statut = String(req.query.statut || "EN_ATTENTE");
+      const where: any = statut === "TOUTES" ? {} : { statut };
+      const list = await prisma.propositionBorne.findMany({ where, orderBy: { createdAt: statut === "EN_ATTENTE" ? "asc" : "desc" }, take: 100 });
+      const borneIds = [...new Set(list.map((p) => p.borneId).filter(Boolean) as string[])];
+      const userIds = [...new Set(list.flatMap((p) => [p.proposeParId, p.traiteParId]).filter(Boolean) as string[])];
+      const [bornes, users] = await Promise.all([
+        prisma.borneRecharge.findMany({ where: { id: { in: borneIds } }, select: { id: true, nom: true } }),
+        prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, name: true } }),
+      ]);
+      const nomBorne = new Map(bornes.map((x) => [x.id, x.nom]));
+      const nom = new Map(users.map((u) => [u.id, u.name]));
+      res.json({
+        propositions: list.map((p) => ({
+          ...p,
+          borneNom: p.borneId ? nomBorne.get(p.borneId) ?? null : (p.donnees as any)?.nom ?? null,
+          proposeParNom: nom.get(p.proposeParId) ?? null,
+          traiteParNom: p.traiteParId ? nom.get(p.traiteParId) ?? null : null,
+        })),
+      });
+    })
+  );
+
+  // --- Valider une proposition (Admin OU Finance, jamais son auteur) ---
+  r.post(
+    "/api/fleet/bornes/propositions/:id/valider",
+    authorize("borne.valider"),
+    wrap(async (req, res) => {
+      const ctx = actor(req);
+      const p = await prisma.propositionBorne.findUnique({ where: { id: req.params.id } });
+      if (!p) return res.status(404).json({ error: notFound });
+      if (p.statut !== "EN_ATTENTE") return res.status(409).json({ error: { fr: "Cette proposition a déjà été traitée", en: "Already processed" } });
+      if (p.proposeParId === ctx.userId) return res.status(403).json({ error: { fr: "Vous ne pouvez pas valider votre propre proposition", en: "You cannot validate your own proposal" } });
+
+      const donnees = p.donnees as any;
+      const borne = await prisma.$transaction(async (tx) => {
+        const bo = p.type === "CREATION"
+          ? await tx.borneRecharge.create({ data: { ...donnees, active: true } })
+          : await tx.borneRecharge.update({ where: { id: String(p.borneId) }, data: donnees });
+        await tx.propositionBorne.update({ where: { id: p.id }, data: { statut: "VALIDEE", traiteParId: ctx.userId, traiteLe: new Date(), borneId: bo.id } });
+        return bo;
+      });
+      await writeAudit(prisma, ctx, { action: "borne.validation", resourceType: "PropositionBorne", resourceId: p.id, siteId: borne.siteId, after: { type: p.type, borneId: borne.id, ...donnees } });
+      await notify(prisma, { userId: p.proposeParId, canal: "IN_APP", type: "borne.validee", titre: "Borne validée", message: `Votre proposition pour « ${borne.nom} » a été validée par ${ctx.name}.` });
+      emitToUsers([p.proposeParId], "borne:proposition", { propositionId: p.id });
+      res.json({ borne });
+    })
+  );
+
+  // --- Refuser une proposition (motif obligatoire) ---
+  r.post(
+    "/api/fleet/bornes/propositions/:id/refuser",
+    authorize("borne.valider"),
+    wrap(async (req, res) => {
+      const ctx = actor(req);
+      const p = await prisma.propositionBorne.findUnique({ where: { id: req.params.id } });
+      if (!p) return res.status(404).json({ error: notFound });
+      if (p.statut !== "EN_ATTENTE") return res.status(409).json({ error: { fr: "Cette proposition a déjà été traitée", en: "Already processed" } });
+      if (p.proposeParId === ctx.userId) return res.status(403).json({ error: { fr: "Vous ne pouvez pas traiter votre propre proposition", en: "You cannot process your own proposal" } });
+      const motif = String(req.body?.motif || "").trim().slice(0, 300);
+      if (!motif) return res.status(400).json({ error: { fr: "Le motif du refus est obligatoire", en: "Reason required" } });
+      const maj = await prisma.propositionBorne.update({ where: { id: p.id }, data: { statut: "REFUSEE", traiteParId: ctx.userId, traiteLe: new Date(), motifRefus: motif } });
+      await writeAudit(prisma, ctx, { action: "borne.refus", resourceType: "PropositionBorne", resourceId: p.id, siteId: p.siteId, after: { motif } });
+      await notify(prisma, { userId: p.proposeParId, canal: "IN_APP", type: "borne.refusee", titre: "Proposition de borne refusée", message: `Refusée par ${ctx.name} : ${motif}` });
+      emitToUsers([p.proposeParId], "borne:proposition", { propositionId: p.id });
+      res.json({ proposition: maj });
     })
   );
 

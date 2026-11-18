@@ -33,9 +33,22 @@ export function demandeRechargeRouter(prisma: PrismaClient): express.Router {
   r.use("/api/fleet/me/recharge-demandes", authenticate(prisma));
   const actor = (req: express.Request) => (req as any).auth as AuthContext;
   const estSuperviseur = (ctx: AuthContext) => hasPermission(ctx, "recharge.superviser");
+  const estControleur = (ctx: AuthContext) => hasPermission(ctx, "recharge.controler");
 
   /** Superviseurs concernés par un site. */
   const superviseurs = async (siteId: string) => (await recipients(prisma, siteId, "recharge.superviser")).map((u) => u.id);
+  /** Contrôleurs (Finance) concernés par un site. */
+  const controleurs = async (siteId: string) => (await recipients(prisma, siteId, "recharge.controler")).map((u) => u.id);
+
+  /** Alerte la Finance (contrôle indépendant du Superviseur qui paie). */
+  async function alerterFinance(d: { id: string; siteId: string; vehicleId: string }, titre: string, raison: string) {
+    const vehicle = await prisma.fleetVehicle.findUnique({ where: { id: d.vehicleId }, select: { immatriculation: true } });
+    const ids = await controleurs(d.siteId);
+    for (const uid of ids) {
+      await notify(prisma, { userId: uid, canal: "IN_APP", type: "recharge.controle", titre, message: `${vehicle?.immatriculation ?? "Véhicule"} : ${raison}` });
+    }
+    emitToUsers(ids, "recharge:controle", { demandeId: d.id });
+  }
 
   /** Prévient en temps réel le chauffeur et les superviseurs du site. */
   async function diffuser(d: { id: string; driverId: string; siteId: string; statut: string }, type: string) {
@@ -52,7 +65,7 @@ export function demandeRechargeRouter(prisma: PrismaClient): express.Router {
   async function chargerDemande(ctx: AuthContext, id: string) {
     const d = await prisma.demandeRecharge.findUnique({ where: { id } });
     if (!d) return { status: 404 as const, body: { error: notFound } };
-    const ok = d.driverId === ctx.userId || (estSuperviseur(ctx) && canAccessSite(ctx, d.siteId));
+    const ok = d.driverId === ctx.userId || ((estSuperviseur(ctx) || estControleur(ctx)) && canAccessSite(ctx, d.siteId));
     if (!ok) return { status: 403 as const, body: ERR("Accès refusé à cette demande", "Access denied") };
     return { d };
   }
@@ -85,7 +98,7 @@ export function demandeRechargeRouter(prisma: PrismaClient): express.Router {
     prisma.mediaAsset.updateMany({ where: { id: { in: ids } }, data: { resourceType: "DemandeRecharge", resourceId: demandeId } });
 
   /** Enrichit une demande pour l'affichage (véhicule, chauffeur, borne, messages). */
-  async function detail(id: string) {
+  async function detail(id: string, ctx?: AuthContext) {
     const d = await prisma.demandeRecharge.findUnique({ where: { id }, include: { messages: { orderBy: { createdAt: "asc" } } } });
     if (!d) return null;
     const [vehicle, driver, borne] = await Promise.all([
@@ -96,8 +109,10 @@ export function demandeRechargeRouter(prisma: PrismaClient): express.Router {
     const auteurs = [...new Set(d.messages.map((m) => m.auteurId).filter(Boolean) as string[])];
     const users = await prisma.user.findMany({ where: { id: { in: auteurs } }, select: { id: true, name: true } });
     const nom = new Map(users.map((u) => [u.id, u.name]));
+    const voitPreuve = !ctx || estSuperviseur(ctx) || estControleur(ctx);
     return {
       ...d,
+      preuvePaiementMediaId: voitPreuve ? d.preuvePaiementMediaId : null,
       vehicule: vehicle,
       chauffeur: driver,
       borne,
@@ -140,7 +155,7 @@ export function demandeRechargeRouter(prisma: PrismaClient): express.Router {
         await notify(prisma, { userId: uid, canal: "IN_APP", type: "recharge.demande", titre: "Nouvelle demande de recharge", message: `${ctx.name ?? "Un chauffeur"} demande une recharge pour ${vehicle.immatriculation}.` });
       }
       await diffuser(d, "nouvelle");
-      res.status(201).json(await detail(d.id));
+      res.status(201).json(await detail(d.id, ctx));
     })
   );
 
@@ -155,7 +170,7 @@ export function demandeRechargeRouter(prisma: PrismaClient): express.Router {
         where: { driverId: ctx.userId, statut: { in: ["TERMINEE", "ANNULEE"] } }, orderBy: { createdAt: "desc" }, take: 10,
         select: { id: true, statut: true, createdAt: true, montantPaye: true, socDebut: true, socFin: true, anomalie: true },
       });
-      res.json({ ouverte: ouverte ? await detail(ouverte.id) : null, historique });
+      res.json({ ouverte: ouverte ? await detail(ouverte.id, ctx) : null, historique });
     })
   );
 
@@ -189,7 +204,7 @@ export function demandeRechargeRouter(prisma: PrismaClient): express.Router {
       const maj = await prisma.demandeRecharge.update({ where: { id: d.id }, data: { statut: "SUR_PLACE", socDebut, kwhEstime, montantSuggere } });
       await message(d.id, ctx.userId, "PHOTOS_ARRIVEE", { mediaIds: [String(qrMediaId), String(tableauMediaId)], meta: { socDebut, kwhEstime, montantSuggere } });
       await diffuser(maj, "statut");
-      res.json(await detail(d.id));
+      res.json(await detail(d.id, ctx));
     })
   );
 
@@ -242,9 +257,12 @@ export function demandeRechargeRouter(prisma: PrismaClient): express.Router {
       await message(d.id, ctx.userId, "PHOTO_FIN", { mediaIds: [String(tableauFinMediaId)], meta: { socFin } });
       await message(d.id, null, "SYSTEME", { texte: anomalie ? `Recharge terminée — anomalie : la batterie n'a pas monté (${d.socDebut} % → ${socFin} %).` : `Recharge terminée (${d.socDebut} % → ${socFin} %).` });
       await writeAudit(prisma, ctx, { action: "recharge_demande.terminer", resourceType: "DemandeRecharge", resourceId: d.id, siteId: d.siteId, after: { socFin, anomalie } });
-      if (anomalie) await notifierAnomalie(d, `La batterie n'a pas monté (${d.socDebut} % → ${socFin} %).`);
+      if (anomalie) {
+        await notifierAnomalie(d, `La batterie n'a pas monté (${d.socDebut} % → ${socFin} %).`);
+        await alerterFinance(d, "Recharge à contrôler", `recharge payée ${d.montantPaye ?? 0} F mais la batterie n'a pas monté (${d.socDebut} % → ${socFin} %).`);
+      }
       await diffuser(maj, "statut");
-      res.json(await detail(d.id));
+      res.json(await detail(d.id, ctx));
     })
   );
 
@@ -295,14 +313,78 @@ export function demandeRechargeRouter(prisma: PrismaClient): express.Router {
     })
   );
 
-  // --- Détail d'une demande (chauffeur concerné ou superviseur du site) ---
+  // =====================================================================================
+  // Finance : contrôle des recharges payées (séparation payeur / contrôleur)
+  // =====================================================================================
+
+  // --- Recharges à contrôler (écart de montant ou anomalie de batterie) / déjà contrôlées ---
+  r.get(
+    "/api/fleet/recharge-demandes/controle",
+    authorize("recharge.controler"),
+    wrap(async (req, res) => {
+      const ctx = actor(req);
+      const where: any = { OR: [{ ecartMontant: true }, { anomalie: true }] };
+      if (!ctx.allSites) where.siteId = { in: ctx.siteIds.length ? ctx.siteIds : ["__none__"] };
+      const vue = String(req.query.vue || "a_controler");
+      where.controleLe = vue === "controlees" ? { not: null } : null;
+      const list = await prisma.demandeRecharge.findMany({ where, orderBy: { createdAt: vue === "controlees" ? "desc" : "asc" }, take: 200 });
+      const userIds = [...new Set(list.flatMap((d) => [d.driverId, d.payeParId, d.controleParId]).filter(Boolean) as string[])];
+      const [vehs, users] = await Promise.all([
+        prisma.fleetVehicle.findMany({ where: { id: { in: [...new Set(list.map((d) => d.vehicleId))] } }, select: { id: true, immatriculation: true } }),
+        prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, name: true } }),
+      ]);
+      const immat = new Map(vehs.map((v) => [v.id, v.immatriculation]));
+      const nom = new Map(users.map((u) => [u.id, u.name]));
+      res.json({
+        demandes: list.map((d) => ({
+          id: d.id, createdAt: d.createdAt, statut: d.statut, vehicule: immat.get(d.vehicleId) ?? null,
+          chauffeurNom: nom.get(d.driverId) ?? null, payeParNom: d.payeParId ? nom.get(d.payeParId) ?? null : null,
+          montantPaye: d.montantPaye, montantSuggere: d.montantSuggere, refTransaction: d.refTransaction,
+          ecartMontant: d.ecartMontant, anomalie: d.anomalie, socDebut: d.socDebut, socFin: d.socFin,
+          ecartPct: d.montantPaye != null && d.montantSuggere ? Math.round(((d.montantPaye - d.montantSuggere) / d.montantSuggere) * 100) : null,
+          controleLe: d.controleLe, controleNote: d.controleNote, controleParNom: d.controleParId ? nom.get(d.controleParId) ?? null : null,
+        })),
+      });
+    })
+  );
+
+  // --- Nombre de recharges à contrôler (compteur Finance) ---
+  r.get(
+    "/api/fleet/recharge-demandes/controle/compteur",
+    authorize("recharge.controler"),
+    wrap(async (req, res) => {
+      const ctx = actor(req);
+      const where: any = { OR: [{ ecartMontant: true }, { anomalie: true }], controleLe: null };
+      if (!ctx.allSites) where.siteId = { in: ctx.siteIds.length ? ctx.siteIds : ["__none__"] };
+      res.json({ aControler: await prisma.demandeRecharge.count({ where }) });
+    })
+  );
+
+  // --- Marquer une recharge comme contrôlée (note obligatoire) ---
+  r.post(
+    "/api/fleet/recharge-demandes/:id/controle",
+    authorize("recharge.controler"),
+    wrap(async (req, res) => {
+      const ctx = actor(req);
+      const got = await chargerDemande(ctx, req.params.id);
+      if (!got.d) return res.status(got.status).json(got.body);
+      if (got.d.controleLe) return res.status(409).json(ERR("Cette recharge a déjà été contrôlée", "Already checked"));
+      const note = String(req.body?.note || "").trim().slice(0, 500);
+      if (!note) return res.status(400).json(ERR("Indiquez la conclusion du contrôle", "Note required"));
+      await prisma.demandeRecharge.update({ where: { id: got.d.id }, data: { controleParId: ctx.userId, controleLe: new Date(), controleNote: note } });
+      await writeAudit(prisma, ctx, { action: "recharge_demande.controle", resourceType: "DemandeRecharge", resourceId: got.d.id, siteId: got.d.siteId, after: { note } });
+      res.json(await detail(got.d.id, ctx));
+    })
+  );
+
+  // --- Détail d'une demande (chauffeur concerné, superviseur ou Finance du site) ---
   r.get(
     "/api/fleet/recharge-demandes/:id",
-    authorize("recharge.enregistrer", "recharge.superviser"),
+    authorize("recharge.enregistrer", "recharge.superviser", "recharge.controler"),
     wrap(async (req, res) => {
       const got = await chargerDemande(actor(req), req.params.id);
       if (!got.d) return res.status(got.status).json(got.body);
-      res.json(await detail(got.d.id));
+      res.json(await detail(got.d.id, actor(req)));
     })
   );
 
@@ -319,7 +401,7 @@ export function demandeRechargeRouter(prisma: PrismaClient): express.Router {
       if (!texte) return res.status(400).json(ERR("Message vide", "Empty message"));
       await message(got.d.id, ctx.userId, "TEXTE", { texte });
       await diffuser(got.d, "message");
-      res.status(201).json(await detail(got.d.id));
+      res.status(201).json(await detail(got.d.id, ctx));
     })
   );
 
@@ -342,7 +424,7 @@ export function demandeRechargeRouter(prisma: PrismaClient): express.Router {
         meta: { borneId: borne.id, nom: borne.nom, gpsLat: borne.gpsLat, gpsLng: borne.gpsLng },
       });
       await diffuser(maj, "statut");
-      res.json(await detail(d.id));
+      res.json(await detail(d.id, ctx));
     })
   );
 
@@ -361,17 +443,34 @@ export function demandeRechargeRouter(prisma: PrismaClient): express.Router {
       const ref = normaliserRef(req.body?.refTransaction);
       if (!Number.isFinite(montant) || montant <= 0) return res.status(400).json(ERR("Montant payé invalide", "Invalid amount"));
       if (ref.length < 4) return res.status(400).json(ERR("Indiquez le n° de transaction du paiement", "Transaction number required"));
+      const preuve = String(req.body?.preuveMediaId || "");
+      if (!preuve) return res.status(400).json(ERR("Joignez la capture de la confirmation du paiement Wave", "Payment screenshot required"));
       const deja = await prisma.demandeRecharge.findFirst({ where: { refTransaction: ref }, select: { id: true } });
-      if (deja) return res.status(409).json({ ...ERR("Anomalie détectée : ce n° de transaction a déjà été utilisé", "Transaction number already used"), anomalie: true });
+      if (deja) {
+        await alerterFinance(d, "Anomalie paiement recharge", `n° de transaction ${ref} déjà utilisé pour une autre recharge (tentative de ${ctx.name}).`);
+        return res.status(409).json({ ...ERR("Anomalie détectée : ce n° de transaction a déjà été utilisé", "Transaction number already used"), anomalie: true });
+      }
+      const refus = await verifierPhotos(ctx, [preuve]);
+      if (refus) {
+        await alerterFinance(d, "Anomalie paiement recharge", `capture de paiement refusée (${refus}) — ${ctx.name}.`);
+        return res.status(409).json({ ...ERR(refus, "Anomaly detected"), anomalie: true });
+      }
 
+      // Écart : payé plus de 20 % au-dessus du montant proposé → la Finance contrôle.
+      const ecartMontant = d.montantSuggere != null && d.montantSuggere > 0 && montant > d.montantSuggere * 1.2;
+      await rattacher([preuve], d.id);
       const maj = await prisma.demandeRecharge.update({
-        where: { id: d.id }, data: { statut: "PAYEE", montantPaye: montant, refTransaction: ref, payeParId: ctx.userId, payeLe: new Date() },
+        where: { id: d.id }, data: { statut: "PAYEE", montantPaye: montant, refTransaction: ref, payeParId: ctx.userId, payeLe: new Date(), preuvePaiementMediaId: preuve, ecartMontant },
       });
       await message(d.id, ctx.userId, "PAIEMENT", { texte: "Paiement effectué : vous pouvez brancher le véhicule.", meta: { montant, refTransaction: ref } });
-      await writeAudit(prisma, ctx, { action: "recharge_demande.paiement", resourceType: "DemandeRecharge", resourceId: d.id, siteId: d.siteId, after: { montant, refTransaction: ref } });
+      await writeAudit(prisma, ctx, { action: "recharge_demande.paiement", resourceType: "DemandeRecharge", resourceId: d.id, siteId: d.siteId, after: { montant, refTransaction: ref, montantSuggere: d.montantSuggere, ecartMontant } });
+      if (ecartMontant) {
+        const pct = Math.round(((montant - (d.montantSuggere as number)) / (d.montantSuggere as number)) * 100);
+        await alerterFinance(d, "Recharge à contrôler", `payé ${montant} F pour ${d.montantSuggere} F proposés (+${pct} %) par ${ctx.name}.`);
+      }
       await notify(prisma, { userId: d.driverId, canal: "IN_APP", type: "recharge.payee", titre: "Recharge payée", message: "Le paiement est fait : vous pouvez brancher le véhicule." });
       await diffuser(maj, "statut");
-      res.json(await detail(d.id));
+      res.json(await detail(d.id, ctx));
     })
   );
 
@@ -394,7 +493,7 @@ export function demandeRechargeRouter(prisma: PrismaClient): express.Router {
       await message(d.id, ctx.userId, "ANNULATION", { texte: `Demande annulée${motif ? ` : ${motif}` : "."}` });
       await writeAudit(prisma, ctx, { action: "recharge_demande.annuler", resourceType: "DemandeRecharge", resourceId: d.id, siteId: d.siteId, after: { motif } });
       await diffuser(maj, "statut");
-      res.json(await detail(d.id));
+      res.json(await detail(d.id, ctx));
     })
   );
 
@@ -417,9 +516,11 @@ export function demandeRechargeRouter(prisma: PrismaClient): express.Router {
 }
 
 /** Vrai si l'utilisateur peut lire une photo d'une demande (chauffeur concerné ou superviseur du site). */
-export async function canReadDemandeRechargeMedia(prisma: PrismaClient, ctx: AuthContext, demandeId: string): Promise<boolean> {
-  const d = await prisma.demandeRecharge.findUnique({ where: { id: demandeId }, select: { driverId: true, siteId: true } });
+export async function canReadDemandeRechargeMedia(prisma: PrismaClient, ctx: AuthContext, demandeId: string, mediaId?: string): Promise<boolean> {
+  const d = await prisma.demandeRecharge.findUnique({ where: { id: demandeId }, select: { driverId: true, siteId: true, preuvePaiementMediaId: true } });
   if (!d) return false;
-  if (d.driverId === ctx.userId) return true;
-  return hasPermission(ctx, "recharge.superviser") && canAccessSite(ctx, d.siteId);
+  if (hasPermission(ctx, "recharge.superviser", "recharge.controler") && canAccessSite(ctx, d.siteId)) return true;
+  // Le chauffeur voit ses propres photos, mais pas la capture du paiement (compte Wave de l'entreprise).
+  if (d.driverId === ctx.userId) return !(mediaId && mediaId === d.preuvePaiementMediaId);
+  return false;
 }
