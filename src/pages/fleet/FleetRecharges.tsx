@@ -1,13 +1,16 @@
 /**
- * Recharge EV (Flux 3, Bloc C1).
- * - Chauffeur / équipe (recharge.enregistrer) : enregistre une recharge + voit ses recharges.
- * - Superviseur Logistique (recharge.superviser) : dashboard consommation / coûts / anomalies.
+ * Recharge EV.
+ * - Chauffeur (recharge.enregistrer) : demande une recharge, payée par le Superviseur
+ *   (voir RechargeDemandes.tsx) — il ne déclare plus ses recharges lui-même.
+ * - Superviseur Logistique (recharge.superviser) : boîte des demandes, suivi
+ *   consommation / coûts / anomalies, saisie manuelle (équipe), gestion des bornes.
  */
 import React, { useEffect, useMemo, useState } from "react";
-import { BatteryCharging, AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
+import { BatteryCharging, AlertTriangle } from "lucide-react";
 import { useRbac } from "../../context/RbacContext";
 import { api, uploadMedia, type ApiError } from "../../api/fleet";
 import { Btn, Reveal, Field, Input, Select, Spinner, EmptyState, Toast, Modal, AuthImage } from "./ui";
+import { ChauffeurRecharge, SuperviseurBoite, useDemandesATraiter } from "./RechargeDemandes";
 import rechargeHero from "../../assets/recharge-hero.webp";
 import easyLogo from "../../assets/images/easy-logo-green.png";
 
@@ -66,74 +69,6 @@ const Glass: React.FC<{ className?: string; children: React.ReactNode }> = ({ cl
   <div className={`${GLASS} ${className}`}>{children}</div>
 );
 
-// ------------------------------ Formulaire d'enregistrement (chauffeur / équipe) ------------------------------
-const RechargeForm: React.FC<{ notify: (t: ToastState) => void; onDone: () => void }> = ({ notify, onDone }) => {
-  const [shift, setShift] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [bornes, setBornes] = useState<any[]>([]);
-  const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState<any>({ typeCharge: "DOMESTIQUE", borneId: "", kwh: "", cout: "", socDebut: "", socFin: "", justificatifMediaId: "" });
-  const [open, setOpen] = useState(false); // formulaire replié par défaut
-  const set = (p: any) => setForm((f: any) => ({ ...f, ...p }));
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const s = await api.get<any>("/api/fleet/me/shift");
-        setShift(s);
-        setBornes((await api.get<{ bornes: any[] }>("/api/fleet/bornes")).bornes);
-      } catch (e) { notify({ message: errMsg(e), kind: "err" }); } finally { setLoading(false); }
-    })();
-  }, []);
-
-  const vehicule = shift?.assignment?.vehicle;
-  const vehicleId = shift?.assignment?.vehicleId;
-  const bornesFiltrees = bornes.filter((b) => b.type === form.typeCharge);
-  const complet = vehicleId && form.borneId && form.kwh !== "" && form.cout !== "" && form.socDebut !== "" && form.socFin !== "" && form.justificatifMediaId;
-
-  const submit = async () => {
-    setSaving(true);
-    try {
-      await api.post("/api/fleet/recharges", {
-        vehicleId, typeCharge: form.typeCharge, borneId: form.borneId, shift: shift?.assignment?.shift,
-        kwh: Number(form.kwh), cout: Number(form.cout), socDebut: Number(form.socDebut), socFin: Number(form.socFin),
-        justificatifMediaId: form.justificatifMediaId,
-      });
-      notify({ message: "Recharge enregistrée", kind: "ok" });
-      setForm({ typeCharge: "DOMESTIQUE", borneId: "", kwh: "", cout: "", socDebut: "", socFin: "", justificatifMediaId: "" });
-      onDone();
-    } catch (e) { notify({ message: errMsg(e), kind: "err" }); } finally { setSaving(false); }
-  };
-
-  if (loading) return <Spinner />;
-  if (!vehicleId) return <EmptyState>Aucun véhicule attribué aujourd'hui : impossible d'enregistrer une recharge.</EmptyState>;
-
-  return (
-    <Glass className="p-5 space-y-4">
-      <button type="button" onClick={() => setOpen((o) => !o)} className="w-full flex items-center justify-between text-[#EDEDED]">
-        <span className="flex items-center gap-2"><BatteryCharging size={18} className="text-[#22C55E]" /><h2 className="font-semibold">Enregistrer une recharge</h2></span>
-        {open ? <ChevronUp size={18} className="text-[#8A8A8A]" /> : <ChevronDown size={18} className="text-[#8A8A8A]" />}
-      </button>
-      {open && (
-        <>
-          <div className="text-sm text-[#8A8A8A]">Véhicule : <span className="text-[#EDEDED]">{vehicule?.immatriculation ?? vehicleId}</span></div>
-          <div className="grid sm:grid-cols-2 gap-3">
-            <Field label="Type de charge"><Select value={form.typeCharge} onChange={(e) => set({ typeCharge: e.target.value, borneId: "" })}><option value="DOMESTIQUE">Réseau SAVER</option><option value="PARTENAIRE">Partenaire</option></Select></Field>
-            <Field label="Borne *"><Select value={form.borneId} onChange={(e) => set({ borneId: e.target.value })}><option value="">— choisir une borne —</option>{bornesFiltrees.map((b) => <option key={b.id} value={b.id}>{b.nom}</option>)}</Select></Field>
-            <Field label="Électricité (kWh)"><Input type="number" value={form.kwh} onChange={(e) => set({ kwh: e.target.value })} placeholder="ex. 24" /></Field>
-            <Field label="Coût (FCFA)"><Input type="number" value={form.cout} onChange={(e) => set({ cout: e.target.value })} placeholder="ex. 2400" /></Field>
-            <Field label="% batterie début"><Input type="number" value={form.socDebut} onChange={(e) => set({ socDebut: e.target.value })} placeholder="0–100" /></Field>
-            <Field label="% batterie fin"><Input type="number" value={form.socFin} onChange={(e) => set({ socFin: e.target.value })} placeholder="0–100" /></Field>
-          </div>
-          <Justificatif mediaId={form.justificatifMediaId} onUploaded={(id) => set({ justificatifMediaId: id })} notify={notify} />
-          <Btn onClick={submit} disabled={!complet || saving} className="w-full">Valider la recharge</Btn>
-          <p className="text-xs text-[#8A8A8A]">La borne est obligatoire et doit faire partie de la liste autorisée. Les kWh doivent rester cohérents : toute incohérence est signalée au Superviseur Logistique.</p>
-        </>
-      )}
-    </Glass>
-  );
-};
-
 // ------------------------------ Enregistrement par le Superviseur / équipe (choix du véhicule) ------------------------------
 const SupervisorRechargeForm: React.FC<{ notify: (t: ToastState) => void }> = ({ notify }) => {
   const [vehicles, setVehicles] = useState<any[]>([]);
@@ -184,29 +119,6 @@ const SupervisorRechargeForm: React.FC<{ notify: (t: ToastState) => void }> = ({
       </div>
       <Justificatif mediaId={form.justificatifMediaId} onUploaded={(id) => set({ justificatifMediaId: id })} notify={notify} />
       <Btn onClick={submit} disabled={!complet || saving} className="w-full">Valider la recharge</Btn>
-    </Glass>
-  );
-};
-
-// ------------------------------ Mes recharges (chauffeur / équipe) ------------------------------
-const MesRecharges: React.FC<{ refresh: number }> = ({ refresh }) => {
-  const [list, setList] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  useEffect(() => { (async () => { try { setList((await api.get<{ recharges: any[] }>("/api/fleet/me/recharges")).recharges); } catch { /* silencieux */ } finally { setLoading(false); } })(); }, [refresh]);
-  if (loading) return <Spinner />;
-  if (!list.length) return null;
-  return (
-    <Glass className="p-5">
-      <h3 className="font-semibold text-[#EDEDED] mb-3">Mes dernières recharges</h3>
-      <div className="space-y-2">
-        {list.map((r) => (
-          <div key={r.id} className="flex items-center justify-between text-sm border-t border-[#232327] pt-2 first:border-0 first:pt-0">
-            <span className="text-[#8A8A8A]">{new Date(r.date).toLocaleDateString("fr-FR")} · {TYPE_LABEL[r.typeCharge]}</span>
-            <span className="text-[#EDEDED]">{r.kwh} kWh · {fcfa(r.cout)}</span>
-            {r.anomalieCoherence ? <span className="text-xs text-[#EF4444]">Anomalie</span> : <span className="text-xs text-[#22C55E]">OK</span>}
-          </div>
-        ))}
-      </div>
     </Glass>
   );
 };
@@ -270,7 +182,7 @@ const RechargesDashboard: React.FC<{ notify: (t: ToastState) => void }> = ({ not
                     <td className="px-4 py-3 text-[#8A8A8A]">{new Date(r.date).toLocaleDateString("fr-FR")}</td>
                     <td className="px-4 py-3 text-[#EDEDED]">{r.vehicule ?? "—"}</td>
                     <td className="px-4 py-3 text-[#8A8A8A]">{TYPE_LABEL[r.typeCharge]}</td>
-                    <td className="px-4 py-3 text-[#EDEDED]">{r.kwh}</td>
+                    <td className="px-4 py-3 text-[#EDEDED]">{r.kwh ?? "—"}</td>
                     <td className="px-4 py-3 text-[#8A8A8A]">{fcfa(r.cout)}</td>
                     <td className="px-4 py-3 text-[#8A8A8A]">{r.socDebut}% → {r.socFin}%</td>
                     <td className="px-4 py-3">
@@ -296,14 +208,15 @@ const RechargesDashboard: React.FC<{ notify: (t: ToastState) => void }> = ({ not
               {detail.parChauffeur && <><span className="text-[#8A8A8A]">Chauffeur</span><span className="text-[#EDEDED] text-right">{detail.chauffeurNom ?? "—"}</span></>}
               <span className="text-[#8A8A8A]">Type de charge</span><span className="text-[#EDEDED] text-right">{TYPE_LABEL[detail.typeCharge]}</span>
               <span className="text-[#8A8A8A]">Borne</span><span className="text-[#EDEDED] text-right">{detail.lieu ?? "—"}</span>
-              <span className="text-[#8A8A8A]">Électricité</span><span className="text-[#EDEDED] text-right">{detail.kwh} kWh</span>
+              <span className="text-[#8A8A8A]">Électricité</span><span className="text-[#EDEDED] text-right">{detail.kwh != null ? `${detail.kwh} kWh` : "—"}</span>
+              {detail.demandeId && <><span className="text-[#8A8A8A]">Origine</span><span className="text-[#EDEDED] text-right">Demande payée par le Superviseur</span></>}
               <span className="text-[#8A8A8A]">Coût</span><span className="text-[#EDEDED] text-right">{fcfa(detail.cout)}</span>
               <span className="text-[#8A8A8A]">Batterie</span><span className="text-[#EDEDED] text-right">{detail.socDebut}% → {detail.socFin}%</span>
               {detail.kmAuMoment != null && <><span className="text-[#8A8A8A]">Km du véhicule</span><span className="text-[#EDEDED] text-right">{detail.kmAuMoment.toLocaleString("fr-FR")} km</span></>}
               <span className="text-[#8A8A8A]">Contrôle</span><span className="text-right" style={{ color: detail.anomalieCoherence ? "#EF4444" : "#22C55E" }}>{detail.anomalieCoherence ? "kWh incohérents" : "OK"}</span>
             </div>
             <div>
-              <div className="text-xs uppercase tracking-wide text-[#8A8A8A] mb-2">Justificatif du chauffeur</div>
+              <div className="text-xs uppercase tracking-wide text-[#8A8A8A] mb-2">{detail.demandeId ? "Tableau de bord à la fin" : "Justificatif"}</div>
               {detail.justificatifMediaId
                 ? <AuthImage mediaId={detail.justificatifMediaId} className="w-full max-h-80 rounded-xl" zoomable />
                 : <div className="text-sm text-[#8A8A8A]">Aucun justificatif.</div>}
@@ -316,7 +229,7 @@ const RechargesDashboard: React.FC<{ notify: (t: ToastState) => void }> = ({ not
 };
 
 // ------------------------------ Gestion des bornes (Superviseur Logistique) ------------------------------
-const emptyBorne = { nom: "", type: "DOMESTIQUE", operateur: "", siteId: "", gpsLat: "", gpsLng: "" };
+const emptyBorne = { nom: "", type: "DOMESTIQUE", operateur: "", siteId: "", gpsLat: "", gpsLng: "", prixKwh: "" };
 const BornesManager: React.FC<{ notify: (t: ToastState) => void }> = ({ notify }) => {
   const { ctx } = useRbac();
   const [list, setList] = useState<any[]>([]);
@@ -334,7 +247,7 @@ const BornesManager: React.FC<{ notify: (t: ToastState) => void }> = ({ notify }
   useEffect(() => { load(); }, []);
 
   const ouvrirNouveau = () => { setForm(emptyBorne); setModal({}); };
-  const ouvrirEdition = (b: any) => { setForm({ nom: b.nom, type: b.type, operateur: b.operateur ?? "", siteId: b.siteId ?? "", gpsLat: b.gpsLat ?? "", gpsLng: b.gpsLng ?? "" }); setModal({ id: b.id }); };
+  const ouvrirEdition = (b: any) => { setForm({ nom: b.nom, type: b.type, operateur: b.operateur ?? "", siteId: b.siteId ?? "", gpsLat: b.gpsLat ?? "", gpsLng: b.gpsLng ?? "", prixKwh: b.prixKwh ?? "" }); setModal({ id: b.id }); };
 
   const submit = async () => {
     setSaving(true);
@@ -342,6 +255,7 @@ const BornesManager: React.FC<{ notify: (t: ToastState) => void }> = ({ notify }
       const payload = {
         nom: form.nom, type: form.type, operateur: form.operateur || null, siteId: form.siteId || null,
         gpsLat: form.gpsLat === "" ? null : Number(form.gpsLat), gpsLng: form.gpsLng === "" ? null : Number(form.gpsLng),
+        prixKwh: form.prixKwh === "" ? null : Number(form.prixKwh),
       };
       if (modal?.id) await api.patch(`/api/fleet/bornes/${modal.id}`, payload);
       else await api.post("/api/fleet/bornes", payload);
@@ -364,7 +278,7 @@ const BornesManager: React.FC<{ notify: (t: ToastState) => void }> = ({ notify }
         <div className="overflow-x-auto bg-[#0B0B0D]/65 border border-white/10 rounded-2xl">
           <table className="w-full text-sm">
             <thead className="bg-white/[0.04] text-[#8A8A8A]"><tr>
-              <th className="text-left px-4 py-3">Nom</th><th className="text-left px-4 py-3">Type</th><th className="text-left px-4 py-3">Opérateur</th><th className="text-left px-4 py-3">Site</th><th className="text-left px-4 py-3">Statut</th><th className="px-4 py-3"></th>
+              <th className="text-left px-4 py-3">Nom</th><th className="text-left px-4 py-3">Type</th><th className="text-left px-4 py-3">Opérateur</th><th className="text-left px-4 py-3">Prix kWh</th><th className="text-left px-4 py-3">Site</th><th className="text-left px-4 py-3">Statut</th><th className="px-4 py-3"></th>
             </tr></thead>
             <tbody>
               {list.map((b) => (
@@ -372,6 +286,7 @@ const BornesManager: React.FC<{ notify: (t: ToastState) => void }> = ({ notify }
                   <td className="px-4 py-3 text-[#EDEDED]">{b.nom}</td>
                   <td className="px-4 py-3 text-[#8A8A8A]">{TYPE_LABEL[b.type]}</td>
                   <td className="px-4 py-3 text-[#8A8A8A]">{b.operateur ?? "—"}</td>
+                  <td className="px-4 py-3 text-[#8A8A8A]">{b.prixKwh != null ? `${b.prixKwh} F` : "—"}</td>
                   <td className="px-4 py-3 text-[#8A8A8A]">{siteNom(b.siteId)}</td>
                   <td className="px-4 py-3"><span className="text-xs font-medium" style={{ color: b.active ? "#22C55E" : "#8A8A8A" }}>{b.active ? "Active" : "Inactive"}</span></td>
                   <td className="px-4 py-3 text-right whitespace-nowrap">
@@ -393,6 +308,7 @@ const BornesManager: React.FC<{ notify: (t: ToastState) => void }> = ({ notify }
               <Field label="Type *"><Select value={form.type} onChange={(e) => set({ type: e.target.value })}><option value="DOMESTIQUE">Réseau SAVER</option><option value="PARTENAIRE">Partenaire</option></Select></Field>
               <Field label="Opérateur"><Input value={form.operateur} onChange={(e) => set({ operateur: e.target.value })} placeholder="SAVER / Arnio…" /></Field>
             </div>
+            <Field label="Prix du kWh (FCFA)" hint="Sert à proposer le montant à payer lors d'une demande de recharge."><Input type="number" value={form.prixKwh} onChange={(e) => set({ prixKwh: e.target.value })} placeholder="ex. 150" /></Field>
             <Field label="Site (optionnel)"><Select value={form.siteId} onChange={(e) => set({ siteId: e.target.value })}><option value="">— aucun —</option>{(ctx?.sites || []).map((s) => <option key={s.id} value={s.id}>{s.nom}</option>)}</Select></Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label="GPS latitude"><Input type="number" value={form.gpsLat} onChange={(e) => set({ gpsLat: e.target.value })} placeholder="5.36" /></Field>
@@ -410,12 +326,12 @@ export const FleetRecharges: React.FC = () => {
   const { can } = useRbac();
   const [toast, setToast] = useState<ToastState>(null);
   const notify = useMemo(() => (t: ToastState) => { setToast(t); if (t) setTimeout(() => setToast(null), 3500); }, []);
-  const [refresh, setRefresh] = useState(0);
-  const [tab, setTab] = useState<"suivi" | "enregistrer" | "bornes">("suivi");
+  const [tab, setTab] = useState<"demandes" | "suivi" | "enregistrer" | "bornes">("demandes");
 
   const estSuperviseur = can("recharge.superviser");
   const peutEnregistrer = can("recharge.enregistrer");
   const peutGererBornes = can("borne.gerer");
+  const aTraiter = useDemandesATraiter(estSuperviseur);
   const tabCls = (active: boolean) => `px-4 py-2.5 text-sm border-b-2 transition ${active ? "border-[#22C55E] text-[#22C55E]" : "border-transparent text-[#8A8A8A] hover:text-[#EDEDED]"}`;
 
   return (
@@ -428,22 +344,23 @@ export const FleetRecharges: React.FC = () => {
       {estSuperviseur ? (
         <>
           <div className="flex gap-1 border-b border-[#232327] mb-6">
+            <button onClick={() => setTab("demandes")} className={tabCls(tab === "demandes")}>
+              Demandes{aTraiter > 0 && <span className="ml-1.5 font-semibold text-[#F59E0B]">{aTraiter}</span>}
+            </button>
             <button onClick={() => setTab("suivi")} className={tabCls(tab === "suivi")}>Suivi</button>
             <button onClick={() => setTab("enregistrer")} className={tabCls(tab === "enregistrer")}>Enregistrer</button>
             {peutGererBornes && <button onClick={() => setTab("bornes")} className={tabCls(tab === "bornes")}>Bornes</button>}
           </div>
           <Reveal>
-            {tab === "enregistrer" ? <SupervisorRechargeForm notify={notify} />
+            {tab === "demandes" ? <SuperviseurBoite notify={notify} />
+              : tab === "enregistrer" ? <SupervisorRechargeForm notify={notify} />
               : tab === "bornes" && peutGererBornes ? <BornesManager notify={notify} />
               : <RechargesDashboard notify={notify} />}
           </Reveal>
         </>
       ) : peutEnregistrer ? (
         <Reveal>
-          <div className="space-y-5 max-w-2xl">
-            <RechargeForm notify={notify} onDone={() => setRefresh((n) => n + 1)} />
-            <MesRecharges refresh={refresh} />
-          </div>
+          <ChauffeurRecharge notify={notify} />
         </Reveal>
       ) : <EmptyState>Accès non autorisé.</EmptyState>}
       {toast && <Toast message={toast.message} kind={toast.kind} />}

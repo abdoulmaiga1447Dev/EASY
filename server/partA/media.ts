@@ -12,6 +12,7 @@ import { canAccessVehicle } from "./vehicleAccess";
 import { canReadShiftMedia } from "./checkin";
 import { canReadReversementMedia } from "./reversement";
 import { canReadRechargeMedia } from "./recharge";
+import { canReadDemandeRechargeMedia } from "./demandeRecharge";
 import { canReadPanneMedia, canReadReparationMedia } from "./panne";
 import { wrap, serverError, notFound } from "./helpers";
 
@@ -61,6 +62,9 @@ export function mediaRouter(prisma: PrismaClient): express.Router {
       } else if (media.resourceType === "RechargeRecord" && media.resourceId) {
         // Justificatif de recharge : l'auteur/chauffeur ou le Superviseur Logistique du site.
         if (!(await canReadRechargeMedia(prisma, ctx, media.resourceId))) return res.status(403).json({ error: { fr: "Accès refusé à ce fichier", en: "Access denied" } });
+      } else if (media.resourceType === "DemandeRecharge" && media.resourceId) {
+        // Photos d'une demande de recharge : le chauffeur concerné ou le Superviseur Logistique du site.
+        if (!(await canReadDemandeRechargeMedia(prisma, ctx, media.resourceId))) return res.status(403).json({ error: { fr: "Accès refusé à ce fichier", en: "Access denied" } });
       } else if (media.resourceType === "Panne" && media.resourceId) {
         // Photos de panne : le chauffeur déclarant, le Responsable terrain ou la Maintenance du site.
         if (!(await canReadPanneMedia(prisma, ctx, media.resourceId))) return res.status(403).json({ error: { fr: "Accès refusé à ce fichier", en: "Access denied" } });

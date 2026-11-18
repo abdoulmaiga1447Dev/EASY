@@ -66,12 +66,11 @@ describe("Enregistrement d'une recharge", () => {
     expect(res.status).toBe(400);
   });
 
-  it("le chauffeur enregistre une recharge pour SON véhicule du jour", async () => {
+  it("le chauffeur ne déclare plus de recharge lui-même, même pour son véhicule du jour (403 : il passe par une demande payée par le Superviseur)", async () => {
     const m = await upload(DEMO.chauffeur);
     const res = await request(app).post("/api/fleet/recharges").set(auth(DEMO.chauffeur))
       .send({ vehicleId: "v_f2", typeCharge: "DOMESTIQUE", borneId: "borne_saver_abidjan", kwh: 24, cout: 2400, socDebut: 20, socFin: 60, justificatifMediaId: m });
-    expect(res.status).toBe(201);
-    expect(res.body.driverId).toBe(DEMO.chauffeur);
+    expect(res.status).toBe(403);
   });
 
   it("le chauffeur ne peut pas enregistrer pour un véhicule qui n'est pas le sien (403)", async () => {
@@ -111,6 +110,12 @@ describe("Gestion des bornes (Superviseur Logistique)", () => {
     expect(res.status).toBe(201);
     expect(res.body.active).toBe(true);
     borneId = res.body.id;
+  });
+
+  it("enregistre le prix du kWh d'une borne", async () => {
+    const res = await request(app).patch(`/api/fleet/bornes/${borneId}`).set(auth(DEMO.superviseur)).send({ prixKwh: 150 });
+    expect(res.status).toBe(200);
+    expect(res.body.prixKwh).toBe(150);
   });
 
   it("refuse une borne sans nom (400)", async () => {

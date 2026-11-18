@@ -15,7 +15,7 @@ import { normalizeDay } from "../../lib/assignment";
 import { wrap, serverError, notFound } from "./helpers";
 
 /** Destinataires d'alerte : utilisateurs actifs ayant une permission sur un site. */
-async function recipients(prisma: PrismaClient, siteId: string, code: string) {
+export async function recipients(prisma: PrismaClient, siteId: string, code: string) {
   const users = await prisma.user.findMany({
     where: { active: true },
     include: {
@@ -32,6 +32,13 @@ async function recipients(prisma: PrismaClient, siteId: string, code: string) {
     return codes.has("site.acces_tous") || u.sites.some((s) => s.siteId === siteId);
   });
 }
+
+/** Prix du kWh (FCFA, entier > 0) ou null. */
+const prixKwhValide = (v: unknown): number | null => {
+  if (v === null || v === undefined || v === "") return null;
+  const n = Math.round(Number(v));
+  return Number.isFinite(n) && n > 0 ? n : null;
+};
 
 export function rechargeRouter(prisma: PrismaClient): express.Router {
   const r = express.Router();
@@ -72,6 +79,7 @@ export function rechargeRouter(prisma: PrismaClient): express.Router {
           siteId: b.siteId ? String(b.siteId) : null,
           gpsLat: Number.isFinite(Number(b.gpsLat)) ? Number(b.gpsLat) : null,
           gpsLng: Number.isFinite(Number(b.gpsLng)) ? Number(b.gpsLng) : null,
+          prixKwh: prixKwhValide(b.prixKwh),
           active: b.active === false ? false : true,
         },
       });
@@ -99,6 +107,7 @@ export function rechargeRouter(prisma: PrismaClient): express.Router {
       }
       if (b.gpsLat !== undefined) data.gpsLat = Number.isFinite(Number(b.gpsLat)) ? Number(b.gpsLat) : null;
       if (b.gpsLng !== undefined) data.gpsLng = Number.isFinite(Number(b.gpsLng)) ? Number(b.gpsLng) : null;
+      if (b.prixKwh !== undefined) data.prixKwh = prixKwhValide(b.prixKwh);
       if (b.active !== undefined) data.active = !!b.active;
       const borne = await prisma.borneRecharge.update({ where: { id: existing.id }, data });
       await writeAudit(prisma, ctx, { action: "borne.update", resourceType: "BorneRecharge", resourceId: borne.id, siteId: borne.siteId, after: data });
@@ -107,9 +116,12 @@ export function rechargeRouter(prisma: PrismaClient): express.Router {
   );
 
   // ------------------------------ Enregistrer une recharge ------------------------------
+  // Saisie manuelle réservée au Superviseur / équipe (ex. réseau SAVER le soir). Le chauffeur
+  // ne déclare plus ses recharges lui-même : il passe par une demande payée par le Superviseur
+  // (voir demandeRecharge.ts), pour que l'argent ne passe jamais par lui.
   r.post(
     "/api/fleet/recharges",
-    authorize("recharge.enregistrer", "recharge.superviser"),
+    authorize("recharge.superviser"),
     wrap(async (req, res) => {
       const ctx = actor(req);
       const b = req.body || {};
@@ -233,7 +245,7 @@ export function rechargeRouter(prisma: PrismaClient): express.Router {
 
       const resume = {
         total: recharges.length,
-        totalKwh: recharges.reduce((s, x) => s + x.kwh, 0),
+        totalKwh: recharges.reduce((s, x) => s + (x.kwh ?? 0), 0),
         totalCout: recharges.reduce((s, x) => s + x.cout, 0),
         anomalies: recharges.filter((x) => x.anomalieCoherence).length,
       };

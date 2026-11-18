@@ -22,17 +22,17 @@ model User {
   rejectionReason String?
 
   // --- SAVER Fleet Ops (Partie A) : RBAC, sites, profils ---
-  roleId          String?
-  rolePrincipal   Role?          @relation("RolePrincipal", fields: [roleId], references: [id])
-  secondaryRoleId String?
-  roleSecondaire  Role?          @relation("RoleSecondaire", fields: [secondaryRoleId], references: [id])
-  active          Boolean        @default(true) // soft delete : false = compte désactivé
-  clientId        String? // contact rattaché à un Client externe (accès flotte)
-  client          Client?        @relation(fields: [clientId], references: [id])
-  sites           UserSite[]
-  driverProfile   DriverProfile?
-  auditLogs       AuditLog[]     @relation("AuditActor")
-  settingsCreated SiteSettings[] @relation("SettingsCreatedBy")
+  roleId             String?
+  rolePrincipal      Role?          @relation("RolePrincipal", fields: [roleId], references: [id])
+  secondaryRoleId    String?
+  roleSecondaire     Role?          @relation("RoleSecondaire", fields: [secondaryRoleId], references: [id])
+  active             Boolean        @default(true) // soft delete : false = compte désactivé
+  clientId           String? // contact rattaché à un Client externe (accès flotte)
+  client             Client?        @relation(fields: [clientId], references: [id])
+  sites              UserSite[]
+  driverProfile      DriverProfile?
+  auditLogs          AuditLog[]     @relation("AuditActor")
+  settingsCreated    SiteSettings[] @relation("SettingsCreatedBy")
   driverAssignments  Assignment[]   @relation("DriverAssignments")
   createdAssignments Assignment[]   @relation("CreatedAssignments")
 }
@@ -133,14 +133,14 @@ model DriverProfile {
 
 // --- Client externe en gestion de flotte (entité + contacts multiples) ---
 model Client {
-  id            String   @id @default(cuid())
+  id            String         @id @default(cuid())
   raisonSociale String
   contactNom    String?
   contactEmail  String?
   contactPhone  String?
-  active        Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  active        Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
   contacts      User[] // utilisateurs externes rattachés (accès flotte)
   fleetVehicles FleetVehicle[]
 }
@@ -432,10 +432,12 @@ model MediaAsset {
   resourceType String? // ex. "FleetVehicle" une fois rattaché
   resourceId   String?
   uploadedById String?
+  sha256       String? // empreinte du fichier reçu (détecte le renvoi d'une même photo)
   createdAt    DateTime @default(now())
 
   @@index([resourceType, resourceId])
   @@index([uploadedById])
+  @@index([sha256])
 }
 
 // --- Fiche véhicule (Flux 7) ---
@@ -463,7 +465,7 @@ model FleetVehicle {
   classes     Json        @default("[]") // ["Eco","Confort","VIP"]
 
   // Exploitation
-  kmActuel        Int  @default(0)
+  kmActuel        Int     @default(0)
   socDernierConnu Int? // dernier SOC connu (%)
   gpsBoitierId    String? // boîtier GPS LUOGU (association simple)
   isDraft         Boolean @default(false) // brouillon sauvegardable
@@ -488,9 +490,9 @@ model FleetVehicle {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  documents VehicleDocument[]
-  kmHistory VehicleKmHistory[]
-  phone     DevicePhone?
+  documents   VehicleDocument[]
+  kmHistory   VehicleKmHistory[]
+  phone       DevicePhone?
   assignments Assignment[]
 
   @@index([siteId])
@@ -711,9 +713,9 @@ enum DetteStatut {
 
 // --- Reversement d'un shift (recettes des courses) : 1-1 avec ShiftRecord ---
 model Reversement {
-  id            String            @id @default(cuid())
-  shiftRecordId String            @unique
-  shiftRecord   ShiftRecord       @relation(fields: [shiftRecordId], references: [id], onDelete: Cascade)
+  id            String      @id @default(cuid())
+  shiftRecordId String      @unique
+  shiftRecord   ShiftRecord @relation(fields: [shiftRecordId], references: [id], onDelete: Cascade)
   driverId      String
   vehicleId     String
   siteId        String
@@ -721,8 +723,8 @@ model Reversement {
   shift         ShiftCode
 
   // Déclaration du chauffeur
-  recette             Int // recette des courses déclarée
-  preuveRecetteMediaId       String? // capture / relevé de recette
+  recette                  Int // recette des courses déclarée
+  preuveRecetteMediaId     String? // capture / relevé de recette
   montantReverse           Int // montant effectivement viré (Wave/OM)
   preuveReversementMediaId String? // capture du virement
 
@@ -740,7 +742,7 @@ model Reversement {
   valideTerrainById String?
   valideTerrainAt   DateTime?
 
-  reverseeAt    DateTime  @default(now())
+  reverseeAt    DateTime @default(now())
   retardMinutes Int? // retard vs fin de shift (indicatif ; pénalité en paie, Partie D)
 
   detteId String? // dette créée si écart confirmé
@@ -770,17 +772,17 @@ model ReversementDepense {
 
 // --- Dette chauffeur (créée sur écart de reversement confirmé) ; déduite en paie ---
 model DetteChauffeur {
-  id              String      @id @default(cuid())
-  driverId        String
-  siteId          String
-  montant         Int
-  montantRembourse Int        @default(0)
-  motif           String?
-  sourceType      String      @default("reversement")
-  sourceId        String?
-  statut          DetteStatut @default(EN_COURS)
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  id               String      @id @default(cuid())
+  driverId         String
+  siteId           String
+  montant          Int
+  montantRembourse Int         @default(0)
+  motif            String?
+  sourceType       String      @default("reversement")
+  sourceId         String?
+  statut           DetteStatut @default(EN_COURS)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
 
   @@index([driverId])
   @@index([statut])
@@ -837,6 +839,7 @@ model BorneRecharge {
   siteId    String? // rattachement site pour les bornes domestiques
   gpsLat    Float?
   gpsLng    Float?
+  prixKwh   Int? // FCFA par kWh (sert à proposer le montant d'une recharge payée par le Superviseur)
   active    Boolean    @default(true)
   createdAt DateTime   @default(now())
 
@@ -846,19 +849,19 @@ model BorneRecharge {
 
 // --- Enregistrement d'une recharge d'un véhicule ---
 model RechargeRecord {
-  id            String     @id @default(cuid())
-  vehicleId     String
-  driverId      String? // chauffeur (null si saisie par l'équipe recharge le soir)
+  id              String     @id @default(cuid())
+  vehicleId       String
+  driverId        String? // chauffeur (null si saisie par l'équipe recharge le soir)
   enregistreParId String // utilisateur ayant saisi la recharge
-  siteId        String
-  date          DateTime   @default(now())
-  shift         ShiftCode?
+  siteId          String
+  date            DateTime   @default(now())
+  shift           ShiftCode?
 
   typeCharge TypeCharge
   borneId    String? // borne whitelistée sélectionnée
   lieu       String? // libellé lieu / opérateur (saisie libre)
 
-  kwh        Float // quantité d'électricité
+  kwh        Float? // quantité d'électricité (null si inconnue : recharge issue d'une demande)
   cout       Int // FCFA
   socDebut   Int // % batterie au début
   socFin     Int // % batterie à la fin
@@ -868,10 +871,80 @@ model RechargeRecord {
 
   anomalieCoherence Boolean @default(false) // kWh incohérents (SOC/km) → alerte Superviseur
 
+  demandeId String? // recharge issue d'une demande payée par le Superviseur (une seule par demande, garanti par le code)
+
   createdAt DateTime @default(now())
 
   @@index([vehicleId, date])
   @@index([siteId, date])
+  @@index([demandeId])
+}
+
+// =============================================================================
+// Recharge payée par le Superviseur (2026-11) — demande + fil de discussion
+// Le chauffeur demande, le Superviseur lui indique la borne, le chauffeur envoie
+// les photos (QR code + tableau de bord), le Superviseur paie : l'argent ne passe
+// jamais par le chauffeur.
+// =============================================================================
+
+enum DemandeRechargeStatut {
+  DEMANDEE // le chauffeur vient de demander
+  PRISE_EN_CHARGE // le Superviseur a indiqué la borne
+  SUR_PLACE // photos QR + tableau de bord reçues : à payer
+  PAYEE // le Superviseur a payé : le chauffeur peut brancher
+  TERMINEE // photo du tableau de bord de fin reçue
+  ANNULEE
+}
+
+model DemandeRecharge {
+  id        String                @id @default(cuid())
+  vehicleId String
+  driverId  String
+  siteId    String
+  shift     ShiftCode?
+  statut    DemandeRechargeStatut @default(DEMANDEE)
+
+  borneId String? // borne indiquée par le Superviseur (liste autorisée)
+
+  socDebut       Int? // % batterie lu sur le tableau de bord à l'arrivée
+  socFin         Int? // % batterie à la fin
+  kwhEstime      Float? // kWh nécessaires estimés (SOC × capacité)
+  montantSuggere Int? // FCFA, si le prix du kWh de la borne est connu
+
+  montantPaye    Int?
+  refTransaction String?   @unique // n° de transaction du paiement (unique : anti-réutilisation)
+  payeParId      String?
+  payeLe         DateTime?
+
+  termineLe       DateTime?
+  annuleParId     String?
+  motifAnnulation String?
+
+  anomalie Boolean @default(false) // ex. batterie qui n'a pas monté
+
+  messages DemandeRechargeMessage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([siteId, statut, createdAt])
+  @@index([driverId, createdAt])
+  @@index([vehicleId, statut])
+}
+
+model DemandeRechargeMessage {
+  id        String          @id @default(cuid())
+  demandeId String
+  demande   DemandeRecharge @relation(fields: [demandeId], references: [id], onDelete: Cascade)
+  auteurId  String? // null = message du système
+  // TEXTE | SYSTEME | BORNE | PHOTOS_ARRIVEE | PAIEMENT | PHOTO_FIN | ANNULATION
+  type      String
+  texte     String?
+  mediaIds  String[]        @default([])
+  meta      Json?
+  createdAt DateTime        @default(now())
+
+  @@index([demandeId, createdAt])
 }
 
 // =============================================================================
@@ -893,16 +966,16 @@ enum PanneStatut {
 
 // --- Déclaration de panne (Flux 4) ---
 model Panne {
-  id          String       @id @default(cuid())
+  id          String @id @default(cuid())
   vehicleId   String
   driverId    String // chauffeur déclarant
   siteId      String
   description String
-  photos      Json         @default("[]") // ids des médias (preuves obligatoires)
+  photos      Json   @default("[]") // ids des médias (preuves obligatoires)
 
-  statut   PanneStatut   @default(DECLAREE)
-  gravite  PanneGravite? // renseignée à la qualification
-  immobilise Boolean     @default(false) // véhicule immobilisé suite à panne critique
+  statut     PanneStatut   @default(DECLAREE)
+  gravite    PanneGravite? // renseignée à la qualification
+  immobilise Boolean       @default(false) // véhicule immobilisé suite à panne critique
 
   qualifieeById String?
   qualifieeAt   DateTime?

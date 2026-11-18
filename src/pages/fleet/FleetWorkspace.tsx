@@ -21,6 +21,7 @@ import { FleetChauffeur } from "./FleetChauffeur";
 import { FleetShifts } from "./FleetShifts";
 import { FleetReversements } from "./FleetReversements";
 import { FleetRecharges } from "./FleetRecharges";
+import { useDemandesATraiter } from "./RechargeDemandes";
 import { FleetPannes } from "./FleetPannes";
 import { Spinner, EmptyState, StatCard, Panel, Reveal } from "./ui";
 
@@ -269,6 +270,8 @@ export const FleetWorkspace: React.FC = () => {
   const { ctx, loading } = useRbac();
   const [section, setSection] = useState<Section>("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // Demandes de recharge qui attendent le Superviseur (compteur du menu, en temps réel).
+  const rechargesATraiter = useDemandesATraiter(!!ctx?.permissions.includes("recharge.superviser"));
 
   if (loading) return <div className="min-h-screen bg-[#0A0A0B]"><Spinner /></div>;
   if (!ctx) return <div className="min-h-screen bg-[#0A0A0B] flex items-center justify-center"><EmptyState>Contexte indisponible. Reconnectez-vous.</EmptyState></div>;
@@ -297,6 +300,9 @@ export const FleetWorkspace: React.FC = () => {
       <button onClick={() => go(n.key)}
         className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${active ? "bg-[#1C1C20] text-[#EDEDED]" : "text-[#8A8A8A] hover:text-[#EDEDED] hover:bg-[#141416]"}`}>
         {n.icon} {n.label}
+        {n.key === "recharges" && rechargesATraiter > 0 && (
+          <span className="ml-auto text-xs font-semibold text-[#F59E0B]" aria-label={`${rechargesATraiter} demande(s) de recharge à traiter`}>{rechargesATraiter}</span>
+        )}
       </button>
     );
   };

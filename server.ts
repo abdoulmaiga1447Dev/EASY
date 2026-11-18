@@ -3011,6 +3011,17 @@ async function startServer() {
   io.on("connection", (socket) => {
     console.log("[Socket] New real-time subscriber connected:", socket.id);
 
+    // Espaces fleet : l'utilisateur s'authentifie avec son jeton et rejoint sa salle
+    // personnelle `user:<id>` (demandes de recharge, et plus tard les appels).
+    socket.on("fleet:auth", (token: string) => {
+      try {
+        const decoded = jwt.verify(String(token || ""), ACCESS_TOKEN_SECRET) as any;
+        if (decoded?.userId) socket.join(`user:${decoded.userId}`);
+      } catch {
+        socket.emit("fleet:auth_error");
+      }
+    });
+
     // Client/driver joins a tracking room
     socket.on("join", (reservationId: string) => {
       socket.join(`room_${reservationId}`);

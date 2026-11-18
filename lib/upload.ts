@@ -7,7 +7,7 @@ import multer from "multer";
 import { Jimp } from "jimp";
 import fs from "fs";
 import path from "path";
-import { randomBytes } from "crypto";
+import { randomBytes, createHash } from "crypto";
 import type { PrismaClient } from "@prisma/client";
 
 export const UPLOAD_DIR = path.join(process.cwd(), "uploads");
@@ -40,6 +40,9 @@ export async function processAndStore(
   file: { buffer: Buffer; mimetype: string; originalname: string },
   uploadedById: string | null
 ): Promise<StoredMedia> {
+  // Empreinte du fichier TEL QUE REÇU (avant compression) : deux envois du même fichier
+  // donnent la même empreinte, ce qui permet de refuser une preuve déjà utilisée.
+  const sha256 = createHash("sha256").update(file.buffer).digest("hex");
   let buffer = file.buffer;
   let mime = file.mimetype;
   let ext = mime === "application/pdf" ? "pdf" : mime.split("/")[1];
@@ -70,6 +73,7 @@ export async function processAndStore(
       chemin: fileName,
       originalName: file.originalname,
       uploadedById,
+      sha256,
     },
   });
   return { id: media.id, kind, mime, taille: buffer.length };
