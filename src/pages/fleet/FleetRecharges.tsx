@@ -12,6 +12,7 @@ import { api, uploadMedia, type ApiError } from "../../api/fleet";
 import { Btn, Reveal, Field, Input, Select, Spinner, EmptyState, Toast, Modal, AuthImage } from "./ui";
 import { ChauffeurRecharge, SuperviseurBoite, ControleRecharges, useDemandesATraiter, useRechargesAControler } from "./RechargeDemandes";
 import { useRealtime } from "../../api/realtime";
+import { RapprochementWave } from "./RapprochementWave";
 import rechargeHero from "../../assets/recharge-hero.webp";
 import easyLogo from "../../assets/images/easy-logo-green.png";
 
@@ -480,10 +481,11 @@ export const FleetRecharges: React.FC = () => {
   const aControler = useRechargesAControler(peutControler);
   const aValider = usePropositionsEnAttente(peutValider);
 
-  type Tab = "demandes" | "suivi" | "enregistrer" | "bornes" | "controle" | "validations";
+  type Tab = "demandes" | "suivi" | "enregistrer" | "bornes" | "controle" | "rapprochement" | "validations";
   const tabs: { key: Tab; label: string; n?: number; show: boolean }[] = [
     { key: "demandes", label: "Demandes", n: aTraiter, show: estSuperviseur },
     { key: "controle", label: "À contrôler", n: aControler, show: peutControler },
+    { key: "rapprochement", label: "Rapprochement Wave", show: peutControler },
     { key: "validations", label: "Validations bornes", n: aValider, show: peutValider },
     { key: "suivi", label: "Suivi", show: estSuperviseur },
     { key: "enregistrer", label: "Enregistrer", show: estSuperviseur },
@@ -513,6 +515,7 @@ export const FleetRecharges: React.FC = () => {
           <Reveal key={courant ?? ""}>
             {courant === "demandes" ? <SuperviseurBoite notify={notify} />
               : courant === "controle" ? <ControleRecharges notify={notify} />
+              : courant === "rapprochement" ? <RapprochementWave notify={notify} />
               : courant === "validations" ? <ValidationsBornes notify={notify} />
               : courant === "enregistrer" ? <SupervisorRechargeForm notify={notify} />
               : courant === "bornes" ? <BornesManager notify={notify} />

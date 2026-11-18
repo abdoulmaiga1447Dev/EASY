@@ -966,6 +966,56 @@ model PropositionBorne {
   @@index([borneId])
 }
 
+// Rapprochement GUIDÉ des paiements de recharge avec l'historique Wave de l'entreprise
+// (pas d'export Wave disponible) : la Finance vérifie chaque paiement déclaré dans
+// l'application Wave et saisit les paiements Wave sans demande. Séparation payeur / contrôleur.
+enum RapprochementStatut {
+  EN_COURS
+  CLOTURE
+}
+
+enum VerdictRapprochement {
+  CONFORME // vu dans Wave, même montant
+  MONTANT_DIFFERENT // vu dans Wave, montant différent
+  ABSENT // déclaré dans EASY mais introuvable dans Wave
+  NON_DECLARE // vu dans Wave mais aucune demande dans EASY
+}
+
+model RapprochementWave {
+  id           String               @id @default(cuid())
+  debut        DateTime // inclus
+  fin          DateTime // exclu (lendemain du dernier jour)
+  statut       RapprochementStatut  @default(EN_COURS)
+  creeParId    String
+  clotureParId String?
+  clotureLe    DateTime?
+  resume       Json? // totaux et écarts figés à la clôture
+  lignes       RapprochementLigne[]
+  createdAt    DateTime             @default(now())
+
+  @@index([statut, createdAt])
+}
+
+model RapprochementLigne {
+  id              String                @id @default(cuid())
+  rapprochementId String
+  rapprochement   RapprochementWave     @relation(fields: [rapprochementId], references: [id], onDelete: Cascade)
+  demandeId       String? // paiement déclaré (null = paiement Wave sans demande)
+  verdict         VerdictRapprochement? // null = pas encore vérifié
+  montantDeclare  Int? // copie du montant déclaré par le Superviseur
+  montantReel     Int? // montant lu dans Wave (si différent, ou paiement non déclaré)
+  refTransaction  String? // ID de transaction Wave (paiement non déclaré)
+  dateTransaction DateTime? // date du paiement Wave (paiement non déclaré)
+  marchand        String? // bénéficiaire lu dans Wave
+  note            String?
+  verifieParId    String?
+  verifieLe       DateTime?
+  createdAt       DateTime              @default(now())
+
+  @@index([rapprochementId])
+  @@index([demandeId])
+}
+
 model DemandeRechargeMessage {
   id        String          @id @default(cuid())
   demandeId String
