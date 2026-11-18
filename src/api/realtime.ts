@@ -38,6 +38,15 @@ export function useRealtime<T = any>(event: string, handler: (payload: T) => voi
   }, [event, enabled]);
 }
 
+/** Annonces vocales (fichiers générés en local avec Piper, voix « siwis »), jouées après le bip. */
+export type Annonce = "nouvelle-demande" | "recharge-payee" | "appel-manque";
+export function annoncer(nom: Annonce): void {
+  bip();
+  window.setTimeout(() => {
+    try { void new Audio(`/audio/annonce-${nom}.mp3`).play().catch(() => undefined); } catch { /* son indisponible */ }
+  }, 450);
+}
+
 /** Petit signal sonore (nouvelle demande, paiement reçu…). Silencieux si le navigateur le bloque. */
 export function bip(): void {
   try {

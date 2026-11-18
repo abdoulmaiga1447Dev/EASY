@@ -9,7 +9,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { Phone, PhoneOff, Mic, MicOff, Bell, X } from "lucide-react";
 import { api } from "../../api/fleet";
-import { useRealtime, emitRealtime, sendRealtime } from "../../api/realtime";
+import { useRealtime, emitRealtime, sendRealtime, annoncer } from "../../api/realtime";
 import { pushSupporte, iosSansInstallation, activerNotifications, resynchroniserNotifications } from "../../api/push";
 
 type Phase = "idle" | "sortant" | "entrant" | "connexion" | "en_cours";
@@ -200,7 +200,10 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useRealtime<any>("call:ended", (p) => {
     if (p.callId !== etatRef.current.callId) return;
     const phase = etatRef.current.phase;
-    if (p.etat === "MANQUE") afficher(phase === "sortant" ? "Pas de réponse" : "Appel manqué");
+    if (p.etat === "MANQUE") {
+      afficher(phase === "sortant" ? "Pas de réponse" : "Appel manqué");
+      if (phase === "entrant") { stop(); annoncer("appel-manque"); }
+    }
     else if (p.etat === "REFUSE" && phase === "sortant") afficher("Appel refusé");
     else if (phase === "en_cours" || phase === "connexion") afficher("Appel terminé");
     nettoyer();

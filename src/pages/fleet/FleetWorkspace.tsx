@@ -24,6 +24,7 @@ import { FleetRecharges } from "./FleetRecharges";
 import { useDemandesATraiter, useRechargesAControler } from "./RechargeDemandes";
 import { CallProvider, PushBanner } from "./Appel";
 import { enregistrerServiceWorker } from "../../api/push";
+import { useRealtime, annoncer } from "../../api/realtime";
 import { usePropositionsEnAttente } from "./FleetRecharges";
 import { FleetPannes } from "./FleetPannes";
 import { Spinner, EmptyState, StatCard, Panel, Reveal } from "./ui";
@@ -276,6 +277,13 @@ export const FleetWorkspace: React.FC = () => {
   // Appels intégrés + notifications push : chauffeurs et superviseurs logistique.
   const appelsActifs = !!ctx && (ctx.permissions.includes("recharge.superviser") || ctx.permissions.includes("recharge.enregistrer"));
   useEffect(() => { if (appelsActifs) void enregistrerServiceWorker()?.catch(() => undefined); }, [appelsActifs]);
+  // Annonces vocales (bip + voix), sur n'importe quel écran :
+  // Superviseur → « Nouvelle demande de recharge » ; chauffeur → « Paiement effectué… ».
+  const estSuperviseurRecharge = !!ctx?.permissions.includes("recharge.superviser");
+  useRealtime<{ type: string; statut: string }>("recharge:update", (p) => {
+    if (p.type === "nouvelle" && estSuperviseurRecharge) annoncer("nouvelle-demande");
+    else if (p.type === "statut" && p.statut === "PAYEE" && !estSuperviseurRecharge) annoncer("recharge-payee");
+  }, appelsActifs);
   // Demandes de recharge qui attendent le Superviseur (compteur du menu, en temps réel).
   // + recharges à contrôler et bornes à valider pour la Finance / l'Admin.
   const rechargesATraiter = useDemandesATraiter(!!ctx?.permissions.includes("recharge.superviser"))

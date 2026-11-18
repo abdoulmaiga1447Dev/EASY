@@ -9,7 +9,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BatteryCharging, MapPin, Phone, Send, ArrowLeft, AlertTriangle, CheckCircle2, QrCode, Gauge, Banknote, Upload, ShieldCheck } from "lucide-react";
 import { api, uploadMedia, type ApiError } from "../../api/fleet";
-import { useRealtime, bip } from "../../api/realtime";
+import { useRealtime } from "../../api/realtime";
 import { useRbac } from "../../context/RbacContext";
 import { Btn, Panel, Field, Input, Select, Spinner, EmptyState, AuthImage } from "./ui";
 import { CameraCapture } from "./CameraCapture";
@@ -240,7 +240,6 @@ export const ChauffeurRecharge: React.FC<{ notify: Notify }> = ({ notify }) => {
   const [etape, setEtape] = useState<null | "sur-place" | "terminer">(null);
   const [form, setForm] = useState<any>({ qr: null, tableau: null, soc: "" });
   const [cle, setCle] = useState(0); // remonte les captures après envoi
-  const statutPrecedent = useRef<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -259,11 +258,7 @@ export const ChauffeurRecharge: React.FC<{ notify: Notify }> = ({ notify }) => {
   useEffect(() => { const t = setInterval(load, 20000); return () => clearInterval(t); }, [load]);
 
   const d = data?.ouverte;
-  // Signal sonore quand le paiement arrive.
-  useEffect(() => {
-    if (d?.statut === "PAYEE" && statutPrecedent.current && statutPrecedent.current !== "PAYEE") bip();
-    statutPrecedent.current = d?.statut ?? null;
-  }, [d?.statut]);
+  // Son à l'arrivée du paiement : annonce globale (FleetWorkspace).
 
   const reset = () => { setForm({ qr: null, tableau: null, soc: "" }); setEtape(null); setCle((k) => k + 1); };
 
@@ -443,7 +438,7 @@ export const SuperviseurBoite: React.FC<{ notify: Notify }> = ({ notify }) => {
 
   // Temps réel : liste + demande ouverte ; bip à chaque nouvelle demande.
   useRealtime<{ demandeId: string; type: string }>("recharge:update", (p) => {
-    if (p.type === "nouvelle") { bip(); notify({ message: "Nouvelle demande de recharge", kind: "ok" }); }
+    if (p.type === "nouvelle") notify({ message: "Nouvelle demande de recharge", kind: "ok" }); // son : annonce globale (FleetWorkspace)
     loadList();
     if (p.demandeId === selId) loadDetail(p.demandeId);
   });
