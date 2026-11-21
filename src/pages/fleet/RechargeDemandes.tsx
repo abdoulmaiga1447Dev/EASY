@@ -260,7 +260,33 @@ export const ChauffeurRecharge: React.FC<{ notify: Notify }> = ({ notify }) => {
   const d = data?.ouverte;
   // Son à l'arrivée du paiement : annonce globale (FleetWorkspace).
 
-  const reset = () => { setForm({ qr: null, tableau: null, soc: "" }); setEtape(null); setCle((k) => k + 1); };
+  const [lectureIa, setLectureIa] = useState<null | { etat: "lecture" | "ok" | "info" | "reprendre"; texte: string }>(null);
+  const socTouche = useRef(false); // le chauffeur a tapé lui-même : on n'écrase plus sa saisie
+  const reset = () => { setForm({ qr: null, tableau: null, soc: "" }); setEtape(null); setCle((k) => k + 1); setLectureIa(null); socTouche.current = false; };
+
+  /** Photo du tableau de bord prise → lecture du % par l'IA (côté serveur), en arrière-plan. */
+  const photoTableau = async (id: string) => {
+    setForm((f: any) => ({ ...f, tableau: id }));
+    setLectureIa({ etat: "lecture", texte: "Lecture du % de batterie…" });
+    try {
+      const r = await api.post<{ disponible: boolean; soc?: number | null; aConfirmer?: boolean; aReprendre?: boolean; message?: string }>("/api/fleet/ia/batterie", { mediaId: id });
+      if (!r.disponible) { setLectureIa(null); return; }
+      if (r.aReprendre) { setLectureIa({ etat: "reprendre", texte: r.message || "Reprenez la photo." }); return; }
+      if (r.soc != null) {
+        if (!socTouche.current) setForm((f: any) => ({ ...f, soc: String(r.soc) }));
+        setLectureIa({ etat: "ok", texte: r.aConfirmer ? `${r.soc} % lu par l'IA : vérifiez avant d'envoyer.` : `${r.soc} % lu par l'IA. Vérifiez puis envoyez.` });
+      } else {
+        setLectureIa({ etat: "info", texte: r.message || "Saisissez le % affiché." });
+      }
+    } catch { setLectureIa(null); /* IA indisponible : saisie manuelle */ }
+  };
+  const saisirSoc = (v: string) => { socTouche.current = true; setForm((f: any) => ({ ...f, soc: v })); };
+  const AideIa = () => !lectureIa ? null : (
+    <div className="text-xs" style={{ color: lectureIa.etat === "reprendre" ? RED : lectureIa.etat === "ok" ? GREEN : MUTED }}>
+      {lectureIa.etat === "lecture" && <span className="inline-block h-3 w-3 mr-1.5 align-[-2px] rounded-full border-2 border-[#33363F] border-t-[#22C55E] animate-spin" />}
+      {lectureIa.texte}
+    </div>
+  );
 
   const demander = async () => {
     setBusy(true);
@@ -376,9 +402,10 @@ export const ChauffeurRecharge: React.FC<{ notify: Notify }> = ({ notify }) => {
           <h3 className="font-semibold text-[#EDEDED]">À la borne</h3>
           <div className="grid grid-cols-2 gap-3">
             <CameraCapture label="QR code de la borne" mediaId={form.qr} onUploaded={(id) => setForm((f: any) => ({ ...f, qr: id }))} notify={notify} />
-            <CameraCapture label="Tableau de bord" mediaId={form.tableau} onUploaded={(id) => setForm((f: any) => ({ ...f, tableau: id }))} notify={notify} />
+            <CameraCapture label="Tableau de bord" mediaId={form.tableau} onUploaded={photoTableau} notify={notify} />
           </div>
-          <Field label="% de batterie affiché"><Input type="number" inputMode="numeric" min={0} max={100} value={form.soc} onChange={(e) => setForm((f: any) => ({ ...f, soc: e.target.value }))} placeholder="ex. 25" /></Field>
+          <Field label="% de batterie affiché"><Input type="number" inputMode="numeric" min={0} max={100} value={form.soc} onChange={(e) => saisirSoc(e.target.value)} placeholder="ex. 25" /></Field>
+          <AideIa />
           <div className="flex gap-2">
             <Btn variant="secondary" onClick={reset} disabled={busy}>Retour</Btn>
             <Btn onClick={envoyerSurPlace} disabled={busy || !form.qr || !form.tableau || !socOk} className="flex-1">Envoyer au Superviseur</Btn>
@@ -394,8 +421,9 @@ export const ChauffeurRecharge: React.FC<{ notify: Notify }> = ({ notify }) => {
       {etape === "terminer" && (
         <Panel className="p-5 space-y-4" key={`fin-${cle}`}>
           <h3 className="font-semibold text-[#EDEDED]">Fin de la recharge</h3>
-          <CameraCapture label="Tableau de bord" mediaId={form.tableau} onUploaded={(id) => setForm((f: any) => ({ ...f, tableau: id }))} notify={notify} />
-          <Field label="% de batterie affiché"><Input type="number" inputMode="numeric" min={0} max={100} value={form.soc} onChange={(e) => setForm((f: any) => ({ ...f, soc: e.target.value }))} placeholder="ex. 80" /></Field>
+          <CameraCapture label="Tableau de bord" mediaId={form.tableau} onUploaded={photoTableau} notify={notify} />
+          <Field label="% de batterie affiché"><Input type="number" inputMode="numeric" min={0} max={100} value={form.soc} onChange={(e) => saisirSoc(e.target.value)} placeholder="ex. 80" /></Field>
+          <AideIa />
           <div className="flex gap-2">
             <Btn variant="secondary" onClick={reset} disabled={busy}>Retour</Btn>
             <Btn onClick={terminer} disabled={busy || !form.tableau || !socOk} className="flex-1">Envoyer</Btn>
@@ -665,7 +693,11 @@ export const ControleRecharges: React.FC<{ notify: Notify }> = ({ notify }) => {
     } catch (e) { notify({ message: errMsg(e), kind: "err" }); } finally { setBusy(false); }
   };
 
-  const motif = (x: any) => [x.ecartMontant ? `Payé ${fcfa(x.montantPaye)} pour ${fcfa(x.montantSuggere)} proposés (+${x.ecartPct} %)` : null, x.anomalie ? `Batterie ${x.socDebut ?? "—"} % → ${x.socFin ?? "—"} %` : null].filter(Boolean).join(" · ");
+  const motif = (x: any) => [
+    x.ecartMontant ? `Payé ${fcfa(x.montantPaye)} pour ${fcfa(x.montantSuggere)} proposés (+${x.ecartPct} %)` : null,
+    x.anomalie ? `Batterie ${x.socDebut ?? "—"} % → ${x.socFin ?? "—"} %` : null,
+    x.ecartIa ? `Écart IA : saisi ${x.socDebut ?? "—"} % / lu ${x.socDebutIa ?? "—"} %${x.socFinIa != null ? ` · fin saisi ${x.socFin ?? "—"} % / lu ${x.socFinIa} %` : ""}` : null,
+  ].filter(Boolean).join(" · ");
   const tabCls = (a: boolean) => `px-3 py-2 text-sm border-b-2 ${a ? "border-[#22C55E] text-[#EDEDED]" : "border-transparent text-[#8A8A8A] hover:text-[#EDEDED]"}`;
 
   return (

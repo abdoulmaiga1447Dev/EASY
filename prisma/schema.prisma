@@ -433,6 +433,7 @@ model MediaAsset {
   resourceId   String?
   uploadedById String?
   sha256       String? // empreinte du fichier reçu (détecte le renvoi d'une même photo)
+  iaLecture    Json? // lecture de l'IA (ex. % batterie du tableau de bord), faite et conservée par le serveur
   createdAt    DateTime @default(now())
 
   @@index([resourceType, resourceId])
@@ -908,6 +909,9 @@ model DemandeRecharge {
 
   socDebut       Int? // % batterie lu sur le tableau de bord à l'arrivée
   socFin         Int? // % batterie à la fin
+  socDebutIa     Int? // % lu par l'IA sur la photo d'arrivée (null si non lu)
+  socFinIa       Int? // % lu par l'IA sur la photo de fin
+  ecartIa        Boolean @default(false) // le chauffeur a saisi un % différent de celui lu par l'IA → contrôle
   kwhEstime      Float? // kWh nécessaires estimés (SOC × capacité)
   montantSuggere Int? // FCFA, si le prix du kWh de la borne est connu
 

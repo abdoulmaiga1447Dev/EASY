@@ -132,6 +132,9 @@ export function lireBatterie(image: Buffer, mime: string, opts?: { modele?: stri
   return analyserImage<LectureBatterie>(image, mime, PROMPT_BATTERIE, SCHEMA_BATTERIE, opts);
 }
 
+/** Point d'accès remplaçable (les tests y branchent une fausse IA, sans appel réseau). */
+export const ia = { lireBatterie };
+
 /** Liste les modèles disponibles pour la clé (aide au choix de GEMINI_MODEL). */
 export async function listerModeles(): Promise<string[]> {
   const r = await fetch(`${API}/models?pageSize=200`, { headers: { "x-goog-api-key": process.env.GEMINI_API_KEY || "" } });

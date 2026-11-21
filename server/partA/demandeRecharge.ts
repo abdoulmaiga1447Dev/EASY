@@ -23,6 +23,7 @@ import {
   normaliserRef, anomalieFin, type DemandeStatut,
 } from "../../lib/demandeRecharge";
 import { recipients } from "./recharge";
+import { appliquerLectureIa } from "./iaRecharge";
 import { wrap, serverError, notFound } from "./helpers";
 
 const ERR = (fr: string, en: string) => ({ error: { fr, en } });
@@ -205,6 +206,8 @@ export function demandeRechargeRouter(prisma: PrismaClient): express.Router {
       await rattacher([String(qrMediaId), String(tableauMediaId)], d.id);
       const maj = await prisma.demandeRecharge.update({ where: { id: d.id }, data: { statut: "SUR_PLACE", socDebut, kwhEstime, montantSuggere } });
       await message(d.id, ctx.userId, "PHOTOS_ARRIVEE", { mediaIds: [String(qrMediaId), String(tableauMediaId)], meta: { socDebut, kwhEstime, montantSuggere } });
+      // Contrôle IA du % saisi (lecture faite et conservée par le serveur ; en arrière-plan si pas encore prête).
+      void appliquerLectureIa(prisma, d.id, "debut", String(tableauMediaId), socDebut).catch((e) => console.error("[IA]", e));
       await diffuser(maj, "statut");
       res.json(await detail(d.id, ctx));
     })
@@ -257,6 +260,7 @@ export function demandeRechargeRouter(prisma: PrismaClient): express.Router {
         return up;
       });
       await message(d.id, ctx.userId, "PHOTO_FIN", { mediaIds: [String(tableauFinMediaId)], meta: { socFin } });
+      void appliquerLectureIa(prisma, d.id, "fin", String(tableauFinMediaId), socFin).catch((e) => console.error("[IA]", e));
       await message(d.id, null, "SYSTEME", { texte: anomalie ? `Recharge terminée — anomalie : la batterie n'a pas monté (${d.socDebut} % → ${socFin} %).` : `Recharge terminée (${d.socDebut} % → ${socFin} %).` });
       await writeAudit(prisma, ctx, { action: "recharge_demande.terminer", resourceType: "DemandeRecharge", resourceId: d.id, siteId: d.siteId, after: { socFin, anomalie } });
       if (anomalie) {
@@ -325,7 +329,7 @@ export function demandeRechargeRouter(prisma: PrismaClient): express.Router {
     authorize("recharge.controler"),
     wrap(async (req, res) => {
       const ctx = actor(req);
-      const where: any = { OR: [{ ecartMontant: true }, { anomalie: true }] };
+      const where: any = { OR: [{ ecartMontant: true }, { anomalie: true }, { ecartIa: true }] };
       if (!ctx.allSites) where.siteId = { in: ctx.siteIds.length ? ctx.siteIds : ["__none__"] };
       const vue = String(req.query.vue || "a_controler");
       where.controleLe = vue === "controlees" ? { not: null } : null;
@@ -343,6 +347,7 @@ export function demandeRechargeRouter(prisma: PrismaClient): express.Router {
           chauffeurNom: nom.get(d.driverId) ?? null, payeParNom: d.payeParId ? nom.get(d.payeParId) ?? null : null,
           montantPaye: d.montantPaye, montantSuggere: d.montantSuggere, refTransaction: d.refTransaction,
           ecartMontant: d.ecartMontant, anomalie: d.anomalie, socDebut: d.socDebut, socFin: d.socFin,
+          ecartIa: d.ecartIa, socDebutIa: d.socDebutIa, socFinIa: d.socFinIa,
           ecartPct: d.montantPaye != null && d.montantSuggere ? Math.round(((d.montantPaye - d.montantSuggere) / d.montantSuggere) * 100) : null,
           controleLe: d.controleLe, controleNote: d.controleNote, controleParNom: d.controleParId ? nom.get(d.controleParId) ?? null : null,
         })),
@@ -356,7 +361,7 @@ export function demandeRechargeRouter(prisma: PrismaClient): express.Router {
     authorize("recharge.controler"),
     wrap(async (req, res) => {
       const ctx = actor(req);
-      const where: any = { OR: [{ ecartMontant: true }, { anomalie: true }], controleLe: null };
+      const where: any = { OR: [{ ecartMontant: true }, { anomalie: true }, { ecartIa: true }], controleLe: null };
       if (!ctx.allSites) where.siteId = { in: ctx.siteIds.length ? ctx.siteIds : ["__none__"] };
       res.json({ aControler: await prisma.demandeRecharge.count({ where }) });
     })
