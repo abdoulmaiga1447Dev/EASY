@@ -928,6 +928,8 @@ model DemandeRecharge {
 
   preuvePaiementMediaId String? // capture de la confirmation Wave jointe par le Superviseur (invisible pour le chauffeur)
   ecartMontant          Boolean @default(false) // payé > montant proposé + 20 % → contrôle Finance
+  anomaliePaiement      Boolean @default(false) // reçu Wave incohérent ou non vérifié par l'IA → contrôle Finance
+  iaPaiement            Json? // lecture du reçu Wave par l'IA (montant, ID, date, marchand) + problèmes relevés
 
   // Contrôle par la Finance (séparation payeur / contrôleur)
   controleParId String?

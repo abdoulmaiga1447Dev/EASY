@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { interpreterBatterie, type LectureBatterie } from "../lib/ia";
+import { interpreterBatterie, interpreterRecuWave, dateRecu, type LectureBatterie, type LectureRecuWave } from "../lib/ia";
 
 const L = (p: Partial<LectureBatterie>): LectureBatterie => ({
   est_tableau_de_bord: true, pourcentage_affiche: false, soc_pourcentage: null, chiffres_nets: true, soc_estime_barres: null,
@@ -28,5 +28,30 @@ describe("interprétation de la lecture batterie", () => {
   });
   it("valeur hors 0–100 ignorée → saisie manuelle", () => {
     expect(interpreterBatterie(L({ pourcentage_affiche: true, soc_pourcentage: 241 }))).toMatchObject({ soc: null, aConfirmer: true });
+  });
+});
+
+describe("interpreterRecuWave / dateRecu", () => {
+  const base: LectureRecuWave = {
+    est_recu_wave: true, statut_effectue: true, statut: "Effectué", type_transaction: "Paiement", marchand: "Chez Isiaka",
+    montant_fcfa: 100, frais_fcfa: 0, date_heure: "2026-11-06T07:19", id_transaction: "T_VCEK26THWKC3I63F",
+    chiffres_nets: true, retouche_suspectee: false, lisibilite: "bonne", confiance: 0.95, remarque: "",
+  };
+  it("reçu valide → montant, n°, date", () => {
+    const d = interpreterRecuWave(base);
+    expect(d).toMatchObject({ valide: true, montant: 100, ref: "T_VCEK26THWKC3I63F", marchand: "Chez Isiaka" });
+    expect(d.date).toBe("2026-11-06T07:19:00.000Z");
+  });
+  it("refus : pas un reçu, non effectué, illisible, montant ou ID manquant", () => {
+    expect(interpreterRecuWave({ ...base, est_recu_wave: false }).valide).toBe(false);
+    expect(interpreterRecuWave({ ...base, statut_effectue: false }).valide).toBe(false);
+    expect(interpreterRecuWave({ ...base, chiffres_nets: false }).valide).toBe(false);
+    expect(interpreterRecuWave({ ...base, montant_fcfa: null }).valide).toBe(false);
+    expect(interpreterRecuWave({ ...base, id_transaction: null }).valide).toBe(false);
+  });
+  it("dateRecu : format attendu seulement", () => {
+    expect(dateRecu("2026-11-06T19:19")?.toISOString()).toBe("2026-11-06T19:19:00.000Z");
+    expect(dateRecu("6 nov. 2026")).toBeNull();
+    expect(dateRecu(null)).toBeNull();
   });
 });

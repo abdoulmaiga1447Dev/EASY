@@ -1,13 +1,14 @@
 /**
- * Tests — IA dans la recharge : lecture du % de batterie (fausse IA, aucun appel réseau),
- * pré-remplissage, refus des photos hors sujet, et écart saisie / lecture signalé.
+ * Tests — IA dans la recharge (fausse IA, aucun appel réseau) :
+ * % de batterie (pré-remplissage, refus des photos hors sujet, % lu qui fait foi, écart signalé)
+ * et reçu Wave du Superviseur (refus, montant et n° lus qui font foi, date, contrôle Finance).
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import request from "supertest";
 import { Jimp } from "jimp";
 import { buildApp, tokenFor, DEMO, prisma } from "./helpers";
 import { normalizeDay } from "../lib/assignment";
-import { ia, type LectureBatterie } from "../lib/ia";
+import { ia, type LectureBatterie, type LectureRecuWave } from "../lib/ia";
 
 const app = buildApp();
 const auth = (userId: string) => ({ Authorization: `Bearer ${tokenFor(userId)}` });
@@ -29,7 +30,14 @@ const L = (p: Partial<LectureBatterie>): LectureBatterie => ({
   est_tableau_de_bord: true, pourcentage_affiche: false, soc_pourcentage: null, chiffres_nets: true, soc_estime_barres: null,
   autonomie_km: null, kilometrage_km: null, lisibilite: "bonne", confiance: 0.95, remarque: "test", ...p,
 });
+const R = (p: Partial<LectureRecuWave>): LectureRecuWave => ({
+  est_recu_wave: true, statut_effectue: true, statut: "Effectué", type_transaction: "Paiement", marchand: "Borne Test",
+  montant_fcfa: 3000, frais_fcfa: 0, date_heure: new Date().toISOString().slice(0, 16), id_transaction: `T_TEST${Date.now()}`,
+  chiffres_nets: true, retouche_suspectee: false, lisibilite: "bonne", confiance: 0.95, remarque: "test", ...p,
+});
+const recus = new Map<string, Partial<LectureRecuWave>>();
 const original = ia.lireBatterie;
+const originalRecu = ia.lireRecuWave;
 let enAttente = "";
 
 async function cleanup() {
@@ -44,8 +52,9 @@ beforeAll(async () => {
   process.env.GEMINI_API_KEY = "cle-de-test";
   // Fausse IA : répond selon la photo (identifiée par la dernière photo enregistrée en attente).
   ia.lireBatterie = (async () => ({ resultat: L(lectures.get(enAttente) ?? {}), modele: "faux-modele", dureeMs: 1, jetons: 0, essais: 1 })) as any;
+  ia.lireRecuWave = (async () => ({ resultat: R(recus.get(enAttente) ?? {}), modele: "faux-modele", dureeMs: 1, jetons: 0, essais: 1 })) as any;
 });
-afterAll(async () => { ia.lireBatterie = original; process.env.GEMINI_API_KEY = ""; await cleanup(); await prisma.$disconnect(); });
+afterAll(async () => { ia.lireBatterie = original; ia.lireRecuWave = originalRecu; process.env.GEMINI_API_KEY = ""; await cleanup(); await prisma.$disconnect(); });
 
 const lire = (mediaId: string, userId = DEMO.chauffeur) => { enAttente = mediaId; return request(app).post("/api/fleet/ia/batterie").set(auth(userId)).send({ mediaId }); };
 const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -80,8 +89,9 @@ describe("Lecture du % de batterie", () => {
   it("sans clé IA : indisponible, la saisie manuelle continue", async () => {
     process.env.GEMINI_API_KEY = "";
     const m = await upload(DEMO.chauffeur);
-    expect((await lire(m)).body).toEqual({ disponible: false });
+    const res = await lire(m);
     process.env.GEMINI_API_KEY = "cle-de-test";
+    expect(res.body).toMatchObject({ disponible: false });
   });
 });
 
@@ -117,5 +127,166 @@ describe("Écart entre le % saisi et la lecture de l'IA", () => {
     expect(maj?.socDebutIa).toBe(45);
     expect(maj?.ecartIa).toBe(false);
     await request(app).post(`/api/fleet/recharge-demandes/${d.body.id}/annuler`).set(auth(DEMO.chauffeur)).send({});
+  });
+});
+
+const nouvelleDemande = async () => {
+  const d = await request(app).post("/api/fleet/recharge-demandes").set(auth(DEMO.chauffeur)).send({ vehicleId: VEH });
+  expect(d.status).toBe(201);
+  return d.body.id as string;
+};
+const surPlace = (id: string, qr: string, tableau: string, socDebut?: number) => {
+  enAttente = tableau;
+  return request(app).post(`/api/fleet/recharge-demandes/${id}/sur-place`).set(auth(DEMO.chauffeur)).send({ qrMediaId: qr, tableauMediaId: tableau, socDebut });
+};
+const fermer = (id: string) => prisma.demandeRecharge.update({ where: { id }, data: { statut: "ANNULEE" } });
+
+describe("La photo du tableau de bord est vérifiée par le serveur", () => {
+  it("photo hors sujet → refusée (422), la demande ne bouge pas", async () => {
+    const id = await nouvelleDemande();
+    const res = await surPlace(id, await upload(DEMO.chauffeur), await upload(DEMO.chauffeur, { est_tableau_de_bord: false }), 50);
+    expect(res.status).toBe(422);
+    expect(res.body.aReprendre).toBe(true);
+    expect((await prisma.demandeRecharge.findUnique({ where: { id } }))?.statut).toBe("DEMANDEE");
+    await fermer(id);
+  });
+
+  it("chiffres flous → refusée (rapprochez-vous)", async () => {
+    const id = await nouvelleDemande();
+    const res = await surPlace(id, await upload(DEMO.chauffeur), await upload(DEMO.chauffeur, { pourcentage_affiche: true, soc_pourcentage: 85, chiffres_nets: false }), 85);
+    expect(res.status).toBe(422);
+    expect(res.body.error.fr).toMatch(/rapprochez-vous/);
+    await fermer(id);
+  });
+
+  it("% lu par l'IA → enregistré automatiquement, sans saisie du chauffeur", async () => {
+    const id = await nouvelleDemande();
+    const res = await surPlace(id, await upload(DEMO.chauffeur), await upload(DEMO.chauffeur, { pourcentage_affiche: true, soc_pourcentage: 37 }));
+    expect(res.status).toBe(200);
+    const d = await prisma.demandeRecharge.findUnique({ where: { id } });
+    expect(d?.socDebut).toBe(37);
+    expect(d?.socDebutIa).toBe(37);
+    await fermer(id);
+  });
+
+  it("le téléphone envoie un autre chiffre que l'IA → c'est la lecture IA qui est enregistrée, écart signalé", async () => {
+    const id = await nouvelleDemande();
+    await surPlace(id, await upload(DEMO.chauffeur), await upload(DEMO.chauffeur, { pourcentage_affiche: true, soc_pourcentage: 30 }), 70);
+    const d = await prisma.demandeRecharge.findUnique({ where: { id } });
+    expect(d?.socDebut).toBe(30);
+    expect(d?.ecartIa).toBe(true);
+    await fermer(id);
+  });
+
+  it("tableau sans % (ex. Eado) → saisie du chauffeur obligatoire, tracée dans le fil", async () => {
+    const id = await nouvelleDemande();
+    const sansSaisie = await surPlace(id, await upload(DEMO.chauffeur), await upload(DEMO.chauffeur, { autonomie_km: 258 }));
+    expect(sansSaisie.status).toBe(400);
+    const res = await surPlace(id, await upload(DEMO.chauffeur), await upload(DEMO.chauffeur, { autonomie_km: 258 }), 55);
+    expect(res.status).toBe(200);
+    expect((await prisma.demandeRecharge.findUnique({ where: { id } }))?.socDebut).toBe(55);
+    const msg = await prisma.demandeRechargeMessage.findFirst({ where: { demandeId: id, type: "SYSTEME", texte: { contains: "n'affiche pas de pourcentage" } } });
+    expect(msg).not.toBeNull();
+    await fermer(id);
+  });
+});
+
+describe("Le reçu Wave du Superviseur est lu et contrôlé", () => {
+  const prete = async () => {
+    const id = await nouvelleDemande();
+    // Véhicule de test rattaché à Yamoussoukro : la demande passe sur le site du Superviseur de test (Abidjan).
+    await prisma.demandeRecharge.update({ where: { id }, data: { siteId: "site_abidjan" } });
+    const sp = await surPlace(id, await upload(DEMO.chauffeur), await upload(DEMO.chauffeur, { pourcentage_affiche: true, soc_pourcentage: 40 }));
+    expect(sp.status).toBe(200);
+    return id;
+  };
+  const payer = async (id: string, recu: Partial<LectureRecuWave>, saisi: { montant?: number; refTransaction?: string } = {}) => {
+    const m = await upload(DEMO.superviseur);
+    recus.set(m, recu);
+    enAttente = m;
+    return request(app).post(`/api/fleet/recharge-demandes/${id}/paiement`).set(auth(DEMO.superviseur)).send({ ...saisi, preuveMediaId: m });
+  };
+
+  it("lecture du reçu pour le Superviseur : montant, n°, date", async () => {
+    const m = await upload(DEMO.superviseur);
+    recus.set(m, { montant_fcfa: 4200, id_transaction: "T_LECTURE01" });
+    enAttente = m;
+    const res = await request(app).post("/api/fleet/ia/recu-wave").set(auth(DEMO.superviseur)).send({ mediaId: m });
+    expect(res.body).toMatchObject({ disponible: true, valide: true, montant: 4200, ref: "T_LECTURE01" });
+  });
+
+  it("image qui n'est pas un reçu Wave → refusée", async () => {
+    const id = await prete();
+    const res = await payer(id, { est_recu_wave: false }, { montant: 3000, refTransaction: "T_FAUX0001" });
+    expect(res.status).toBe(422);
+    expect((await prisma.demandeRecharge.findUnique({ where: { id } }))?.statut).toBe("SUR_PLACE");
+    await fermer(id);
+  });
+
+  it("paiement non « Effectué » → refusé", async () => {
+    const id = await prete();
+    const res = await payer(id, { statut_effectue: false, statut: "En attente" });
+    expect(res.status).toBe(422);
+    expect(res.body.error.fr).toMatch(/En attente/);
+    await fermer(id);
+  });
+
+  it("reçu d'un jour antérieur à la demande → refusé et Finance alertée", async () => {
+    const id = await prete();
+    const hier = new Date(Date.now() - 36 * 3600_000).toISOString().slice(0, 16);
+    const res = await payer(id, { date_heure: hier });
+    expect(res.status).toBe(422);
+    expect(res.body.anomalie).toBe(true);
+    await fermer(id);
+  });
+
+  it("montant et n° du reçu font foi ; saisie différente → contrôle Finance", async () => {
+    const id = await prete();
+    const ref = `T_FOI${Date.now()}`;
+    const res = await payer(id, { montant_fcfa: 3000, id_transaction: ref }, { montant: 5000, refTransaction: "T_AUTRE999" });
+    expect(res.status).toBe(200);
+    const d = await prisma.demandeRecharge.findUnique({ where: { id } });
+    expect(d?.montantPaye).toBe(3000);
+    expect(d?.refTransaction).toBe(ref.toUpperCase());
+    expect(d?.anomaliePaiement).toBe(true);
+    const controle = await request(app).get("/api/fleet/recharge-demandes/controle").set(auth(DEMO.finance));
+    expect(controle.body.demandes.find((x: any) => x.id === id)?.problemesRecu.join(" ")).toMatch(/montant saisi 5000/);
+    await fermer(id);
+  });
+
+  it("reçu conforme → payé, sans contrôle ; le même n° ne peut pas resservir", async () => {
+    const id = await prete();
+    const ref = `T_OK${Date.now()}`;
+    const res = await payer(id, { montant_fcfa: 2500, id_transaction: ref }, { montant: 2500, refTransaction: ref });
+    expect(res.status).toBe(200);
+    expect(res.body.iaPaiement?.verifie).toBe(true);
+    const d = await prisma.demandeRecharge.findUnique({ where: { id } });
+    expect(d?.anomaliePaiement).toBe(false);
+    await fermer(id);
+
+    const id2 = await prete();
+    const re = await payer(id2, { montant_fcfa: 2500, id_transaction: ref });
+    expect(re.status).toBe(409);
+    await fermer(id2);
+  });
+
+  it("IA indisponible → saisie acceptée, mais le paiement part au contrôle Finance", async () => {
+    const id = await prete();
+    process.env.GEMINI_API_KEY = "";
+    const res = await payer(id, {}, { montant: 3100, refTransaction: `T_MANU${Date.now()}` });
+    process.env.GEMINI_API_KEY = "cle-de-test";
+    expect(res.status).toBe(200);
+    const d = await prisma.demandeRecharge.findUnique({ where: { id } });
+    expect(d?.montantPaye).toBe(3100);
+    expect(d?.anomaliePaiement).toBe(true);
+    await fermer(id);
+  });
+
+  it("le chauffeur ne voit pas la lecture du reçu", async () => {
+    const id = await prete();
+    await payer(id, { id_transaction: `T_CACHE${Date.now()}` });
+    const vu = await request(app).get(`/api/fleet/recharge-demandes/${id}`).set(auth(DEMO.chauffeur));
+    expect(vu.body.iaPaiement).toBeNull();
+    await fermer(id);
   });
 });

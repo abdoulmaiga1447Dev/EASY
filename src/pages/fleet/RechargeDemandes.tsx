@@ -206,7 +206,7 @@ const CapturePaiement: React.FC<{ mediaId: string | null; onUploaded: (id: strin
   };
   return (
     <label className="flex flex-col gap-1.5 cursor-pointer text-sm">
-      <span className="text-[#8A8A8A] font-medium">Capture de la confirmation Wave *</span>
+      <span className="text-[#8A8A8A] font-medium">Capture du reçu Wave *</span>
       <div className={`h-24 rounded-xl border overflow-hidden flex items-center justify-center bg-[#0F0F11] ${mediaId ? "border-[#22C55E]" : "border-dashed border-[#33363F]"}`}>
         {apercu ? <img src={apercu} alt="Capture du paiement" className="h-full w-full object-contain" />
           : <span className="flex items-center gap-2 text-[#8A8A8A]"><Upload size={16} /> {busy ? "Envoi…" : "Choisir la capture"}</span>}
@@ -260,33 +260,66 @@ export const ChauffeurRecharge: React.FC<{ notify: Notify }> = ({ notify }) => {
   const d = data?.ouverte;
   // Son à l'arrivée du paiement : annonce globale (FleetWorkspace).
 
-  const [lectureIa, setLectureIa] = useState<null | { etat: "lecture" | "ok" | "info" | "reprendre"; texte: string }>(null);
-  const socTouche = useRef(false); // le chauffeur a tapé lui-même : on n'écrase plus sa saisie
-  const reset = () => { setForm({ qr: null, tableau: null, soc: "" }); setEtape(null); setCle((k) => k + 1); setLectureIa(null); socTouche.current = false; };
-
-  /** Photo du tableau de bord prise → lecture du % par l'IA (côté serveur), en arrière-plan. */
-  const photoTableau = async (id: string) => {
-    setForm((f: any) => ({ ...f, tableau: id }));
-    setLectureIa({ etat: "lecture", texte: "Lecture du % de batterie…" });
-    try {
-      const r = await api.post<{ disponible: boolean; soc?: number | null; aConfirmer?: boolean; aReprendre?: boolean; message?: string }>("/api/fleet/ia/batterie", { mediaId: id });
-      if (!r.disponible) { setLectureIa(null); return; }
-      if (r.aReprendre) { setLectureIa({ etat: "reprendre", texte: r.message || "Reprenez la photo." }); return; }
-      if (r.soc != null) {
-        if (!socTouche.current) setForm((f: any) => ({ ...f, soc: String(r.soc) }));
-        setLectureIa({ etat: "ok", texte: r.aConfirmer ? `${r.soc} % lu par l'IA : vérifiez avant d'envoyer.` : `${r.soc} % lu par l'IA. Vérifiez puis envoyez.` });
-      } else {
-        setLectureIa({ etat: "info", texte: r.message || "Saisissez le % affiché." });
-      }
-    } catch { setLectureIa(null); /* IA indisponible : saisie manuelle */ }
+  /**
+   * Lecture IA de la photo du tableau de bord :
+   * - lecture : en cours (envoi bloqué) ;
+   * - lu : % lu par l'IA, champ rempli et verrouillé (le chauffeur ne le tape pas) ;
+   * - manuel : pas de % affiché (ex. Eado) ou IA indisponible → le chauffeur saisit ;
+   * - reprendre : photo refusée (pas un tableau de bord, illisible) → envoi bloqué.
+   */
+  const [lectureIa, setLectureIa] = useState<null | { etat: "lecture" | "lu" | "manuel" | "reprendre"; texte: string }>(null);
+  const [cleTableau, setCleTableau] = useState(0); // remonte la capture du tableau de bord après un refus
+  const reset = () => { setForm({ qr: null, tableau: null, soc: "" }); setEtape(null); setCle((k) => k + 1); setLectureIa(null); };
+  const refuserTableau = (texte: string) => {
+    derniereTableau.current = null;
+    setForm((f: any) => ({ ...f, tableau: null, soc: "" }));
+    setCleTableau((k) => k + 1);
+    setLectureIa({ etat: "reprendre", texte });
   };
-  const saisirSoc = (v: string) => { socTouche.current = true; setForm((f: any) => ({ ...f, soc: v })); };
+
+  /** Photo du tableau de bord prise → lecture du % par l'IA (côté serveur). */
+  const derniereTableau = useRef<string | null>(null); // une réponse en retard (photo précédente) est ignorée
+  const photoTableau = async (id: string) => {
+    derniereTableau.current = id;
+    setForm((f: any) => ({ ...f, tableau: id, soc: "" }));
+    setLectureIa({ etat: "lecture", texte: "Vérification de la photo et lecture du % de batterie…" });
+    try {
+      const r = await api.post<{ disponible: boolean; soc?: number | null; aReprendre?: boolean; message?: string }>("/api/fleet/ia/batterie", { mediaId: id });
+      if (derniereTableau.current !== id) return;
+      if (!r.disponible) { setLectureIa({ etat: "manuel", texte: r.message || "Vérification automatique indisponible : saisissez le %." }); return; }
+      if (r.aReprendre) { refuserTableau(r.message || "Photo refusée : reprenez-la."); return; }
+      if (r.soc != null) {
+        setForm((f: any) => ({ ...f, soc: String(r.soc) }));
+        setLectureIa({ etat: "lu", texte: `${r.soc} % lu sur la photo. Si ce n'est pas le bon chiffre, reprenez la photo plus près.` });
+      } else {
+        setLectureIa({ etat: "manuel", texte: r.message || "Pourcentage non lu : saisissez le % affiché." });
+      }
+    } catch { if (derniereTableau.current === id) setLectureIa({ etat: "manuel", texte: "Vérification automatique indisponible : saisissez le %." }); }
+  };
+  const saisirSoc = (v: string) => setForm((f: any) => ({ ...f, soc: v }));
   const AideIa = () => !lectureIa ? null : (
-    <div className="text-xs" style={{ color: lectureIa.etat === "reprendre" ? RED : lectureIa.etat === "ok" ? GREEN : MUTED }}>
+    <div className="text-xs" style={{ color: lectureIa.etat === "reprendre" ? RED : lectureIa.etat === "lu" ? GREEN : MUTED }}>
       {lectureIa.etat === "lecture" && <span className="inline-block h-3 w-3 mr-1.5 align-[-2px] rounded-full border-2 border-[#33363F] border-t-[#22C55E] animate-spin" />}
       {lectureIa.texte}
     </div>
   );
+  /** Champ % : verrouillé quand l'IA l'a lu, caché tant que la photo n'est pas vérifiée. */
+  const champSoc = (exemple: string) => {
+    if (!form.tableau || !lectureIa || lectureIa.etat === "lecture" || lectureIa.etat === "reprendre") return null;
+    if (lectureIa.etat === "lu") return (
+      <Field label="% de batterie (lu sur la photo)">
+        <div className="h-11 px-3 flex items-center rounded-lg border border-[#22C55E] bg-[#0F0F11] text-[#EDEDED] text-lg font-semibold">{form.soc} %</div>
+      </Field>
+    );
+    return <Field label="% de batterie affiché"><Input type="number" inputMode="numeric" min={0} max={100} value={form.soc} onChange={(e) => saisirSoc(e.target.value)} placeholder={exemple} /></Field>;
+  };
+  const photoPrete = !!form.tableau && (lectureIa?.etat === "lu" || lectureIa?.etat === "manuel");
+  /** Erreur à l'envoi : photo refusée par le serveur → on la retire et on reste sur l'étape. */
+  const erreurEnvoi = (e: unknown) => {
+    const err = e as ApiError;
+    if (err?.status === 422) { refuserTableau(errMsg(e)); return; }
+    notify({ message: errMsg(e), kind: "err" }); reset();
+  };
 
   const demander = async () => {
     setBusy(true);
@@ -303,7 +336,7 @@ export const ChauffeurRecharge: React.FC<{ notify: Notify }> = ({ notify }) => {
       await api.post(`/api/fleet/recharge-demandes/${d.id}/sur-place`, { qrMediaId: form.qr, tableauMediaId: form.tableau, socDebut: Number(form.soc) });
       notify({ message: "Photos envoyées au Superviseur", kind: "ok" });
       reset(); await load();
-    } catch (e) { notify({ message: errMsg(e), kind: "err" }); reset(); } finally { setBusy(false); }
+    } catch (e) { erreurEnvoi(e); } finally { setBusy(false); }
   };
 
   const terminer = async () => {
@@ -312,7 +345,7 @@ export const ChauffeurRecharge: React.FC<{ notify: Notify }> = ({ notify }) => {
       await api.post(`/api/fleet/recharge-demandes/${d.id}/terminer`, { tableauFinMediaId: form.tableau, socFin: Number(form.soc) });
       notify({ message: "Recharge terminée", kind: "ok" });
       reset(); await load();
-    } catch (e) { notify({ message: errMsg(e), kind: "err" }); reset(); } finally { setBusy(false); }
+    } catch (e) { erreurEnvoi(e); } finally { setBusy(false); }
   };
 
   const annuler = async () => {
@@ -402,13 +435,13 @@ export const ChauffeurRecharge: React.FC<{ notify: Notify }> = ({ notify }) => {
           <h3 className="font-semibold text-[#EDEDED]">À la borne</h3>
           <div className="grid grid-cols-2 gap-3">
             <CameraCapture label="QR code de la borne" mediaId={form.qr} onUploaded={(id) => setForm((f: any) => ({ ...f, qr: id }))} notify={notify} />
-            <CameraCapture label="Tableau de bord" mediaId={form.tableau} onUploaded={photoTableau} notify={notify} />
+            <CameraCapture key={`tb-${cleTableau}`} label="Tableau de bord" mediaId={form.tableau} onUploaded={photoTableau} notify={notify} />
           </div>
-          <Field label="% de batterie affiché"><Input type="number" inputMode="numeric" min={0} max={100} value={form.soc} onChange={(e) => saisirSoc(e.target.value)} placeholder="ex. 25" /></Field>
           <AideIa />
+          {champSoc("ex. 25")}
           <div className="flex gap-2">
             <Btn variant="secondary" onClick={reset} disabled={busy}>Retour</Btn>
-            <Btn onClick={envoyerSurPlace} disabled={busy || !form.qr || !form.tableau || !socOk} className="flex-1">Envoyer au Superviseur</Btn>
+            <Btn onClick={envoyerSurPlace} disabled={busy || !form.qr || !photoPrete || !socOk} className="flex-1">Envoyer au Superviseur</Btn>
           </div>
         </Panel>
       )}
@@ -421,12 +454,12 @@ export const ChauffeurRecharge: React.FC<{ notify: Notify }> = ({ notify }) => {
       {etape === "terminer" && (
         <Panel className="p-5 space-y-4" key={`fin-${cle}`}>
           <h3 className="font-semibold text-[#EDEDED]">Fin de la recharge</h3>
-          <CameraCapture label="Tableau de bord" mediaId={form.tableau} onUploaded={photoTableau} notify={notify} />
-          <Field label="% de batterie affiché"><Input type="number" inputMode="numeric" min={0} max={100} value={form.soc} onChange={(e) => saisirSoc(e.target.value)} placeholder="ex. 80" /></Field>
+          <CameraCapture key={`tb-${cleTableau}`} label="Tableau de bord" mediaId={form.tableau} onUploaded={photoTableau} notify={notify} />
           <AideIa />
+          {champSoc("ex. 80")}
           <div className="flex gap-2">
             <Btn variant="secondary" onClick={reset} disabled={busy}>Retour</Btn>
-            <Btn onClick={terminer} disabled={busy || !form.tableau || !socOk} className="flex-1">Envoyer</Btn>
+            <Btn onClick={terminer} disabled={busy || !photoPrete || !socOk} className="flex-1">Envoyer</Btn>
           </div>
         </Panel>
       )}
@@ -536,17 +569,39 @@ const DemandeSuperviseur: React.FC<{
   const [preuve, setPreuve] = useState<string | null>(null);
   const [cleCapture, setCleCapture] = useState(0);
   const [annulation, setAnnulation] = useState<string | null>(null);
+  /** Lecture du reçu Wave par l'IA : lu (montant + n° verrouillés), manuel (IA indisponible), reprendre (refusé). */
+  const [recu, setRecu] = useState<null | { etat: "lecture" | "lu" | "manuel" | "reprendre"; texte: string; date?: string | null; marchand?: string | null }>(null);
   const st = STATUT[d.statut];
 
   // Montant pré-rempli avec la proposition, quand elle arrive.
-  useEffect(() => { setMontant(d.montantSuggere != null ? String(d.montantSuggere) : ""); setRef(""); setPreuve(null); setCleCapture((k) => k + 1); setAnnulation(null); }, [d.id, d.montantSuggere]);
+  useEffect(() => { setMontant(d.montantSuggere != null ? String(d.montantSuggere) : ""); setRef(""); setPreuve(null); setRecu(null); setCleCapture((k) => k + 1); setAnnulation(null); }, [d.id, d.montantSuggere]);
   const ecartPct = d.montantSuggere && Number(montant) > 0 ? Math.round(((Number(montant) - d.montantSuggere) / d.montantSuggere) * 100) : null;
   useEffect(() => { setBorneId(d.borneId ?? ""); }, [d.id, d.borneId]);
+
+  const refuserRecu = (texte: string) => { dernierRecu.current = null; setPreuve(null); setCleCapture((k) => k + 1); setRecu({ etat: "reprendre", texte }); };
+  /** Capture du reçu jointe → l'IA lit montant, n° de transaction, date et statut. */
+  const dernierRecu = useRef<string | null>(null); // une réponse en retard (capture précédente) est ignorée
+  const recuJoint = async (id: string) => {
+    dernierRecu.current = id;
+    setPreuve(id);
+    setRecu({ etat: "lecture", texte: "Lecture du reçu Wave…" });
+    try {
+      const r = await api.post<any>("/api/fleet/ia/recu-wave", { mediaId: id });
+      if (dernierRecu.current !== id) return;
+      if (!r.disponible) { setRecu({ etat: "manuel", texte: r.message }); return; }
+      if (!r.valide) { refuserRecu(r.message); return; }
+      setMontant(String(r.montant)); setRef(r.ref);
+      setRecu({ etat: "lu", texte: r.message, date: r.date, marchand: r.marchand });
+    } catch { if (dernierRecu.current === id) setRecu({ etat: "manuel", texte: "Vérification automatique indisponible : saisissez le montant et le n°. La Finance contrôlera ce paiement." }); }
+  };
 
   const act = async (path: string, body: any, ok: string) => {
     setBusy(true);
     try { onMaj(await api.post<any>(`/api/fleet/recharge-demandes/${d.id}/${path}`, body)); notify({ message: ok, kind: "ok" }); }
-    catch (e) { notify({ message: errMsg(e), kind: "err" }); } finally { setBusy(false); }
+    catch (e) {
+      if (path === "paiement" && (e as ApiError)?.status === 422) refuserRecu(errMsg(e));
+      else notify({ message: errMsg(e), kind: "err" });
+    } finally { setBusy(false); }
   };
   const bornesTriees = useMemo(() => [...bornes].sort((a, b) => (a.type === b.type ? a.nom.localeCompare(b.nom) : a.type === "PARTENAIRE" ? -1 : 1)), [bornes]);
   const tel = d.chauffeur?.phone ? `tel:${String(d.chauffeur.phone).replace(/\s+/g, "")}` : null;
@@ -598,16 +653,32 @@ const DemandeSuperviseur: React.FC<{
               ? <div className="text-[#8A8A8A]">Montant proposé : <span className="text-[#EDEDED] font-medium">{fcfa(d.montantSuggere)}</span></div>
               : <div className="text-xs text-[#8A8A8A]">Pas de montant proposé : renseignez le prix du kWh de cette borne (onglet Bornes).</div>}
           </div>
-          <div className="grid sm:grid-cols-2 gap-3">
-            <Field label="Montant payé (FCFA)"><Input type="number" inputMode="numeric" value={montant} onChange={(e) => setMontant(e.target.value)} placeholder="ex. 4500" /></Field>
-            <Field label="N° de transaction"><Input value={ref} onChange={(e) => setRef(e.target.value)} placeholder="ex. TX123456" /></Field>
-          </div>
-          <CapturePaiement key={cleCapture} mediaId={preuve} onUploaded={setPreuve} notify={notify} />
-          {ecartPct != null && ecartPct > 20 && (
+          <CapturePaiement key={cleCapture} mediaId={preuve} onUploaded={recuJoint} notify={notify} />
+          {recu && (
+            <div className="text-xs" style={{ color: recu.etat === "reprendre" ? RED : recu.etat === "lu" ? GREEN : MUTED }}>
+              {recu.etat === "lecture" && <span className="inline-block h-3 w-3 mr-1.5 align-[-2px] rounded-full border-2 border-[#33363F] border-t-[#22C55E] animate-spin" />}
+              {recu.texte}
+            </div>
+          )}
+          {recu?.etat === "lu" && (
+            <div className="grid grid-cols-2 gap-3 text-sm rounded-xl border border-[#22C55E] bg-[#0F0F11] p-3">
+              <div><div className="text-xs text-[#8A8A8A]">Montant (reçu)</div><div className="text-[#EDEDED] font-semibold">{fcfa(Number(montant))}</div></div>
+              <div className="min-w-0"><div className="text-xs text-[#8A8A8A]">N° de transaction</div><div className="text-[#EDEDED] font-mono text-xs break-all">{ref}</div></div>
+              {recu.marchand && <div><div className="text-xs text-[#8A8A8A]">Marchand</div><div className="text-[#EDEDED]">{recu.marchand}</div></div>}
+              {recu.date && <div><div className="text-xs text-[#8A8A8A]">Date</div><div className="text-[#EDEDED]">{new Date(recu.date).toLocaleString("fr-FR", { timeZone: "Africa/Abidjan", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</div></div>}
+            </div>
+          )}
+          {recu?.etat === "manuel" && (
+            <div className="grid sm:grid-cols-2 gap-3">
+              <Field label="Montant payé (FCFA)"><Input type="number" inputMode="numeric" value={montant} onChange={(e) => setMontant(e.target.value)} placeholder="ex. 4500" /></Field>
+              <Field label="N° de transaction"><Input value={ref} onChange={(e) => setRef(e.target.value)} placeholder="ex. T_VCEK26THWKC3I63F" /></Field>
+            </div>
+          )}
+          {(recu?.etat === "lu" || recu?.etat === "manuel") && ecartPct != null && ecartPct > 20 && (
             <Callout color={AMBER}>Montant supérieur de {ecartPct} % au montant proposé : la Finance sera prévenue et contrôlera ce paiement.</Callout>
           )}
           <Btn onClick={() => act("paiement", { montant: Number(montant), refTransaction: ref, preuveMediaId: preuve }, "Paiement enregistré : le chauffeur est prévenu")}
-            disabled={busy || !(Number(montant) > 0) || ref.trim().length < 4 || !preuve} className="w-full" size="lg">
+            disabled={busy || !preuve || !(recu?.etat === "lu" || recu?.etat === "manuel") || !(Number(montant) > 0) || ref.trim().length < 4} className="w-full" size="lg">
             Paiement effectué
           </Btn>
           <p className="text-xs text-[#8A8A8A]">La Finance rapproche chaque paiement avec le relevé du compte Wave de l'entreprise.</p>
@@ -696,6 +767,7 @@ export const ControleRecharges: React.FC<{ notify: Notify }> = ({ notify }) => {
   const motif = (x: any) => [
     x.ecartMontant ? `Payé ${fcfa(x.montantPaye)} pour ${fcfa(x.montantSuggere)} proposés (+${x.ecartPct} %)` : null,
     x.anomalie ? `Batterie ${x.socDebut ?? "—"} % → ${x.socFin ?? "—"} %` : null,
+    x.anomaliePaiement ? `Reçu Wave : ${(x.problemesRecu ?? []).join(" ; ") || "à vérifier"}` : null,
     x.ecartIa ? `Écart IA : saisi ${x.socDebut ?? "—"} % / lu ${x.socDebutIa ?? "—"} %${x.socFinIa != null ? ` · fin saisi ${x.socFin ?? "—"} % / lu ${x.socFinIa} %` : ""}` : null,
   ].filter(Boolean).join(" · ");
   const tabCls = (a: boolean) => `px-3 py-2 text-sm border-b-2 ${a ? "border-[#22C55E] text-[#EDEDED]" : "border-transparent text-[#8A8A8A] hover:text-[#EDEDED]"}`;
@@ -741,6 +813,14 @@ export const ControleRecharges: React.FC<{ notify: Notify }> = ({ notify }) => {
                 <div><div className="text-xs text-[#8A8A8A]">Batterie</div><div style={{ color: detail.anomalie ? RED : "#EDEDED" }}>{detail.socDebut ?? "—"} % → {detail.socFin ?? "—"} %</div></div>
               </div>
               <div className="text-xs text-[#8A8A8A]">N° de transaction : <span className="text-[#EDEDED]">{detail.refTransaction ?? "—"}</span></div>
+              {detail.iaPaiement && (
+                <div className="text-xs pt-1" style={{ color: detail.anomaliePaiement ? AMBER : MUTED }}>
+                  {detail.iaPaiement.verifie
+                    ? <>Reçu lu par l'IA : {fcfa(detail.iaPaiement.montant)} · n° {detail.iaPaiement.ref}{detail.iaPaiement.marchand ? ` · ${detail.iaPaiement.marchand}` : ""}{detail.iaPaiement.date ? ` · ${new Date(detail.iaPaiement.date).toLocaleString("fr-FR", { timeZone: "Africa/Abidjan" })}` : ""}</>
+                    : <>Reçu non vérifié par l'IA.</>}
+                  {!!detail.iaPaiement.problemes?.length && <div className="mt-0.5">À vérifier : {detail.iaPaiement.problemes.join(" ; ")}</div>}
+                </div>
+              )}
             </Panel>
             {detail.preuvePaiementMediaId && (
               <Panel className="p-4">

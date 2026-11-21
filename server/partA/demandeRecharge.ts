@@ -23,7 +23,7 @@ import {
   normaliserRef, anomalieFin, type DemandeStatut,
 } from "../../lib/demandeRecharge";
 import { recipients } from "./recharge";
-import { appliquerLectureIa } from "./iaRecharge";
+import { appliquerLectureIa, verifierPhotoTableau, noterSaisieManuelle, controlerRecu } from "./iaRecharge";
 import { wrap, serverError, notFound } from "./helpers";
 
 const ERR = (fr: string, en: string) => ({ error: { fr, en } });
@@ -115,6 +115,7 @@ export function demandeRechargeRouter(prisma: PrismaClient): express.Router {
     return {
       ...d,
       preuvePaiementMediaId: voitPreuve ? d.preuvePaiementMediaId : null,
+      iaPaiement: voitPreuve ? d.iaPaiement : null,
       vehicule: vehicle,
       chauffeur: driver,
       borne,
@@ -190,14 +191,18 @@ export function demandeRechargeRouter(prisma: PrismaClient): express.Router {
       if (!peut("surPlace", d.statut as DemandeStatut)) return res.status(409).json(ERR("Cette étape n'est plus possible pour cette demande", "Step not allowed"));
 
       const { qrMediaId, tableauMediaId } = req.body || {};
-      const socDebut = socValide(req.body?.socDebut);
+      const socSaisi = socValide(req.body?.socDebut);
       if (!qrMediaId || !tableauMediaId) return res.status(400).json(ERR("Les deux photos sont obligatoires (QR code et tableau de bord)", "Both photos required"));
-      if (socDebut === null) return res.status(400).json(ERR("Indiquez le % de batterie affiché (0 à 100)", "Battery % required"));
       const refus = await verifierPhotos(ctx, [String(qrMediaId), String(tableauMediaId)]);
       if (refus) {
         await notifierAnomalie(d, refus);
         return res.status(409).json({ ...ERR(refus, "Anomaly detected"), anomalie: true });
       }
+      // L'IA vérifie la photo : refusée si ce n'est pas un tableau de bord ; le % lu fait foi.
+      const verif = await verifierPhotoTableau(prisma, String(tableauMediaId));
+      if (verif.ok === false) return res.status(422).json({ ...ERR(verif.refus, "Dashboard photo rejected"), aReprendre: true });
+      const socDebut = verif.soc ?? socSaisi;
+      if (socDebut === null) return res.status(400).json(ERR("Indiquez le % de batterie affiché (0 à 100)", "Battery % required"));
 
       const vehicle = await prisma.fleetVehicle.findUnique({ where: { id: d.vehicleId }, select: { capaciteBatterieKwh: true } });
       const borne = d.borneId ? await prisma.borneRecharge.findUnique({ where: { id: d.borneId }, select: { prixKwh: true } }) : null;
@@ -206,8 +211,7 @@ export function demandeRechargeRouter(prisma: PrismaClient): express.Router {
       await rattacher([String(qrMediaId), String(tableauMediaId)], d.id);
       const maj = await prisma.demandeRecharge.update({ where: { id: d.id }, data: { statut: "SUR_PLACE", socDebut, kwhEstime, montantSuggere } });
       await message(d.id, ctx.userId, "PHOTOS_ARRIVEE", { mediaIds: [String(qrMediaId), String(tableauMediaId)], meta: { socDebut, kwhEstime, montantSuggere } });
-      // Contrôle IA du % saisi (lecture faite et conservée par le serveur ; en arrière-plan si pas encore prête).
-      void appliquerLectureIa(prisma, d.id, "debut", String(tableauMediaId), socDebut).catch((e) => console.error("[IA]", e));
+      await suiviIa(d.id, "debut", String(tableauMediaId), verif.etat, socSaisi ?? socDebut, socDebut);
       await diffuser(maj, "statut");
       res.json(await detail(d.id, ctx));
     })
@@ -226,14 +230,17 @@ export function demandeRechargeRouter(prisma: PrismaClient): express.Router {
       if (!peut("terminer", d.statut as DemandeStatut)) return res.status(409).json(ERR("La recharge ne peut être terminée qu'après le paiement", "Payment required first"));
 
       const { tableauFinMediaId } = req.body || {};
-      const socFin = socValide(req.body?.socFin);
+      const socSaisi = socValide(req.body?.socFin);
       if (!tableauFinMediaId) return res.status(400).json(ERR("La photo du tableau de bord est obligatoire", "Dashboard photo required"));
-      if (socFin === null) return res.status(400).json(ERR("Indiquez le % de batterie affiché (0 à 100)", "Battery % required"));
       const refus = await verifierPhotos(ctx, [String(tableauFinMediaId)]);
       if (refus) {
         await notifierAnomalie(d, refus);
         return res.status(409).json({ ...ERR(refus, "Anomaly detected"), anomalie: true });
       }
+      const verif = await verifierPhotoTableau(prisma, String(tableauFinMediaId));
+      if (verif.ok === false) return res.status(422).json({ ...ERR(verif.refus, "Dashboard photo rejected"), aReprendre: true });
+      const socFin = verif.soc ?? socSaisi;
+      if (socFin === null) return res.status(400).json(ERR("Indiquez le % de batterie affiché (0 à 100)", "Battery % required"));
 
       const anomalie = anomalieFin(d.socDebut, socFin);
       const [vehicle, borne] = await Promise.all([
@@ -260,7 +267,7 @@ export function demandeRechargeRouter(prisma: PrismaClient): express.Router {
         return up;
       });
       await message(d.id, ctx.userId, "PHOTO_FIN", { mediaIds: [String(tableauFinMediaId)], meta: { socFin } });
-      void appliquerLectureIa(prisma, d.id, "fin", String(tableauFinMediaId), socFin).catch((e) => console.error("[IA]", e));
+      await suiviIa(d.id, "fin", String(tableauFinMediaId), verif.etat, socSaisi ?? socFin, socFin);
       await message(d.id, null, "SYSTEME", { texte: anomalie ? `Recharge terminée — anomalie : la batterie n'a pas monté (${d.socDebut} % → ${socFin} %).` : `Recharge terminée (${d.socDebut} % → ${socFin} %).` });
       await writeAudit(prisma, ctx, { action: "recharge_demande.terminer", resourceType: "DemandeRecharge", resourceId: d.id, siteId: d.siteId, after: { socFin, anomalie } });
       if (anomalie) {
@@ -329,7 +336,7 @@ export function demandeRechargeRouter(prisma: PrismaClient): express.Router {
     authorize("recharge.controler"),
     wrap(async (req, res) => {
       const ctx = actor(req);
-      const where: any = { OR: [{ ecartMontant: true }, { anomalie: true }, { ecartIa: true }] };
+      const where: any = { OR: [{ ecartMontant: true }, { anomalie: true }, { ecartIa: true }, { anomaliePaiement: true }] };
       if (!ctx.allSites) where.siteId = { in: ctx.siteIds.length ? ctx.siteIds : ["__none__"] };
       const vue = String(req.query.vue || "a_controler");
       where.controleLe = vue === "controlees" ? { not: null } : null;
@@ -348,6 +355,7 @@ export function demandeRechargeRouter(prisma: PrismaClient): express.Router {
           montantPaye: d.montantPaye, montantSuggere: d.montantSuggere, refTransaction: d.refTransaction,
           ecartMontant: d.ecartMontant, anomalie: d.anomalie, socDebut: d.socDebut, socFin: d.socFin,
           ecartIa: d.ecartIa, socDebutIa: d.socDebutIa, socFinIa: d.socFinIa,
+          anomaliePaiement: d.anomaliePaiement, problemesRecu: ((d.iaPaiement as any)?.problemes ?? []) as string[],
           ecartPct: d.montantPaye != null && d.montantSuggere ? Math.round(((d.montantPaye - d.montantSuggere) / d.montantSuggere) * 100) : null,
           controleLe: d.controleLe, controleNote: d.controleNote, controleParNom: d.controleParId ? nom.get(d.controleParId) ?? null : null,
         })),
@@ -361,7 +369,7 @@ export function demandeRechargeRouter(prisma: PrismaClient): express.Router {
     authorize("recharge.controler"),
     wrap(async (req, res) => {
       const ctx = actor(req);
-      const where: any = { OR: [{ ecartMontant: true }, { anomalie: true }, { ecartIa: true }], controleLe: null };
+      const where: any = { OR: [{ ecartMontant: true }, { anomalie: true }, { ecartIa: true }, { anomaliePaiement: true }], controleLe: null };
       if (!ctx.allSites) where.siteId = { in: ctx.siteIds.length ? ctx.siteIds : ["__none__"] };
       res.json({ aControler: await prisma.demandeRecharge.count({ where }) });
     })
@@ -446,35 +454,45 @@ export function demandeRechargeRouter(prisma: PrismaClient): express.Router {
       const d = got.d;
       if (!peut("payer", d.statut as DemandeStatut)) return res.status(409).json(ERR("Le paiement se fait après réception des photos du chauffeur", "Photos required before payment"));
 
-      const montant = Math.round(Number(req.body?.montant));
-      const ref = normaliserRef(req.body?.refTransaction);
-      if (!Number.isFinite(montant) || montant <= 0) return res.status(400).json(ERR("Montant payé invalide", "Invalid amount"));
-      if (ref.length < 4) return res.status(400).json(ERR("Indiquez le n° de transaction du paiement", "Transaction number required"));
       const preuve = String(req.body?.preuveMediaId || "");
-      if (!preuve) return res.status(400).json(ERR("Joignez la capture de la confirmation du paiement Wave", "Payment screenshot required"));
-      const deja = await prisma.demandeRecharge.findFirst({ where: { refTransaction: ref }, select: { id: true } });
-      if (deja) {
-        await alerterFinance(d, "Anomalie paiement recharge", `n° de transaction ${ref} déjà utilisé pour une autre recharge (tentative de ${ctx.name}).`);
-        return res.status(409).json({ ...ERR("Anomalie détectée : ce n° de transaction a déjà été utilisé", "Transaction number already used"), anomalie: true });
-      }
+      if (!preuve) return res.status(400).json(ERR("Joignez la capture du reçu Wave", "Payment screenshot required"));
       const refus = await verifierPhotos(ctx, [preuve]);
       if (refus) {
         await alerterFinance(d, "Anomalie paiement recharge", `capture de paiement refusée (${refus}) — ${ctx.name}.`);
         return res.status(409).json({ ...ERR(refus, "Anomaly detected"), anomalie: true });
       }
+      // L'IA lit le reçu : montant et n° de transaction du reçu font foi.
+      const montantSaisi = Number.isFinite(Number(req.body?.montant)) && Number(req.body?.montant) > 0 ? Math.round(Number(req.body.montant)) : null;
+      const recu = await controlerRecu(prisma, d, preuve, { montant: montantSaisi, ref: normaliserRef(req.body?.refTransaction) });
+      if (recu.ok === false) {
+        if (recu.alerte) await alerterFinance(d, "Anomalie paiement recharge", `${recu.refus} (tentative de ${ctx.name}).`);
+        return res.status(422).json({ ...ERR(recu.refus, "Receipt rejected"), aReprendre: true, anomalie: recu.alerte });
+      }
+      const montant = recu.montant ?? 0;
+      const ref = normaliserRef(recu.ref);
+      if (!(montant > 0)) return res.status(400).json(ERR("Montant payé invalide", "Invalid amount"));
+      if (ref.length < 4) return res.status(400).json(ERR("Indiquez le n° de transaction du paiement", "Transaction number required"));
+      const deja = await prisma.demandeRecharge.findFirst({ where: { refTransaction: ref }, select: { id: true } });
+      if (deja) {
+        await alerterFinance(d, "Anomalie paiement recharge", `n° de transaction ${ref} déjà utilisé pour une autre recharge (tentative de ${ctx.name}).`);
+        return res.status(409).json({ ...ERR("Anomalie détectée : ce n° de transaction a déjà été utilisé", "Transaction number already used"), anomalie: true });
+      }
 
       // Écart : payé plus de 20 % au-dessus du montant proposé → la Finance contrôle.
       const ecartMontant = d.montantSuggere != null && d.montantSuggere > 0 && montant > d.montantSuggere * 1.2;
+      const anomaliePaiement = recu.problemes.length > 0;
       await rattacher([preuve], d.id);
       const maj = await prisma.demandeRecharge.update({
-        where: { id: d.id }, data: { statut: "PAYEE", montantPaye: montant, refTransaction: ref, payeParId: ctx.userId, payeLe: new Date(), preuvePaiementMediaId: preuve, ecartMontant },
+        where: { id: d.id },
+        data: { statut: "PAYEE", montantPaye: montant, refTransaction: ref, payeParId: ctx.userId, payeLe: new Date(), preuvePaiementMediaId: preuve, ecartMontant, anomaliePaiement, iaPaiement: recu.iaPaiement },
       });
       await message(d.id, ctx.userId, "PAIEMENT", { texte: "Paiement effectué : vous pouvez brancher le véhicule.", meta: { montant, refTransaction: ref } });
-      await writeAudit(prisma, ctx, { action: "recharge_demande.paiement", resourceType: "DemandeRecharge", resourceId: d.id, siteId: d.siteId, after: { montant, refTransaction: ref, montantSuggere: d.montantSuggere, ecartMontant } });
+      await writeAudit(prisma, ctx, { action: "recharge_demande.paiement", resourceType: "DemandeRecharge", resourceId: d.id, siteId: d.siteId, after: { montant, refTransaction: ref, montantSuggere: d.montantSuggere, ecartMontant, problemesRecu: recu.problemes } });
       if (ecartMontant) {
         const pct = Math.round(((montant - (d.montantSuggere as number)) / (d.montantSuggere as number)) * 100);
         await alerterFinance(d, "Recharge à contrôler", `payé ${montant} F pour ${d.montantSuggere} F proposés (+${pct} %) par ${ctx.name}.`);
       }
+      if (anomaliePaiement) await alerterFinance(d, "Reçu Wave à contrôler", `${recu.problemes.join(" ; ")} — payé par ${ctx.name}.`);
       await notify(prisma, { userId: d.driverId, canal: "IN_APP", type: "recharge.payee", titre: "Recharge payée", message: "Le paiement est fait : vous pouvez brancher le véhicule." });
       void envoyerPush(prisma, [d.driverId], { titre: "Recharge payée", message: "Vous pouvez brancher le véhicule.", tag: `demande-${d.id}`, url: "/" });
       await diffuser(maj, "statut");
@@ -513,6 +531,18 @@ export function demandeRechargeRouter(prisma: PrismaClient): express.Router {
       await notify(prisma, { userId: uid, canal: "IN_APP", type: "recharge.anomalie", titre: "Anomalie recharge", message: `${vehicle?.immatriculation ?? "Véhicule"} : ${raison}` });
     }
     await diffuser(d, "message");
+  }
+
+  /**
+   * Trace de la lecture IA dans le fil : % lu (et écart si le téléphone a envoyé autre chose),
+   * saisie manuelle (pas de % affiché / IA indisponible), ou comparaison en arrière-plan si l'IA est lente.
+   */
+  async function suiviIa(demandeId: string, moment: "debut" | "fin", mediaId: string, etat: "lu" | "sans_pourcentage" | "indisponible" | "trop_lent", saisi: number, retenu: number) {
+    try {
+      if (etat === "lu") await appliquerLectureIa(prisma, demandeId, moment, mediaId, saisi);
+      else if (etat === "trop_lent") void appliquerLectureIa(prisma, demandeId, moment, mediaId, retenu).catch((e) => console.error("[IA]", e));
+      else await noterSaisieManuelle(prisma, demandeId, moment, etat, retenu);
+    } catch (e) { console.error("[IA] suivi", e); }
   }
 
   r.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

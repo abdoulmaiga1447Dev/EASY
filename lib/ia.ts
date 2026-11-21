@@ -136,8 +136,108 @@ export function lireBatterie(image: Buffer, mime: string, opts?: { modele?: stri
   return analyserImage<LectureBatterie>(image, mime, PROMPT_BATTERIE, SCHEMA_BATTERIE, opts);
 }
 
+// =====================================================================================
+// Reçu de paiement Wave (capture jointe par le Superviseur)
+// =====================================================================================
+
+export interface LectureRecuWave {
+  est_recu_wave: boolean;
+  statut_effectue: boolean;
+  statut: string | null;
+  type_transaction: string | null;
+  marchand: string | null;
+  montant_fcfa: number | null;
+  frais_fcfa: number | null;
+  date_heure: string | null; // « AAAA-MM-JJTHH:MM » (heure affichée, 24 h)
+  id_transaction: string | null;
+  chiffres_nets: boolean;
+  retouche_suspectee: boolean;
+  lisibilite: "bonne" | "moyenne" | "mauvaise";
+  confiance: number;
+  remarque: string;
+}
+
+export const PROMPT_RECU_WAVE = `Tu contrôles une capture d'écran censée être le REÇU d'un paiement fait avec l'application mobile Wave (Côte d'Ivoire), pour payer une recharge de véhicule électrique.
+Un reçu Wave ressemble à ceci : logo Wave (pingouin), titre « Reçu de Transaction », puis des lignes « Type de transaction » (ex. Paiement), « Marchand », « Montant » (ex. 4500F), « Acheteur », « Statut » (ex. ✅ Effectué), « Frais », « Date et heure » (ex. 6 nov. 2026 7:19 AM) et « ID de transaction » (ex. T_VCEK26THWKC3I63F).
+
+Réponds uniquement selon le schéma JSON demandé :
+- est_recu_wave : true seulement si l'image est bien un reçu ou une confirmation de transaction Wave. false pour toute autre image (photo quelconque, tableau de bord, autre application, conversation, reçu d'un autre opérateur).
+- statut_effectue : true seulement si le statut indique clairement que la transaction a réussi (« Effectué », « Réussi »). false si « En attente », « Échoué », « Annulé » ou absent.
+- statut : le texte du statut tel qu'affiché, sinon null.
+- type_transaction : ex. « Paiement », « Transfert », sinon null.
+- marchand : le nom du marchand (ou du destinataire), sinon null.
+- montant_fcfa : le MONTANT de la transaction en francs CFA (entier, sans les frais), sinon null.
+- frais_fcfa : les frais affichés (entier), sinon null.
+- date_heure : la date et l'heure affichées, au format AAAA-MM-JJTHH:MM en 24 h (7:19 PM → 19:19), sinon null.
+- id_transaction : l'identifiant exact, caractère par caractère (ex. T_VCEK26THWKC3I63F), sinon null.
+- chiffres_nets : true seulement si le montant et l'identifiant se lisent SANS AUCUNE ambiguïté.
+- retouche_suspectee : true si l'image semble modifiée (polices ou tailles différentes sur une même ligne, chiffres mal alignés, zones floues ou recollées, incohérences).
+- lisibilite : « bonne », « moyenne » ou « mauvaise ».
+- confiance : de 0 à 1.
+- remarque : une phrase courte en français.
+
+Ne devine jamais un chiffre ou un caractère illisible : mets null. Une valeur fausse est bien plus grave qu'une valeur manquante.`;
+
+export const SCHEMA_RECU_WAVE = {
+  type: "OBJECT",
+  properties: {
+    est_recu_wave: { type: "BOOLEAN" },
+    statut_effectue: { type: "BOOLEAN" },
+    statut: { type: "STRING", nullable: true },
+    type_transaction: { type: "STRING", nullable: true },
+    marchand: { type: "STRING", nullable: true },
+    montant_fcfa: { type: "INTEGER", nullable: true },
+    frais_fcfa: { type: "INTEGER", nullable: true },
+    date_heure: { type: "STRING", nullable: true },
+    id_transaction: { type: "STRING", nullable: true },
+    chiffres_nets: { type: "BOOLEAN" },
+    retouche_suspectee: { type: "BOOLEAN" },
+    lisibilite: { type: "STRING", enum: ["bonne", "moyenne", "mauvaise"] },
+    confiance: { type: "NUMBER" },
+    remarque: { type: "STRING" },
+  },
+  required: ["est_recu_wave", "statut_effectue", "statut", "type_transaction", "marchand", "montant_fcfa", "frais_fcfa", "date_heure", "id_transaction", "chiffres_nets", "retouche_suspectee", "lisibilite", "confiance", "remarque"],
+};
+
+export function lireRecuWave(image: Buffer, mime: string, opts?: { modele?: string }) {
+  return analyserImage<LectureRecuWave>(image, mime, PROMPT_RECU_WAVE, SCHEMA_RECU_WAVE, opts);
+}
+
+/** Date du reçu (« AAAA-MM-JJTHH:MM », heure d'Abidjan = UTC) → Date, sinon null. */
+export function dateRecu(s: string | null | undefined): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(String(s ?? ""));
+  if (!m) return null;
+  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]));
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/**
+ * Décision à partir de la lecture du reçu (pure, testable).
+ * Refus (capture à refaire) : pas un reçu Wave, paiement non effectué, montant ou ID illisible.
+ * Sinon : montant, ID et date lus sur le reçu font foi.
+ */
+export function interpreterRecuWave(l: LectureRecuWave): {
+  valide: boolean;
+  montant: number | null;
+  ref: string | null;
+  date: string | null;
+  marchand: string | null;
+  message: string;
+} {
+  const refuse = (message: string) => ({ valide: false, montant: null, ref: null, date: null, marchand: null, message });
+  if (!l.est_recu_wave) return refuse("Cette image n'est pas un reçu Wave. Dans Wave, ouvrez la transaction et faites une capture du « Reçu de Transaction ».");
+  if (!l.statut_effectue) return refuse(`Le paiement n'est pas « Effectué » sur ce reçu${l.statut ? ` (statut : ${l.statut})` : ""}.`);
+  if (l.lisibilite === "mauvaise" || !l.chiffres_nets) return refuse("Reçu illisible : faites une capture d'écran nette du reçu complet.");
+  const montant = typeof l.montant_fcfa === "number" && Number.isInteger(l.montant_fcfa) && l.montant_fcfa > 0 ? l.montant_fcfa : null;
+  const ref = l.id_transaction && l.id_transaction.trim().length >= 6 ? l.id_transaction.trim().toUpperCase().replace(/\s+/g, "") : null;
+  if (montant === null) return refuse("Montant non lu sur le reçu : faites une capture du reçu complet.");
+  if (ref === null) return refuse("ID de transaction non lu : capturez le reçu complet, jusqu'à la ligne « ID de transaction ».");
+  const date = dateRecu(l.date_heure);
+  return { valide: true, montant, ref, date: date ? date.toISOString() : null, marchand: l.marchand?.trim() || null, message: `Reçu lu : ${montant} F, n° ${ref}.` };
+}
+
 /** Point d'accès remplaçable (les tests y branchent une fausse IA, sans appel réseau). */
-export const ia = { lireBatterie };
+export const ia = { lireBatterie, lireRecuWave };
 
 /** Liste les modèles disponibles pour la clé (aide au choix de GEMINI_MODEL). */
 export async function listerModeles(): Promise<string[]> {
