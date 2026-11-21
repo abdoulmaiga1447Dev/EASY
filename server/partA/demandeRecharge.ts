@@ -199,7 +199,7 @@ export function demandeRechargeRouter(prisma: PrismaClient): express.Router {
         return res.status(409).json({ ...ERR(refus, "Anomaly detected"), anomalie: true });
       }
       // L'IA vérifie la photo : refusée si ce n'est pas un tableau de bord ; le % lu fait foi.
-      const verif = await verifierPhotoTableau(prisma, String(tableauMediaId));
+      const verif = await verifierPhotoTableau(prisma, String(tableauMediaId), d.vehicleId);
       if (verif.ok === false) return res.status(422).json({ ...ERR(verif.refus, "Dashboard photo rejected"), aReprendre: true });
       const socDebut = verif.soc ?? socSaisi;
       if (socDebut === null) return res.status(400).json(ERR("Indiquez le % de batterie affiché (0 à 100)", "Battery % required"));
@@ -237,7 +237,7 @@ export function demandeRechargeRouter(prisma: PrismaClient): express.Router {
         await notifierAnomalie(d, refus);
         return res.status(409).json({ ...ERR(refus, "Anomaly detected"), anomalie: true });
       }
-      const verif = await verifierPhotoTableau(prisma, String(tableauFinMediaId));
+      const verif = await verifierPhotoTableau(prisma, String(tableauFinMediaId), d.vehicleId);
       if (verif.ok === false) return res.status(422).json({ ...ERR(verif.refus, "Dashboard photo rejected"), aReprendre: true });
       const socFin = verif.soc ?? socSaisi;
       if (socFin === null) return res.status(400).json(ERR("Indiquez le % de batterie affiché (0 à 100)", "Battery % required"));

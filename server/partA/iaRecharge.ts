@@ -23,11 +23,12 @@ import path from "path";
 import type { PrismaClient } from "@prisma/client";
 import { authenticate, authorize, type AuthContext } from "../../lib/authz";
 import { UPLOAD_DIR } from "../../lib/upload";
-import { ia, iaConfiguree, interpreterBatterie, interpreterRecuWave, type LectureBatterie, type LectureRecuWave } from "../../lib/ia";
+import { ia, iaConfiguree, interpreterBatterie, interpreterRecuWave, vehiculeSansPourcentage, type LectureBatterie, type LectureRecuWave } from "../../lib/ia";
 import { notify } from "../../lib/notifications";
 import { emitToUsers } from "../../lib/realtime";
 import { recipients } from "./recharge";
 import { wrap, serverError } from "./helpers";
+import { STATUTS_OUVERTS } from "../../lib/demandeRecharge";
 
 /** Écart toléré (points de %) entre la saisie du chauffeur et la lecture de l'IA. */
 export const TOLERANCE_ECART_IA = 2;
@@ -83,13 +84,20 @@ export function avecDelai<T>(p: Promise<T>, ms = DELAI_IA_MS): Promise<T | typeo
  * - refus si l'IA voit que ce n'est pas un tableau de bord (ou que c'est illisible) ;
  * - soc = % lu par l'IA (fait foi), sinon null (saisie manuelle : Eado sans %, IA indisponible).
  */
-export async function verifierPhotoTableau(prisma: PrismaClient, mediaId: string): Promise<
+/** Le véhicule affiche-t-il un % de batterie ? (Eado : non, jauge à barres seulement.) */
+async function sansPourcentage(prisma: PrismaClient, vehicleId: string | null | undefined): Promise<boolean> {
+  if (!vehicleId) return false;
+  return vehiculeSansPourcentage(await prisma.fleetVehicle.findUnique({ where: { id: vehicleId }, select: { marque: true, modele: true } }));
+}
+
+export async function verifierPhotoTableau(prisma: PrismaClient, mediaId: string, vehicleId?: string | null): Promise<
   { ok: false; refus: string } | { ok: true; soc: number | null; etat: "lu" | "sans_pourcentage" | "indisponible" | "trop_lent" }
 > {
   const l = await avecDelai(lireBatterieMedia(prisma, mediaId));
   if (l === TROP_LENT) return { ok: true, soc: null, etat: "trop_lent" };
   if (!l) return { ok: true, soc: null, etat: "indisponible" };
   if (l.decision.aReprendre) return { ok: false, refus: l.decision.message };
+  if (await sansPourcentage(prisma, vehicleId)) return { ok: true, soc: null, etat: "sans_pourcentage" };
   const soc = socFiable(l);
   return { ok: true, soc, etat: soc === null ? "sans_pourcentage" : "lu" };
 }
@@ -108,6 +116,8 @@ export async function noterSaisieManuelle(prisma: PrismaClient, demandeId: strin
  * Écart > tolérance → message dans le fil + alerte Superviseur et Finance.
  */
 export async function appliquerLectureIa(prisma: PrismaClient, demandeId: string, moment: "debut" | "fin", mediaId: string, saisi: number): Promise<void> {
+  const demande = await prisma.demandeRecharge.findUnique({ where: { id: demandeId }, select: { vehicleId: true } });
+  if (await sansPourcentage(prisma, demande?.vehicleId)) return;
   const l = await lireBatterieMedia(prisma, mediaId);
   const socIa = socFiable(l);
   if (socIa === null) return;
@@ -235,6 +245,12 @@ export function iaRechargeRouter(prisma: PrismaClient): express.Router {
     if (!iaConfiguree()) return res.json({ disponible: false, message: "Vérification automatique non configurée : saisissez le %." });
     const l = await lireBatterieMedia(prisma, media.id);
     if (!l) return res.json({ disponible: false, message: "Vérification automatique indisponible pour le moment : saisissez le %." });
+    if (l.decision.aReprendre) return res.json({ disponible: true, soc: null, aConfirmer: false, aReprendre: true, message: l.decision.message });
+    // Véhicule sans % au tableau de bord (Eado) : la photo est vérifiée, mais le chauffeur saisit le %.
+    const ouverte = await prisma.demandeRecharge.findFirst({ where: { driverId: ctx.userId, statut: { in: STATUTS_OUVERTS as any } }, select: { vehicleId: true } });
+    if (await sansPourcentage(prisma, ouverte?.vehicleId)) {
+      return res.json({ disponible: true, soc: null, aConfirmer: true, aReprendre: false, message: "Ce véhicule n'affiche pas le % de batterie (seulement des barres) : saisissez-le." });
+    }
     // Pas de suggestion à partir d'une jauge à barres (estimation peu fiable) : saisie manuelle.
     const d = l.decision;
     const suggestion = d.source === "pourcentage" ? d.soc : null;

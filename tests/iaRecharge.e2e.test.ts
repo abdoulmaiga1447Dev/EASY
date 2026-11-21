@@ -28,7 +28,8 @@ async function upload(userId: string, lecture?: Partial<LectureBatterie>): Promi
 }
 const L = (p: Partial<LectureBatterie>): LectureBatterie => ({
   est_tableau_de_bord: true, pourcentage_affiche: false, soc_pourcentage: null, chiffres_nets: true, soc_estime_barres: null,
-  autonomie_km: null, kilometrage_km: null, lisibilite: "bonne", confiance: 0.95, remarque: "test", ...p,
+  autonomie_km: null, kilometrage_km: null, lisibilite: "bonne", confiance: 0.95, remarque: "test",
+  texte_pourcentage: p.soc_pourcentage != null ? `${p.soc_pourcentage} %` : null, ...p,
 });
 const R = (p: Partial<LectureRecuWave>): LectureRecuWave => ({
   est_recu_wave: true, statut_effectue: true, statut: "Effectué", type_transaction: "Paiement", marchand: "Borne Test",
@@ -188,6 +189,29 @@ describe("La photo du tableau de bord est vérifiée par le serveur", () => {
     const msg = await prisma.demandeRechargeMessage.findFirst({ where: { demandeId: id, type: "SYSTEME", texte: { contains: "n'affiche pas de pourcentage" } } });
     expect(msg).not.toBeNull();
     await fermer(id);
+  });
+});
+
+describe("Véhicule dont le tableau de bord n'affiche pas de % (Eado)", () => {
+  it("photo vérifiée, mais le % n'est jamais rempli par l'IA : le chauffeur le saisit", async () => {
+    process.env.IA_MODELES_SANS_POURCENTAGE = "atto 3"; // le véhicule de test (BYD Atto 3) joue le rôle de l'Eado
+    try {
+      const id = await nouvelleDemande();
+      const tableau = await upload(DEMO.chauffeur, { pourcentage_affiche: true, soc_pourcentage: 60 });
+      const lu = await lire(tableau);
+      expect(lu.body).toMatchObject({ soc: null, aReprendre: false });
+      expect(lu.body.message).toMatch(/n'affiche pas/);
+      const sansSaisie = await surPlace(id, await upload(DEMO.chauffeur), await upload(DEMO.chauffeur, { pourcentage_affiche: true, soc_pourcentage: 60 }));
+      expect(sansSaisie.status).toBe(400);
+      const ok = await surPlace(id, await upload(DEMO.chauffeur), await upload(DEMO.chauffeur, { pourcentage_affiche: true, soc_pourcentage: 60 }), 42);
+      expect(ok.status).toBe(200);
+      const d = await prisma.demandeRecharge.findUnique({ where: { id } });
+      expect(d?.socDebut).toBe(42);
+      expect(d?.socDebutIa).toBeNull();
+      const horsSujet = await upload(DEMO.chauffeur, { est_tableau_de_bord: false });
+      expect((await lire(horsSujet)).body.aReprendre).toBe(true); // la photo reste vérifiée
+      await fermer(id);
+    } finally { delete process.env.IA_MODELES_SANS_POURCENTAGE; }
   });
 });
 

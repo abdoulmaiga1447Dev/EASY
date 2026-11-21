@@ -1,9 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { interpreterBatterie, interpreterRecuWave, dateRecu, type LectureBatterie, type LectureRecuWave } from "../lib/ia";
+import { interpreterBatterie, interpreterRecuWave, vehiculeSansPourcentage, pourcentageProuve, dateRecu, type LectureBatterie, type LectureRecuWave } from "../lib/ia";
 
 const L = (p: Partial<LectureBatterie>): LectureBatterie => ({
   est_tableau_de_bord: true, pourcentage_affiche: false, soc_pourcentage: null, chiffres_nets: true, soc_estime_barres: null,
-  autonomie_km: null, kilometrage_km: null, lisibilite: "bonne", confiance: 0.9, remarque: "", ...p,
+  autonomie_km: null, kilometrage_km: null, lisibilite: "bonne", confiance: 0.9, remarque: "",
+  texte_pourcentage: p.soc_pourcentage != null ? `${p.soc_pourcentage} %` : null, ...p,
 });
 
 describe("interprétation de la lecture batterie", () => {
@@ -53,5 +54,24 @@ describe("interpreterRecuWave / dateRecu", () => {
     expect(dateRecu("2026-11-06T19:19")?.toISOString()).toBe("2026-11-06T19:19:00.000Z");
     expect(dateRecu("6 nov. 2026")).toBeNull();
     expect(dateRecu(null)).toBeNull();
+  });
+});
+
+describe("% prouvé et véhicules sans %", () => {
+  it("un % annoncé sans texte recopié (ex. estimation d'une jauge) n'est pas pris comme lu", () => {
+    const d = interpreterBatterie(L({ pourcentage_affiche: true, soc_pourcentage: 50, texte_pourcentage: null, soc_estime_barres: 50 }));
+    expect(d.source).toBe("barres");
+    expect(interpreterBatterie(L({ pourcentage_affiche: true, soc_pourcentage: 50, texte_pourcentage: "258 km" })).source).not.toBe("pourcentage");
+  });
+  it("le texte recopié doit contenir le même nombre suivi de %", () => {
+    expect(pourcentageProuve({ soc_pourcentage: 65, texte_pourcentage: "SOC 65 %" })).toBe(true);
+    expect(pourcentageProuve({ soc_pourcentage: 65, texte_pourcentage: "65%" })).toBe(true);
+    expect(pourcentageProuve({ soc_pourcentage: 65, texte_pourcentage: "85%" })).toBe(false);
+    expect(pourcentageProuve({ soc_pourcentage: 65, texte_pourcentage: "65 km" })).toBe(false);
+  });
+  it("Eado : tableau de bord sans % (réglable)", () => {
+    expect(vehiculeSansPourcentage({ marque: "Changan", modele: "Eado EV" })).toBe(true);
+    expect(vehiculeSansPourcentage({ marque: "Dongfeng", modele: "Nano" })).toBe(false);
+    expect(vehiculeSansPourcentage(null)).toBe(false);
   });
 });

@@ -17,6 +17,7 @@ export interface LectureBatterie {
   est_tableau_de_bord: boolean;
   pourcentage_affiche: boolean;
   soc_pourcentage: number | null;
+  texte_pourcentage?: string | null; // texte exact du % vu sur l'image (preuve), ex. « 65% »
   chiffres_nets: boolean;
   soc_estime_barres: number | null;
   autonomie_km: number | null;
@@ -32,6 +33,7 @@ Réponds uniquement selon le schéma JSON demandé :
 - est_tableau_de_bord : true si la photo montre l'instrumentation du véhicule (compteur, écran de bord) ou un écran affichant l'état de la batterie. false pour une vue extérieure, un siège, un menu sans information de batterie, un autre objet.
 - pourcentage_affiche : true seulement si le NIVEAU ACTUEL de la batterie est écrit en chiffres avec un « % ».
 - soc_pourcentage : ce niveau actuel (entier 0 à 100), sinon null.
+- texte_pourcentage : recopie EXACTEMENT le texte du pourcentage tel qu'il est écrit sur l'image (ex. « 65% », « SOC 65 % »), sinon null. Si tu ne peux pas recopier un nombre suivi du signe %, alors pourcentage_affiche = false et soc_pourcentage = null.
 - chiffres_nets : true seulement si les chiffres du pourcentage sont assez grands et nets pour être lus SANS AUCUNE ambiguïté. Si l'écran est loin, petit, flou, de travers ou pixellisé au point qu'on pourrait confondre 6 et 8, 3 et 8, 5 et 6, 1 et 7 ou 0 et 8 : false, et soc_pourcentage = null.
 - soc_estime_barres : si le niveau n'est indiqué que par une jauge (barres, segments), estimation en % (barres pleines / barres totales × 100), sinon null.
 - autonomie_km : autonomie restante affichée en km, sinon null.
@@ -43,6 +45,7 @@ Réponds uniquement selon le schéma JSON demandé :
 PIÈGES À ÉVITER :
 - Un pourcentage qui est une CIBLE ou une LIMITE n'est pas le niveau actuel : « charge jusqu'à 100 % », « 100 % dans 2 h 30 », « limite de charge 80 % », « 100% de carga 2:30 ». Ne le mets jamais dans soc_pourcentage.
 - L'autonomie (km) n'est pas un pourcentage. La vitesse (km/h) non plus.
+- Une jauge à barres ou à segments n'est JAMAIS un pourcentage affiché, même si tu peux l'estimer : pourcentage_affiche = false, et l'estimation va seulement dans soc_estime_barres.
 - Ne devine jamais un chiffre illisible : mets null et une confiance basse. Une valeur fausse est bien plus grave qu'une valeur manquante.`;
 
 /** Schéma de réponse (sous-ensemble OpenAPI accepté par Gemini). */
@@ -52,6 +55,7 @@ export const SCHEMA_BATTERIE = {
     est_tableau_de_bord: { type: "BOOLEAN" },
     pourcentage_affiche: { type: "BOOLEAN" },
     soc_pourcentage: { type: "INTEGER", nullable: true },
+    texte_pourcentage: { type: "STRING", nullable: true },
     chiffres_nets: { type: "BOOLEAN" },
     soc_estime_barres: { type: "INTEGER", nullable: true },
     autonomie_km: { type: "INTEGER", nullable: true },
@@ -60,7 +64,7 @@ export const SCHEMA_BATTERIE = {
     confiance: { type: "NUMBER" },
     remarque: { type: "STRING" },
   },
-  required: ["est_tableau_de_bord", "pourcentage_affiche", "soc_pourcentage", "chiffres_nets", "soc_estime_barres", "autonomie_km", "kilometrage_km", "lisibilite", "confiance", "remarque"],
+  required: ["est_tableau_de_bord", "pourcentage_affiche", "soc_pourcentage", "texte_pourcentage", "chiffres_nets", "soc_estime_barres", "autonomie_km", "kilometrage_km", "lisibilite", "confiance", "remarque"],
 };
 
 export class ErreurIA extends Error {
@@ -247,6 +251,23 @@ export async function listerModeles(): Promise<string[]> {
   return (d.models ?? []).filter((m: any) => (m.supportedGenerationMethods ?? []).includes("generateContent")).map((m: any) => String(m.name).replace(/^models\//, ""));
 }
 
+/** Le texte recopié par l'IA contient bien « <soc> % ». */
+export function pourcentageProuve(l: Pick<LectureBatterie, "soc_pourcentage" | "texte_pourcentage">): boolean {
+  if (typeof l.soc_pourcentage !== "number") return false;
+  return [...String(l.texte_pourcentage ?? "").matchAll(/(\d{1,3})\s*%/g)].some((m) => Number(m[1]) === l.soc_pourcentage);
+}
+
+/**
+ * Modèles dont le tableau de bord n'affiche PAS le % de batterie (seulement une jauge à barres) :
+ * l'IA vérifie la photo mais ne remplit jamais le %. Réglable via IA_MODELES_SANS_POURCENTAGE (liste séparée par des virgules).
+ */
+export function vehiculeSansPourcentage(v: { marque?: string | null; modele?: string | null } | null | undefined): boolean {
+  if (!v) return false;
+  const nom = `${v.marque ?? ""} ${v.modele ?? ""}`.toLowerCase();
+  const liste = (process.env.IA_MODELES_SANS_POURCENTAGE ?? "eado").split(",").map((m) => m.trim().toLowerCase()).filter(Boolean);
+  return liste.some((m) => nom.includes(m));
+}
+
 /** Seuil de confiance au-dessous duquel le % est seulement proposé (à confirmer). */
 export const CONFIANCE_MIN = 0.7;
 
@@ -265,6 +286,9 @@ export function interpreterBatterie(l: LectureBatterie): {
   message: string;
 } {
   const valide = (v: unknown): v is number => typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= 100;
+  // Preuve : l'IA doit avoir recopié « <nombre> % » égal au niveau annoncé, sinon le % est considéré comme non affiché
+  // (évite qu'une estimation d'après une jauge à barres soit présentée comme un % lu).
+  if (l.pourcentage_affiche && !pourcentageProuve(l)) l = { ...l, pourcentage_affiche: false, soc_pourcentage: null };
   if (!l.est_tableau_de_bord) return { soc: null, source: null, aConfirmer: false, aReprendre: true, message: "Cette photo ne montre pas le tableau de bord : reprenez-la." };
   if (l.lisibilite === "mauvaise") return { soc: null, source: null, aConfirmer: false, aReprendre: true, message: "Photo illisible : reprenez-la plus près, sans reflet." };
   if (l.pourcentage_affiche && valide(l.soc_pourcentage) && l.chiffres_nets === false) {
