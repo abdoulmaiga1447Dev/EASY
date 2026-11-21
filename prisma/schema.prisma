@@ -912,6 +912,12 @@ model DemandeRecharge {
   socDebutIa     Int? // % lu par l'IA sur la photo d'arrivée (null si non lu)
   socFinIa       Int? // % lu par l'IA sur la photo de fin
   ecartIa        Boolean @default(false) // le chauffeur a saisi un % différent de celui lu par l'IA → contrôle
+  // Véhicules sans % au tableau de bord (Eado) : jauge à barres + autonomie restante (socDebut/socFin = approximation d'après les barres)
+  barresTotal      Int? // nombre de barres de la jauge
+  barresDebut      Int? // barres pleines à l'arrivée
+  barresFin        Int? // barres pleines à la fin
+  autonomieDebutKm Int? // autonomie restante affichée à l'arrivée (km encore possibles, PAS le compteur total)
+  autonomieFinKm   Int? // autonomie restante affichée à la fin
   kwhEstime      Float? // kWh nécessaires estimés (SOC × capacité)
   montantSuggere Int? // FCFA, si le prix du kWh de la borne est connu
 

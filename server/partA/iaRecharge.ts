@@ -23,7 +23,7 @@ import path from "path";
 import type { PrismaClient } from "@prisma/client";
 import { authenticate, authorize, type AuthContext } from "../../lib/authz";
 import { UPLOAD_DIR } from "../../lib/upload";
-import { ia, iaConfiguree, interpreterBatterie, interpreterRecuWave, vehiculeSansPourcentage, type LectureBatterie, type LectureRecuWave } from "../../lib/ia";
+import { ia, iaConfiguree, MODELE_PAR_DEFAUT, MODELES_SECOURS_PAR_DEFAUT, interpreterBatterie, interpreterRecuWave, interpreterJauge, segmentsJauge, type MesureJauge, type LectureBatterie, type LectureRecuWave } from "../../lib/ia";
 import { notify } from "../../lib/notifications";
 import { emitToUsers } from "../../lib/realtime";
 import { recipients } from "./recharge";
@@ -71,7 +71,7 @@ export const socFiable = (l: LectureStockee | null): number | null =>
   l && l.decision.source === "pourcentage" && !l.decision.aReprendre ? l.decision.soc : null;
 
 /** Délai maximal d'attente de l'IA pendant une validation (au-delà : on continue sans elle). */
-export const DELAI_IA_MS = 25_000;
+export const DELAI_IA_MS = 40_000;
 export const TROP_LENT = Symbol("trop-lent");
 /** Attend une lecture au plus `ms` ; renvoie TROP_LENT si elle n'est pas prête. */
 export function avecDelai<T>(p: Promise<T>, ms = DELAI_IA_MS): Promise<T | typeof TROP_LENT> {
@@ -85,9 +85,34 @@ export function avecDelai<T>(p: Promise<T>, ms = DELAI_IA_MS): Promise<T | typeo
  * - soc = % lu par l'IA (fait foi), sinon null (saisie manuelle : Eado sans %, IA indisponible).
  */
 /** Le véhicule affiche-t-il un % de batterie ? (Eado : non, jauge à barres seulement.) */
-async function sansPourcentage(prisma: PrismaClient, vehicleId: string | null | undefined): Promise<boolean> {
-  if (!vehicleId) return false;
-  return vehiculeSansPourcentage(await prisma.fleetVehicle.findUnique({ where: { id: vehicleId }, select: { marque: true, modele: true } }));
+export async function segmentsDuVehicule(prisma: PrismaClient, vehicleId: string | null | undefined): Promise<number | null> {
+  if (!vehicleId) return null;
+  return segmentsJauge(await prisma.fleetVehicle.findUnique({ where: { id: vehicleId }, select: { marque: true, modele: true } }));
+}
+export const sansPourcentage = async (prisma: PrismaClient, vehicleId: string | null | undefined) => (await segmentsDuVehicule(prisma, vehicleId)) !== null;
+
+/** Mesure (une seule fois) la jauge à barres d'une photo et la conserve avec la lecture (iaLecture.jauge). */
+export function lireJaugeMedia(prisma: PrismaClient, mediaId: string, total: number): Promise<MesureJauge | null> {
+  const cle = `jauge:${mediaId}`;
+  const deja: Promise<MesureJauge | null> | undefined = enCours.get(cle);
+  if (deja) return deja;
+  const p = (async () => {
+    const media = await prisma.mediaAsset.findUnique({ where: { id: mediaId } });
+    if (!media || media.kind !== "image") return null;
+    const stockee = media.iaLecture as any;
+    if (stockee?.jauge && stockee.jauge.total === total) return stockee.jauge as MesureJauge;
+    if (!iaConfiguree()) return null;
+    try {
+      const mesure = await ia.mesurerJauge(fs.readFileSync(path.join(UPLOAD_DIR, media.chemin)), media.mime, total);
+      if (stockee && !stockee.type) await prisma.mediaAsset.update({ where: { id: mediaId }, data: { iaLecture: { ...stockee, jauge: mesure } } });
+      return mesure;
+    } catch (e: any) {
+      console.error("[IA] mesure jauge", mediaId, e?.message ?? e);
+      return null;
+    }
+  })().finally(() => setTimeout(() => enCours.delete(cle), 1000));
+  enCours.set(cle, p);
+  return p;
 }
 
 export async function verifierPhotoTableau(prisma: PrismaClient, mediaId: string, vehicleId?: string | null): Promise<
@@ -100,6 +125,41 @@ export async function verifierPhotoTableau(prisma: PrismaClient, mediaId: string
   if (await sansPourcentage(prisma, vehicleId)) return { ok: true, soc: null, etat: "sans_pourcentage" };
   const soc = socFiable(l);
   return { ok: true, soc, etat: soc === null ? "sans_pourcentage" : "lu" };
+}
+
+export interface Jauge { barres: number; total: number; autonomieKm: number }
+
+/**
+ * Véhicule sans % (Eado) : la photo doit montrer la jauge à barres ET l'autonomie restante.
+ * - refus si ce n'est pas un tableau de bord, si c'est illisible, ou si la jauge / l'autonomie ne sont pas lues ;
+ * - jauge = lecture de l'IA (fait foi), sinon null (IA indisponible : saisie du chauffeur).
+ */
+export async function verifierJaugeTableau(prisma: PrismaClient, mediaId: string, total: number): Promise<
+  { ok: false; refus: string } | { ok: true; jauge: Jauge | null; etat: "lu" | "indisponible" | "trop_lent" }
+> {
+  const debut = Date.now();
+  const l = await avecDelai(lireBatterieMedia(prisma, mediaId));
+  if (l === TROP_LENT) return { ok: true, jauge: null, etat: "trop_lent" };
+  if (!l) return { ok: true, jauge: null, etat: "indisponible" };
+  if (l.decision.aReprendre) return { ok: false, refus: l.decision.message };
+  const mesure = await avecDelai(lireJaugeMedia(prisma, mediaId, total), Math.max(5_000, DELAI_IA_MS - (Date.now() - debut)));
+  if (mesure === TROP_LENT) return { ok: true, jauge: null, etat: "trop_lent" };
+  if (!mesure) return { ok: true, jauge: null, etat: "indisponible" };
+  const j = interpreterJauge(l.lecture, mesure);
+  if (!j.ok) return { ok: false, refus: j.message };
+  return { ok: true, jauge: { barres: j.barres as number, total: j.total as number, autonomieKm: j.autonomieKm as number }, etat: "lu" };
+}
+
+export const texteJauge = (j: { barres: number; total: number; autonomieKm: number | null }) =>
+  `${j.barres} barre${j.barres > 1 ? "s" : ""} sur ${j.total}${j.autonomieKm != null ? ` · autonomie ${j.autonomieKm} km` : ""}`;
+
+/** Trace de la jauge dans le fil (lue par l'IA, ou saisie par le chauffeur si l'IA est indisponible). */
+export async function noterJauge(prisma: PrismaClient, demandeId: string, moment: "debut" | "fin", etat: "lu" | "indisponible" | "trop_lent", j: Jauge) {
+  const quand = moment === "debut" ? "à l'arrivée" : "à la fin";
+  const texte = etat === "lu"
+    ? `IA : ${texteJauge(j)} lu sur la photo ${quand}.`
+    : `Jauge ${quand} saisie par le chauffeur (${texteJauge(j)}) : photo non vérifiée par l'IA (service indisponible).`;
+  await prisma.demandeRechargeMessage.create({ data: { demandeId, auteurId: null, type: "SYSTEME", texte, meta: { ia: true, etat, ...j } } });
 }
 
 /** Message du fil quand le % n'a pas été lu par l'IA (saisie du chauffeur). */
@@ -232,7 +292,7 @@ export async function controlerRecu(
 
 export function iaRechargeRouter(prisma: PrismaClient): express.Router {
   if (!iaConfiguree()) console.warn("[IA] GEMINI_API_KEY absente du .env : photos du tableau de bord et reçus Wave NON vérifiés (saisie manuelle, paiements envoyés au contrôle Finance).");
-  else console.log(`[IA] Gemini actif (modèle ${process.env.GEMINI_MODEL || "par défaut"}).`);
+  else console.log(`[IA] Gemini actif (modèle ${process.env.GEMINI_MODEL || MODELE_PAR_DEFAUT}, secours ${process.env.GEMINI_MODELES_SECOURS ?? MODELES_SECOURS_PAR_DEFAUT.join(",")}).`);
   const r = express.Router();
   r.use("/api/fleet/ia", authenticate(prisma));
   const actor = (req: express.Request) => (req as any).auth as AuthContext;
@@ -246,10 +306,15 @@ export function iaRechargeRouter(prisma: PrismaClient): express.Router {
     const l = await lireBatterieMedia(prisma, media.id);
     if (!l) return res.json({ disponible: false, message: "Vérification automatique indisponible pour le moment : saisissez le %." });
     if (l.decision.aReprendre) return res.json({ disponible: true, soc: null, aConfirmer: false, aReprendre: true, message: l.decision.message });
-    // Véhicule sans % au tableau de bord (Eado) : la photo est vérifiée, mais le chauffeur saisit le %.
+    // Véhicule sans % au tableau de bord (Eado) : on lit la jauge à barres et l'autonomie restante.
     const ouverte = await prisma.demandeRecharge.findFirst({ where: { driverId: ctx.userId, statut: { in: STATUTS_OUVERTS as any } }, select: { vehicleId: true } });
-    if (await sansPourcentage(prisma, ouverte?.vehicleId)) {
-      return res.json({ disponible: true, soc: null, aConfirmer: true, aReprendre: false, message: "Ce véhicule n'affiche pas le % de batterie (seulement des barres) : saisissez-le." });
+    const segments = await segmentsDuVehicule(prisma, ouverte?.vehicleId);
+    if (segments !== null) {
+      const mesure = await lireJaugeMedia(prisma, media.id, segments);
+      if (!mesure) return res.json({ disponible: false, type: "jauge", message: "Vérification automatique indisponible pour le moment : saisissez les barres et l'autonomie." });
+      const j = interpreterJauge(l.lecture, mesure);
+      if (!j.ok) return res.json({ disponible: true, type: "jauge", soc: null, aConfirmer: false, aReprendre: true, message: j.message });
+      return res.json({ disponible: true, type: "jauge", soc: null, aConfirmer: false, aReprendre: false, barres: j.barres, total: j.total, autonomieKm: j.autonomieKm, message: j.message });
     }
     // Pas de suggestion à partir d'une jauge à barres (estimation peu fiable) : saisie manuelle.
     const d = l.decision;

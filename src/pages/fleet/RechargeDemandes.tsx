@@ -18,6 +18,11 @@ import { useAppel } from "./Appel";
 type ToastState = { message: string; kind: "ok" | "err" } | null;
 type Notify = (t: ToastState) => void;
 const errMsg = (e: unknown) => (e as ApiError)?.fr || "Erreur inattendue";
+/** Niveau de batterie à afficher : barres + autonomie restante (Eado, pas de %), sinon le %. */
+const niveau = (soc: number | null | undefined, barres?: number | null, total?: number | null, km?: number | null) =>
+  barres != null && total ? `${barres}/${total} barres${km != null ? ` · ${km} km` : ""}` : soc != null ? `${soc} %` : "—";
+const niveauDebut = (x: any) => niveau(x?.socDebut, x?.barresDebut, x?.barresTotal, x?.autonomieDebutKm);
+const niveauFin = (x: any) => niveau(x?.socFin, x?.barresFin, x?.barresTotal, x?.autonomieFinKm);
 const fcfa = (n: number | null | undefined) => (n ?? 0).toLocaleString("fr-FR") + " F";
 const heure = (d: string) => new Date(d).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 const depuis = (d: string) => {
@@ -144,10 +149,10 @@ const Contenu: React.FC<{ m: any; vueSuperviseur: boolean }> = ({ m, vueSupervis
               </div>
             ))}
           </div>
-          <div className="text-sm text-[#EDEDED]">Batterie à l'arrivée : <b>{m.meta?.socDebut ?? "—"} %</b></div>
+          <div className="text-sm text-[#EDEDED]">Batterie à l'arrivée : <b>{niveau(m.meta?.socDebut, m.meta?.barres, m.meta?.barresTotal, m.meta?.autonomieKm)}</b></div>
           {vueSuperviseur && m.meta?.kwhEstime != null && (
             <div className="text-xs text-[#8A8A8A]">
-              Pour atteindre 80 % : ≈ {m.meta.kwhEstime} kWh{m.meta.montantSuggere != null ? <> · montant proposé <span className="text-[#EDEDED]">{fcfa(m.meta.montantSuggere)}</span></> : " (prix du kWh de la borne non renseigné)"}
+              Pour atteindre 80 %{m.meta?.barres != null ? " (estimation d'après les barres)" : ""} : ≈ {m.meta.kwhEstime} kWh{m.meta.montantSuggere != null ? <> · montant proposé <span className="text-[#EDEDED]">{fcfa(m.meta.montantSuggere)}</span></> : " (prix du kWh de la borne non renseigné)"}
             </div>
           )}
         </div>
@@ -165,7 +170,7 @@ const Contenu: React.FC<{ m: any; vueSuperviseur: boolean }> = ({ m, vueSupervis
         <div className="space-y-2">
           <div className="text-[10px] uppercase tracking-wide text-[#8A8A8A]">Tableau de bord à la fin</div>
           <AuthImage mediaId={m.mediaIds[0]} className="w-full h-40 rounded-lg" zoomable />
-          <div className="text-sm text-[#EDEDED]">Batterie à la fin : <b>{m.meta?.socFin ?? "—"} %</b></div>
+          <div className="text-sm text-[#EDEDED]">Batterie à la fin : <b>{niveau(m.meta?.socFin, m.meta?.barres, m.meta?.barresTotal, m.meta?.autonomieKm)}</b></div>
         </div>
       );
     default:
@@ -238,7 +243,7 @@ export const ChauffeurRecharge: React.FC<{ notify: Notify }> = ({ notify }) => {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [etape, setEtape] = useState<null | "sur-place" | "terminer">(null);
-  const [form, setForm] = useState<any>({ qr: null, tableau: null, soc: "" });
+  const [form, setForm] = useState<any>({ qr: null, tableau: null, soc: "", barres: "", barresTotal: "5", autonomieKm: "" });
   const [cle, setCle] = useState(0); // remonte les captures après envoi
 
   const load = useCallback(async () => {
@@ -269,10 +274,11 @@ export const ChauffeurRecharge: React.FC<{ notify: Notify }> = ({ notify }) => {
    */
   const [lectureIa, setLectureIa] = useState<null | { etat: "lecture" | "lu" | "manuel" | "reprendre"; texte: string }>(null);
   const [cleTableau, setCleTableau] = useState(0); // remonte la capture du tableau de bord après un refus
-  const reset = () => { setForm({ qr: null, tableau: null, soc: "" }); setEtape(null); setCle((k) => k + 1); setLectureIa(null); };
+  const VIDE = { soc: "", barres: "", barresTotal: "5", autonomieKm: "" };
+  const reset = () => { setForm({ qr: null, tableau: null, ...VIDE }); setEtape(null); setCle((k) => k + 1); setLectureIa(null); };
   const refuserTableau = (texte: string) => {
     derniereTableau.current = null;
-    setForm((f: any) => ({ ...f, tableau: null, soc: "" }));
+    setForm((f: any) => ({ ...f, tableau: null, ...VIDE }));
     setCleTableau((k) => k + 1);
     setLectureIa({ etat: "reprendre", texte });
   };
@@ -281,20 +287,26 @@ export const ChauffeurRecharge: React.FC<{ notify: Notify }> = ({ notify }) => {
   const derniereTableau = useRef<string | null>(null); // une réponse en retard (photo précédente) est ignorée
   const photoTableau = async (id: string) => {
     derniereTableau.current = id;
-    setForm((f: any) => ({ ...f, tableau: id, soc: "" }));
-    setLectureIa({ etat: "lecture", texte: "Vérification de la photo et lecture du % de batterie…" });
+    setForm((f: any) => ({ ...f, tableau: id, ...VIDE }));
+    setLectureIa({ etat: "lecture", texte: "Vérification de la photo et lecture du niveau de batterie…" });
     try {
-      const r = await api.post<{ disponible: boolean; soc?: number | null; aReprendre?: boolean; message?: string }>("/api/fleet/ia/batterie", { mediaId: id });
+      const r = await api.post<{ disponible: boolean; type?: "jauge"; soc?: number | null; barres?: number; total?: number; autonomieKm?: number; aReprendre?: boolean; message?: string }>("/api/fleet/ia/batterie", { mediaId: id });
       if (derniereTableau.current !== id) return;
-      if (!r.disponible) { setLectureIa({ etat: "manuel", texte: r.message || "Vérification automatique indisponible : saisissez le %." }); return; }
+      if (!r.disponible) { setLectureIa({ etat: "manuel", texte: r.message || "Vérification automatique indisponible : saisissez le niveau de batterie." }); return; }
       if (r.aReprendre) { refuserTableau(r.message || "Photo refusée : reprenez-la."); return; }
+      if (r.type === "jauge") {
+        // Eado : jauge à barres + autonomie restante, lues par l'IA (pas de %).
+        setForm((f: any) => ({ ...f, barres: String(r.barres), barresTotal: String(r.total), autonomieKm: String(r.autonomieKm) }));
+        setLectureIa({ etat: "lu", texte: "Lu sur la photo. Si ce n'est pas exact, reprenez la photo plus près de l'écran central." });
+        return;
+      }
       if (r.soc != null) {
         setForm((f: any) => ({ ...f, soc: String(r.soc) }));
         setLectureIa({ etat: "lu", texte: `${r.soc} % lu sur la photo. Si ce n'est pas le bon chiffre, reprenez la photo plus près.` });
       } else {
         setLectureIa({ etat: "manuel", texte: r.message || "Pourcentage non lu : saisissez le % affiché." });
       }
-    } catch { if (derniereTableau.current === id) setLectureIa({ etat: "manuel", texte: "Vérification automatique indisponible : saisissez le %." }); }
+    } catch { if (derniereTableau.current === id) setLectureIa({ etat: "manuel", texte: "Vérification automatique indisponible : saisissez le niveau de batterie." }); }
   };
   const saisirSoc = (v: string) => setForm((f: any) => ({ ...f, soc: v }));
   const AideIa = () => !lectureIa ? null : (
@@ -303,9 +315,30 @@ export const ChauffeurRecharge: React.FC<{ notify: Notify }> = ({ notify }) => {
       {lectureIa.texte}
     </div>
   );
-  /** Champ % : verrouillé quand l'IA l'a lu, caché tant que la photo n'est pas vérifiée. */
+  const jauge = !!d?.vehicule?.sansPourcentage; // Eado : barres + autonomie, pas de %
+  const segments: number = d?.vehicule?.segmentsJauge ?? 5;
+  const saisir = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) => setForm((f: any) => ({ ...f, [k]: e.target.value }));
+  /** Niveau de batterie : verrouillé quand l'IA l'a lu, caché tant que la photo n'est pas vérifiée. */
   const champSoc = (exemple: string) => {
     if (!form.tableau || !lectureIa || lectureIa.etat === "lecture" || lectureIa.etat === "reprendre") return null;
+    if (jauge) {
+      if (lectureIa.etat === "lu") return (
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Batterie (lue sur la photo)">
+            <div className="h-11 px-3 flex items-center rounded-lg border border-[#22C55E] bg-[#0F0F11] text-[#EDEDED] text-lg font-semibold">{form.barres} / {form.barresTotal || segments} barres</div>
+          </Field>
+          <Field label="Autonomie restante">
+            <div className="h-11 px-3 flex items-center rounded-lg border border-[#22C55E] bg-[#0F0F11] text-[#EDEDED] text-lg font-semibold">{form.autonomieKm} km</div>
+          </Field>
+        </div>
+      );
+      return (
+        <div className="grid grid-cols-2 gap-3">
+          <Field label={`Barres allumées (sur ${segments})`}><Input type="number" inputMode="numeric" min={0} max={segments} value={form.barres} onChange={saisir("barres")} placeholder="ex. 3" /></Field>
+          <Field label="Autonomie (km restants)"><Input type="number" inputMode="numeric" min={0} value={form.autonomieKm} onChange={saisir("autonomieKm")} placeholder="ex. 258" /></Field>
+        </div>
+      );
+    }
     if (lectureIa.etat === "lu") return (
       <Field label="% de batterie (lu sur la photo)">
         <div className="h-11 px-3 flex items-center rounded-lg border border-[#22C55E] bg-[#0F0F11] text-[#EDEDED] text-lg font-semibold">{form.soc} %</div>
@@ -330,10 +363,15 @@ export const ChauffeurRecharge: React.FC<{ notify: Notify }> = ({ notify }) => {
     } catch (e) { notify({ message: errMsg(e), kind: "err" }); } finally { setBusy(false); }
   };
 
+  /** Niveau envoyé au serveur (qui garde de toute façon sa propre lecture IA quand elle existe). */
+  const niveauEnvoye = (moment: "debut" | "fin" = "debut") => jauge
+    ? { barres: Number(form.barres), autonomieKm: Number(form.autonomieKm) }
+    : { [moment === "debut" ? "socDebut" : "socFin"]: Number(form.soc) };
+
   const envoyerSurPlace = async () => {
     setBusy(true);
     try {
-      await api.post(`/api/fleet/recharge-demandes/${d.id}/sur-place`, { qrMediaId: form.qr, tableauMediaId: form.tableau, socDebut: Number(form.soc) });
+      await api.post(`/api/fleet/recharge-demandes/${d.id}/sur-place`, { qrMediaId: form.qr, tableauMediaId: form.tableau, ...niveauEnvoye() });
       notify({ message: "Photos envoyées au Superviseur", kind: "ok" });
       reset(); await load();
     } catch (e) { erreurEnvoi(e); } finally { setBusy(false); }
@@ -342,7 +380,7 @@ export const ChauffeurRecharge: React.FC<{ notify: Notify }> = ({ notify }) => {
   const terminer = async () => {
     setBusy(true);
     try {
-      await api.post(`/api/fleet/recharge-demandes/${d.id}/terminer`, { tableauFinMediaId: form.tableau, socFin: Number(form.soc) });
+      await api.post(`/api/fleet/recharge-demandes/${d.id}/terminer`, { tableauFinMediaId: form.tableau, ...niveauEnvoye("fin") });
       notify({ message: "Recharge terminée", kind: "ok" });
       reset(); await load();
     } catch (e) { erreurEnvoi(e); } finally { setBusy(false); }
@@ -357,7 +395,10 @@ export const ChauffeurRecharge: React.FC<{ notify: Notify }> = ({ notify }) => {
 
   if (loading) return <Spinner />;
   const vehicule = shift?.assignment?.vehicle;
-  const socOk = form.soc !== "" && Number(form.soc) >= 0 && Number(form.soc) <= 100;
+  const entier = (v: string, min: number, max: number) => v !== "" && Number.isInteger(Number(v)) && Number(v) >= min && Number(v) <= max;
+  const socOk = jauge
+    ? entier(form.barres, 0, segments) && entier(form.autonomieKm, 0, 1000)
+    : entier(form.soc, 0, 100);
 
   // ---- Pas de demande en cours ----
   if (!d) {
@@ -384,7 +425,7 @@ export const ChauffeurRecharge: React.FC<{ notify: Notify }> = ({ notify }) => {
               {data.historique.map((h) => (
                 <div key={h.id} className="flex items-center justify-between text-sm border-t border-[#232327] pt-2 first:border-0 first:pt-0">
                   <span className="text-[#8A8A8A]">{new Date(h.createdAt).toLocaleDateString("fr-FR")}</span>
-                  <span className="text-[#EDEDED]">{h.statut === "TERMINEE" ? `${h.socDebut ?? "—"} % → ${h.socFin ?? "—"} %` : "Annulée"}</span>
+                  <span className="text-[#EDEDED]">{h.statut === "TERMINEE" ? `${niveauDebut(h)} → ${niveauFin(h)}` : "Annulée"}</span>
                   <span className="text-xs" style={{ color: h.anomalie ? RED : h.statut === "TERMINEE" ? GREEN : MUTED }}>{h.anomalie ? "Anomalie" : h.statut === "TERMINEE" ? "OK" : "—"}</span>
                 </div>
               ))}
@@ -647,7 +688,7 @@ const DemandeSuperviseur: React.FC<{
           <h3 className="font-semibold text-[#EDEDED] flex items-center gap-2"><Banknote size={16} className="text-[#22C55E]" /> Payer la recharge</h3>
           <div className="space-y-1.5 text-sm">
             <div className="flex items-center gap-2 text-[#EDEDED]"><QrCode size={15} className="text-[#8A8A8A]" /> Scannez le QR code ci-dessus avec votre téléphone, puis payez.</div>
-            <div className="flex items-center gap-2 text-[#8A8A8A]"><Gauge size={15} /> Batterie à l'arrivée : <span className="text-[#EDEDED]">{d.socDebut} %</span>
+            <div className="flex items-center gap-2 text-[#8A8A8A]"><Gauge size={15} /> Batterie à l'arrivée : <span className="text-[#EDEDED]">{niveauDebut(d)}</span>
               {d.kwhEstime != null && <> · ≈ {d.kwhEstime} kWh pour atteindre 80 %</>}</div>
             {d.montantSuggere != null
               ? <div className="text-[#8A8A8A]">Montant proposé : <span className="text-[#EDEDED] font-medium">{fcfa(d.montantSuggere)}</span></div>
@@ -696,7 +737,7 @@ const DemandeSuperviseur: React.FC<{
       {d.statut === "TERMINEE" && (
         <Callout color={d.anomalie ? RED : MUTED}>
           {d.anomalie && <div className="flex items-center gap-1.5 text-[#EF4444] font-medium mb-1"><AlertTriangle size={15} /> La batterie n'a pas monté : à vérifier.</div>}
-          Recharge terminée · {fcfa(d.montantPaye)} · batterie {d.socDebut} % → {d.socFin} %.
+          Recharge terminée · {fcfa(d.montantPaye)} · batterie {niveauDebut(d)} → {niveauFin(d)}.
         </Callout>
       )}
 
@@ -766,7 +807,7 @@ export const ControleRecharges: React.FC<{ notify: Notify }> = ({ notify }) => {
 
   const motif = (x: any) => [
     x.ecartMontant ? `Payé ${fcfa(x.montantPaye)} pour ${fcfa(x.montantSuggere)} proposés (+${x.ecartPct} %)` : null,
-    x.anomalie ? `Batterie ${x.socDebut ?? "—"} % → ${x.socFin ?? "—"} %` : null,
+    x.anomalie ? `Batterie ${niveauDebut(x)} → ${niveauFin(x)}` : null,
     x.anomaliePaiement ? `Reçu Wave : ${(x.problemesRecu ?? []).join(" ; ") || "à vérifier"}` : null,
     x.ecartIa ? `Écart IA : saisi ${x.socDebut ?? "—"} % / lu ${x.socDebutIa ?? "—"} %${x.socFinIa != null ? ` · fin saisi ${x.socFin ?? "—"} % / lu ${x.socFinIa} %` : ""}` : null,
   ].filter(Boolean).join(" · ");
@@ -810,7 +851,7 @@ export const ControleRecharges: React.FC<{ notify: Notify }> = ({ notify }) => {
               <div className="grid sm:grid-cols-3 gap-3 text-sm pt-1">
                 <div><div className="text-xs text-[#8A8A8A]">Montant proposé</div><div className="text-[#EDEDED]">{detail.montantSuggere != null ? fcfa(detail.montantSuggere) : "—"}</div></div>
                 <div><div className="text-xs text-[#8A8A8A]">Montant payé</div><div style={{ color: detail.ecartMontant ? AMBER : "#EDEDED" }}>{fcfa(detail.montantPaye)}</div></div>
-                <div><div className="text-xs text-[#8A8A8A]">Batterie</div><div style={{ color: detail.anomalie ? RED : "#EDEDED" }}>{detail.socDebut ?? "—"} % → {detail.socFin ?? "—"} %</div></div>
+                <div><div className="text-xs text-[#8A8A8A]">Batterie</div><div style={{ color: detail.anomalie ? RED : "#EDEDED" }}>{niveauDebut(detail)} → {niveauFin(detail)}</div></div>
               </div>
               <div className="text-xs text-[#8A8A8A]">N° de transaction : <span className="text-[#EDEDED]">{detail.refTransaction ?? "—"}</span></div>
               {detail.iaPaiement && (

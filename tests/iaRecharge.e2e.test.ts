@@ -39,6 +39,7 @@ const R = (p: Partial<LectureRecuWave>): LectureRecuWave => ({
 const recus = new Map<string, Partial<LectureRecuWave>>();
 const original = ia.lireBatterie;
 const originalRecu = ia.lireRecuWave;
+const originalJauge = ia.mesurerJauge;
 let enAttente = "";
 
 async function cleanup() {
@@ -54,8 +55,13 @@ beforeAll(async () => {
   // Fausse IA : répond selon la photo (identifiée par la dernière photo enregistrée en attente).
   ia.lireBatterie = (async () => ({ resultat: L(lectures.get(enAttente) ?? {}), modele: "faux-modele", dureeMs: 1, jetons: 0, essais: 1 })) as any;
   ia.lireRecuWave = (async () => ({ resultat: R(recus.get(enAttente) ?? {}), modele: "faux-modele", dureeMs: 1, jetons: 0, essais: 1 })) as any;
+  // Fausse mesure de jauge : le nombre de barres de la photo en attente (champ barres_pleines du jeu d'essai).
+  ia.mesurerJauge = (async (_img: Buffer, _mime: string, total: number) => {
+    const b = lectures.get(enAttente)?.barres_pleines ?? null;
+    return { barres: b, total, fraction: b == null ? null : b / total, boite: b == null ? null : [500, 400, 600, 700], motif: b == null ? "icône de batterie introuvable" : null };
+  }) as any;
 });
-afterAll(async () => { ia.lireBatterie = original; ia.lireRecuWave = originalRecu; process.env.GEMINI_API_KEY = ""; await cleanup(); await prisma.$disconnect(); });
+afterAll(async () => { ia.lireBatterie = original; ia.lireRecuWave = originalRecu; ia.mesurerJauge = originalJauge; process.env.GEMINI_API_KEY = ""; await cleanup(); await prisma.$disconnect(); });
 
 const lire = (mediaId: string, userId = DEMO.chauffeur) => { enAttente = mediaId; return request(app).post("/api/fleet/ia/batterie").set(auth(userId)).send({ mediaId }); };
 const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -192,27 +198,70 @@ describe("La photo du tableau de bord est vérifiée par le serveur", () => {
   });
 });
 
-describe("Véhicule dont le tableau de bord n'affiche pas de % (Eado)", () => {
-  it("photo vérifiée, mais le % n'est jamais rempli par l'IA : le chauffeur le saisit", async () => {
-    process.env.IA_MODELES_SANS_POURCENTAGE = "atto 3"; // le véhicule de test (BYD Atto 3) joue le rôle de l'Eado
+describe("Véhicule dont le tableau de bord n'affiche pas de % (Eado) : barres + autonomie", () => {
+  const EADO = { barres_pleines: 3, barres_total: 5, autonomie_km: 258, kilometrage_km: 40269, soc_estime_barres: 60 };
+  const avecEado = async (f: () => Promise<void>) => {
+    process.env.IA_MODELES_SANS_POURCENTAGE = "atto 3:5"; // le véhicule de test (BYD Atto 3) joue le rôle de l'Eado
+    try { await f(); } finally { delete process.env.IA_MODELES_SANS_POURCENTAGE; }
+  };
+
+  it("l'IA lit les barres et l'autonomie (pas le compteur total), jamais de %", () => avecEado(async () => {
+    const id = await nouvelleDemande();
+    const lu = await lire(await upload(DEMO.chauffeur, EADO));
+    expect(lu.body).toMatchObject({ type: "jauge", soc: null, barres: 3, total: 5, autonomieKm: 258, aReprendre: false });
+    const res = await surPlace(id, await upload(DEMO.chauffeur), await upload(DEMO.chauffeur, EADO));
+    expect(res.status).toBe(200);
+    expect(res.body.vehicule.sansPourcentage).toBe(true);
+    const d = await prisma.demandeRecharge.findUnique({ where: { id } });
+    expect(d).toMatchObject({ barresDebut: 3, barresTotal: 5, autonomieDebutKm: 258, socDebut: 60, socDebutIa: null });
+    const msg = await prisma.demandeRechargeMessage.findFirst({ where: { demandeId: id, type: "SYSTEME", texte: { contains: "3 barres sur 5" } } });
+    expect(msg?.texte).toMatch(/autonomie 258 km/);
+    await fermer(id);
+  }));
+
+  it("jauge ou autonomie illisible, ou autonomie = compteur total → photo à reprendre", () => avecEado(async () => {
+    const id = await nouvelleDemande();
+    expect((await lire(await upload(DEMO.chauffeur, { ...EADO, barres_pleines: null }))).body.aReprendre).toBe(true);
+    expect((await lire(await upload(DEMO.chauffeur, { ...EADO, autonomie_km: 40269 }))).body.aReprendre).toBe(true);
+    const res = await surPlace(id, await upload(DEMO.chauffeur), await upload(DEMO.chauffeur, { ...EADO, autonomie_km: null }));
+    expect(res.status).toBe(422);
+    expect((await lire(await upload(DEMO.chauffeur, { est_tableau_de_bord: false }))).body.aReprendre).toBe(true);
+    await fermer(id);
+  }));
+
+  it("IA indisponible : le chauffeur saisit barres et autonomie (obligatoires)", () => avecEado(async () => {
+    const id = await nouvelleDemande();
+    process.env.GEMINI_API_KEY = "";
     try {
-      const id = await nouvelleDemande();
-      const tableau = await upload(DEMO.chauffeur, { pourcentage_affiche: true, soc_pourcentage: 60 });
-      const lu = await lire(tableau);
-      expect(lu.body).toMatchObject({ soc: null, aReprendre: false });
-      expect(lu.body.message).toMatch(/n'affiche pas/);
-      const sansSaisie = await surPlace(id, await upload(DEMO.chauffeur), await upload(DEMO.chauffeur, { pourcentage_affiche: true, soc_pourcentage: 60 }));
-      expect(sansSaisie.status).toBe(400);
-      const ok = await surPlace(id, await upload(DEMO.chauffeur), await upload(DEMO.chauffeur, { pourcentage_affiche: true, soc_pourcentage: 60 }), 42);
-      expect(ok.status).toBe(200);
-      const d = await prisma.demandeRecharge.findUnique({ where: { id } });
-      expect(d?.socDebut).toBe(42);
-      expect(d?.socDebutIa).toBeNull();
-      const horsSujet = await upload(DEMO.chauffeur, { est_tableau_de_bord: false });
-      expect((await lire(horsSujet)).body.aReprendre).toBe(true); // la photo reste vérifiée
-      await fermer(id);
-    } finally { delete process.env.IA_MODELES_SANS_POURCENTAGE; }
-  });
+      const sans = await surPlace(id, await upload(DEMO.chauffeur), await upload(DEMO.chauffeur), 50);
+      expect(sans.status).toBe(400);
+      enAttente = "";
+      const res = await request(app).post(`/api/fleet/recharge-demandes/${id}/sur-place`).set(auth(DEMO.chauffeur))
+        .send({ qrMediaId: await upload(DEMO.chauffeur), tableauMediaId: await upload(DEMO.chauffeur), barres: 2, autonomieKm: 150 });
+      expect(res.status).toBe(200);
+    } finally { process.env.GEMINI_API_KEY = "cle-de-test"; }
+    const d = await prisma.demandeRecharge.findUnique({ where: { id } });
+    expect(d).toMatchObject({ barresDebut: 2, autonomieDebutKm: 150, socDebut: 40 });
+    await fermer(id);
+  }));
+
+  it("fin de recharge : anomalie si l'autonomie n'a pas augmenté", () => avecEado(async () => {
+    const id = await nouvelleDemande();
+    await prisma.demandeRecharge.update({ where: { id }, data: { siteId: "site_abidjan" } });
+    await surPlace(id, await upload(DEMO.chauffeur), await upload(DEMO.chauffeur, EADO));
+    const m = await upload(DEMO.superviseur);
+    recus.set(m, { montant_fcfa: 2000, id_transaction: `T_EADO${Date.now()}` });
+    enAttente = m;
+    expect((await request(app).post(`/api/fleet/recharge-demandes/${id}/paiement`).set(auth(DEMO.superviseur)).send({ preuveMediaId: m })).status).toBe(200);
+    const fin = await upload(DEMO.chauffeur, { ...EADO, barres_pleines: 3, autonomie_km: 250 });
+    enAttente = fin;
+    const res = await request(app).post(`/api/fleet/recharge-demandes/${id}/terminer`).set(auth(DEMO.chauffeur)).send({ tableauFinMediaId: fin });
+    expect(res.status).toBe(200);
+    const d = await prisma.demandeRecharge.findUnique({ where: { id } });
+    expect(d).toMatchObject({ statut: "TERMINEE", barresFin: 3, autonomieFinKm: 250, anomalie: true });
+    const msg = await prisma.demandeRechargeMessage.findFirst({ where: { demandeId: id, type: "SYSTEME", texte: { contains: "n'a pas monté" } } });
+    expect(msg?.texte).toMatch(/258 km → 3 barres sur 5 · autonomie 250 km/);
+  }));
 });
 
 describe("Le reçu Wave du Superviseur est lu et contrôlé", () => {

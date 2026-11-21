@@ -6,11 +6,16 @@
  * une valeur incertaine est proposée au chauffeur, jamais imposée.
  */
 
+import { Jimp } from "jimp";
+
 /**
- * Modèle par défaut (réglable via GEMINI_MODEL). Test du 2026-11-18 : « gemini-3.5-flash-lite » a lu
- * 14/14 niveaux de batterie (pièges compris) ; « gemini-3.8-flash » était saturé et limité à 20 requêtes/jour en gratuit.
+ * Modèle par défaut (réglable via GEMINI_MODEL) : le modèle « Flash » le plus récent, précis et rapide,
+ * à utiliser avec l'offre PAYANTE (sur l'offre gratuite il est très limité et souvent saturé).
+ * Pour la précision maximale (plus lent et plus cher) : GEMINI_MODEL=gemini-pro-latest.
+ * Si le modèle est saturé ou hors quota, on bascule sur les modèles de secours (le « Flash-Lite »
+ * a été validé sur les photos réelles : Nano, Eado, reçus Wave).
  */
-export const MODELE_PAR_DEFAUT = "gemini-3.5-flash-lite";
+export const MODELE_PAR_DEFAUT = "gemini-3.8-flash";
 const API = "https://generativelanguage.googleapis.com/v1beta";
 
 export interface LectureBatterie {
@@ -20,6 +25,8 @@ export interface LectureBatterie {
   texte_pourcentage?: string | null; // texte exact du % vu sur l'image (preuve), ex. « 65% »
   chiffres_nets: boolean;
   soc_estime_barres: number | null;
+  barres_pleines?: number | null; // jauge à barres : segments allumés
+  barres_total?: number | null; // jauge à barres : segments au total (allumés + éteints)
   autonomie_km: number | null;
   kilometrage_km: number | null;
   lisibilite: "bonne" | "moyenne" | "mauvaise";
@@ -36,8 +43,11 @@ Réponds uniquement selon le schéma JSON demandé :
 - texte_pourcentage : recopie EXACTEMENT le texte du pourcentage tel qu'il est écrit sur l'image (ex. « 65% », « SOC 65 % »), sinon null. Si tu ne peux pas recopier un nombre suivi du signe %, alors pourcentage_affiche = false et soc_pourcentage = null.
 - chiffres_nets : true seulement si les chiffres du pourcentage sont assez grands et nets pour être lus SANS AUCUNE ambiguïté. Si l'écran est loin, petit, flou, de travers ou pixellisé au point qu'on pourrait confondre 6 et 8, 3 et 8, 5 et 6, 1 et 7 ou 0 et 8 : false, et soc_pourcentage = null.
 - soc_estime_barres : si le niveau n'est indiqué que par une jauge (barres, segments), estimation en % (barres pleines / barres totales × 100), sinon null.
-- autonomie_km : autonomie restante affichée en km, sinon null.
-- kilometrage_km : compteur kilométrique total (ODO), sinon null.
+- barres_pleines : si le niveau est indiqué par une jauge à barres ou à segments (souvent en forme de pile), le nombre de segments ALLUMÉS (pleins), sinon null.
+- barres_total : le nombre TOTAL de segments de cette jauge (allumés + éteints ; une zone éteinte peut correspondre à plusieurs segments : compte-les d'après la largeur d'un segment), sinon null.
+- autonomie_km : la distance que le véhicule peut ENCORE parcourir avec la batterie (km restants), sinon null. Elle est souvent sous l'intitulé « 可行驶里程 », « 续航 », « Range », « Autonomie », près de la jauge de batterie, et vaut en général moins de 700 km.
+- kilometrage_km : le compteur kilométrique TOTAL du véhicule (distance déjà parcourue depuis sa fabrication : ODO, « 总里程 »), sinon null. C'est en général un grand nombre (plusieurs milliers ou dizaines de milliers de km), souvent sur la ligne du bas.
+  ATTENTION : ne confonds jamais ces deux kilométrages ; autonomie_km et kilometrage_km ne doivent jamais être le même nombre.
 - lisibilite : « bonne », « moyenne » ou « mauvaise ».
 - confiance : de 0 à 1, ta confiance dans soc_pourcentage (ou dans soc_estime_barres s'il n'y a pas de %).
 - remarque : une phrase courte en français.
@@ -58,13 +68,15 @@ export const SCHEMA_BATTERIE = {
     texte_pourcentage: { type: "STRING", nullable: true },
     chiffres_nets: { type: "BOOLEAN" },
     soc_estime_barres: { type: "INTEGER", nullable: true },
+    barres_pleines: { type: "INTEGER", nullable: true },
+    barres_total: { type: "INTEGER", nullable: true },
     autonomie_km: { type: "INTEGER", nullable: true },
     kilometrage_km: { type: "INTEGER", nullable: true },
     lisibilite: { type: "STRING", enum: ["bonne", "moyenne", "mauvaise"] },
     confiance: { type: "NUMBER" },
     remarque: { type: "STRING" },
   },
-  required: ["est_tableau_de_bord", "pourcentage_affiche", "soc_pourcentage", "texte_pourcentage", "chiffres_nets", "soc_estime_barres", "autonomie_km", "kilometrage_km", "lisibilite", "confiance", "remarque"],
+  required: ["est_tableau_de_bord", "pourcentage_affiche", "soc_pourcentage", "texte_pourcentage", "chiffres_nets", "soc_estime_barres", "barres_pleines", "barres_total", "autonomie_km", "kilometrage_km", "lisibilite", "confiance", "remarque"],
 };
 
 export class ErreurIA extends Error {
@@ -75,7 +87,7 @@ export const iaConfiguree = (): boolean => !!process.env.GEMINI_API_KEY;
 
 /** Appelle Gemini avec une image + une consigne, et une réponse JSON contrainte par un schéma. */
 /** Modèles de secours, essayés si le principal est saturé (réglable via GEMINI_MODELES_SECOURS). */
-export const MODELES_SECOURS_PAR_DEFAUT = ["gemini-3.1-flash-lite", "gemini-flash-lite-latest"];
+export const MODELES_SECOURS_PAR_DEFAUT = ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite"];
 /** Erreurs passagères : on réessaie (saturation, quota par minute, délai, erreur serveur). */
 const passagere = (e: any) => e?.passagere === true || [429, 500, 502, 503, 504].includes(e?.statut)
   || (e instanceof TypeError && /fetch failed|network|ECONNRESET|ETIMEDOUT|EAI_AGAIN/i.test(String(e?.message) + String((e?.cause as any)?.code ?? "")));
@@ -124,7 +136,7 @@ export async function analyserImage<T>(image: Buffer, mime: string, consigne: st
     for (let tentative = 0; tentative < 2; tentative++) {
       essais++;
       try {
-        return { ...(await appelGemini<T>(modele, image, mime, consigne, schema, opts.timeoutMs ?? 45_000)), essais };
+        return { ...(await appelGemini<T>(modele, image, mime, consigne, schema, opts.timeoutMs ?? 20_000)), essais };
       } catch (e: any) {
         derniere = e;
         if (!passagere(e)) throw e; // erreur de configuration : inutile d'insister
@@ -241,7 +253,7 @@ export function interpreterRecuWave(l: LectureRecuWave): {
 }
 
 /** Point d'accès remplaçable (les tests y branchent une fausse IA, sans appel réseau). */
-export const ia = { lireBatterie, lireRecuWave };
+export const ia = { lireBatterie, lireRecuWave, mesurerJauge };
 
 /** Liste les modèles disponibles pour la clé (aide au choix de GEMINI_MODEL). */
 export async function listerModeles(): Promise<string[]> {
@@ -258,14 +270,106 @@ export function pourcentageProuve(l: Pick<LectureBatterie, "soc_pourcentage" | "
 }
 
 /**
- * Modèles dont le tableau de bord n'affiche PAS le % de batterie (seulement une jauge à barres) :
- * l'IA vérifie la photo mais ne remplit jamais le %. Réglable via IA_MODELES_SANS_POURCENTAGE (liste séparée par des virgules).
+ * Modèles dont le tableau de bord n'affiche PAS le % de batterie (seulement une jauge à barres),
+ * avec le nombre de segments de leur jauge : « eado:5 ». L'IA vérifie la photo, lit l'autonomie
+ * et mesure la jauge, mais ne remplit jamais de %. Réglable via IA_MODELES_SANS_POURCENTAGE.
  */
-export function vehiculeSansPourcentage(v: { marque?: string | null; modele?: string | null } | null | undefined): boolean {
-  if (!v) return false;
+export function segmentsJauge(v: { marque?: string | null; modele?: string | null } | null | undefined): number | null {
+  if (!v) return null;
   const nom = `${v.marque ?? ""} ${v.modele ?? ""}`.toLowerCase();
-  const liste = (process.env.IA_MODELES_SANS_POURCENTAGE ?? "eado").split(",").map((m) => m.trim().toLowerCase()).filter(Boolean);
-  return liste.some((m) => nom.includes(m));
+  for (const item of (process.env.IA_MODELES_SANS_POURCENTAGE ?? "eado:5").split(",")) {
+    const [motif, n] = item.split(":").map((x) => x.trim().toLowerCase());
+    if (motif && nom.includes(motif)) return Number.isInteger(Number(n)) && Number(n) >= 2 && Number(n) <= 20 ? Number(n) : 5;
+  }
+  return null;
+}
+export const vehiculeSansPourcentage = (v: { marque?: string | null; modele?: string | null } | null | undefined): boolean => segmentsJauge(v) !== null;
+
+// =====================================================================================
+// Mesure de la jauge à barres (Eado). Les modèles comptent mal des segments, mais situent bien
+// des bords : 1) l'IA localise l'icône de batterie, 2) on la recadre et l'agrandit,
+// 3) l'IA donne les bords intérieurs de la pile et la limite allumé / éteint, 4) on calcule.
+// Testé sur les photos réelles d'Eado : 3/5 à chaque essai (comptage direct : 4/5, 4/10, 5/8…).
+// =====================================================================================
+
+export const PROMPT_LOCALISER_PILE = `Cherche sur cette photo l'icône de batterie en forme de pile couchée (contour rectangulaire avec un petit téton à droite, intérieur divisé en segments) affichée sur l'écran du tableau de bord, en général sous l'autonomie en km.
+- pile_visible : true SEULEMENT si tu vois clairement cette icône. Si l'écran affiche autre chose (message d'alerte, pictogramme de voiture, porte ouverte, menu, musique…) ou si elle est trop petite ou floue : false.
+- box_2d : sa boîte englobante [ymin, xmin, ymax, xmax] en coordonnées normalisées de 0 à 1000, contour compris (sans le téton), ou null si pile_visible est false.`;
+const SCHEMA_BOITE = {
+  type: "OBJECT",
+  properties: { pile_visible: { type: "BOOLEAN" }, box_2d: { type: "ARRAY", items: { type: "INTEGER" }, nullable: true } },
+  required: ["pile_visible", "box_2d"],
+};
+
+export const PROMPT_LIMITE_PILE = `Gros plan d'une icône de batterie en forme de pile, couchée horizontalement. L'intérieur de la pile est rempli de blanc (partie allumée) depuis la gauche, puis sombre (partie éteinte) jusqu'à la droite.
+Donne des abscisses en coordonnées normalisées de 0 (bord gauche de l'image) à 1000 (bord droit de l'image) :
+- interieur_gauche : bord gauche de l'INTÉRIEUR de la pile (juste après le contour gauche) ;
+- interieur_droit : bord droit de l'INTÉRIEUR de la pile (juste avant le contour droit, sans le téton) ;
+- limite : l'endroit où la partie blanche s'arrête et où la partie sombre commence (égal à interieur_droit si tout est blanc, à interieur_gauche si tout est sombre).
+est_icone_batterie : true seulement si l'image montre bien une icône de batterie en forme de pile (pas un texte, une voiture, une porte, un autre symbole).
+lisible : false si elle est trop floue pour situer la limite.`;
+const SCHEMA_LIMITE = {
+  type: "OBJECT",
+  properties: { est_icone_batterie: { type: "BOOLEAN" }, interieur_gauche: { type: "INTEGER" }, interieur_droit: { type: "INTEGER" }, limite: { type: "INTEGER" }, lisible: { type: "BOOLEAN" } },
+  required: ["est_icone_batterie", "interieur_gauche", "interieur_droit", "limite", "lisible"],
+};
+
+export interface MesureJauge { barres: number | null; total: number; fraction: number | null; boite: number[] | null; motif: string | null }
+
+/** Calcul pur : position de la limite → nombre de barres (refus si la limite tombe entre deux segments). */
+export function barresDepuisLimite(r: { interieur_gauche: number; interieur_droit: number; limite: number; lisible?: boolean; est_icone_batterie?: boolean }, total: number): { barres: number | null; fraction: number | null; motif: string | null } {
+  const g = r.interieur_gauche, d = r.interieur_droit;
+  if (r.est_icone_batterie === false) return { barres: null, fraction: null, motif: "jauge non affichée" };
+  if (r.lisible === false || ![g, d, r.limite].every(Number.isFinite) || d - g < 150) return { barres: null, fraction: null, motif: "jauge illisible" };
+  const fraction = Math.min(1, Math.max(0, (r.limite - g) / (d - g)));
+  const x = fraction * total;
+  // La limite doit tomber sur le bord d'un segment ; trop loin d'un entier = mesure douteuse.
+  if (Math.abs(x - Math.round(x)) > 0.35) return { barres: null, fraction, motif: "mesure ambiguë" };
+  return { barres: Math.round(x), fraction, motif: null };
+}
+
+export async function mesurerJauge(image: Buffer, mime: string, total: number): Promise<MesureJauge> {
+  const { resultat: r1 } = await analyserImage<{ pile_visible: boolean; box_2d: number[] | null }>(image, mime, PROMPT_LOCALISER_PILE, SCHEMA_BOITE);
+  const b = r1.box_2d;
+  if (!r1.pile_visible) return { barres: null, total, fraction: null, boite: null, motif: "jauge non affichée" };
+  if (!b || b.length !== 4 || !b.every((v) => Number.isFinite(v) && v >= 0 && v <= 1000) || b[2] <= b[0] || b[3] <= b[1]) {
+    return { barres: null, total, fraction: null, boite: null, motif: "icône de batterie introuvable" };
+  }
+  const img = await Jimp.read(image);
+  const W = img.bitmap.width, H = img.bitmap.height;
+  const [y0, x0, y1, x1] = b;
+  const bw = ((x1 - x0) / 1000) * W, bh = ((y1 - y0) / 1000) * H;
+  if (bw < bh * 1.3 || bw < 20) return { barres: null, total, fraction: null, boite: b, motif: "icône de batterie trop petite" };
+  const m = 0.15;
+  const x = Math.max(0, (x0 / 1000) * W - bw * m), y = Math.max(0, (y0 / 1000) * H - bh * m);
+  img.crop({ x: Math.round(x), y: Math.round(y), w: Math.round(Math.min(W - x, bw * (1 + 2 * m))), h: Math.round(Math.min(H - y, bh * (1 + 2 * m))) });
+  img.resize({ w: 600 });
+  const gros = await img.getBuffer("image/jpeg");
+  const { resultat: r2 } = await analyserImage<any>(gros, "image/jpeg", PROMPT_LIMITE_PILE, SCHEMA_LIMITE);
+  return { ...barresDepuisLimite(r2, total), total, boite: b };
+}
+
+/**
+ * Jauge des véhicules sans % (Eado) : barres (mesurées) + autonomie restante (lue).
+ * Refus (photo à reprendre) si la jauge n'est pas mesurée, si l'autonomie n'est pas lue, ou si
+ * l'autonomie lue est en fait le compteur total.
+ */
+export function interpreterJauge(l: LectureBatterie, mesure: MesureJauge | null): {
+  ok: boolean;
+  barres: number | null;
+  total: number | null;
+  autonomieKm: number | null;
+  message: string;
+} {
+  const refus = (message: string) => ({ ok: false, barres: null, total: null, autonomieKm: null, message });
+  const a = l.autonomie_km;
+  if (mesure?.motif === "jauge non affichée") return refus("L'écran central n'affiche pas la jauge de batterie : affichez l'écran de l'autonomie (km et batterie) puis reprenez la photo.");
+  if (!mesure || mesure.barres === null) return refus("Barres de la batterie non lues : rapprochez-vous de l'écran central (jauge et autonomie bien visibles) et reprenez la photo.");
+  if (typeof a !== "number" || !Number.isInteger(a) || a < 0 || a > 1000 || (l.kilometrage_km != null && a === l.kilometrage_km)) {
+    return refus("Autonomie (km restants) non lue : rapprochez-vous de l'écran central et reprenez la photo.");
+  }
+  const p = mesure.barres, t = mesure.total;
+  return { ok: true, barres: p, total: t, autonomieKm: a, message: `${p} barre${p > 1 ? "s" : ""} sur ${t} · autonomie ${a} km` };
 }
 
 /** Seuil de confiance au-dessous duquel le % est seulement proposé (à confirmer). */

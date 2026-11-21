@@ -67,6 +67,25 @@ export function normaliserRef(ref: unknown): string {
   return String(ref ?? "").replace(/\s+/g, "").toUpperCase();
 }
 
+/** Approximation du % d'après une jauge à barres (calculs internes seulement : montant proposé, historique). */
+export function socDepuisBarres(barres: number, total: number): number {
+  return Math.round((barres / total) * 100);
+}
+
+/** Jauge saisie à la main (IA indisponible) : barres pleines, total et autonomie cohérents. */
+export function jaugeValide(barres: unknown, total: unknown, autonomieKm: unknown): { barres: number; total: number; autonomieKm: number } | null {
+  const b = Number(barres), t = Number(total), a = Number(autonomieKm);
+  if (![b, t, a].every((x) => Number.isInteger(x))) return null;
+  if (t < 2 || t > 20 || b < 0 || b > t || a < 0 || a > 1000) return null;
+  return { barres: b, total: t, autonomieKm: a };
+}
+
+/** Anomalie de fin pour une jauge : l'autonomie n'a pas augmenté (à défaut, les barres). */
+export function anomalieFinJauge(debut: { barres: number | null; autonomieKm: number | null }, fin: { barres: number; autonomieKm: number }): boolean {
+  if (debut.autonomieKm != null) return fin.autonomieKm <= debut.autonomieKm;
+  return debut.barres != null && fin.barres <= debut.barres;
+}
+
 /** Anomalie de fin : la batterie n'a pas monté. */
 export function anomalieFin(socDebut: number | null | undefined, socFin: number): boolean {
   return socDebut != null && socFin <= socDebut;

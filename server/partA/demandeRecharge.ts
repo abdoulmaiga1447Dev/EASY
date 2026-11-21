@@ -20,10 +20,11 @@ import { emitToUsers } from "../../lib/realtime";
 import { envoyerPush } from "../../lib/push";
 import {
   STATUTS_OUVERTS, STATUTS_ACTION_SUPERVISEUR, peut, socValide, suggestionRecharge,
-  normaliserRef, anomalieFin, type DemandeStatut,
+  normaliserRef, anomalieFin, socDepuisBarres, jaugeValide, anomalieFinJauge, type DemandeStatut,
 } from "../../lib/demandeRecharge";
 import { recipients } from "./recharge";
-import { appliquerLectureIa, verifierPhotoTableau, noterSaisieManuelle, controlerRecu } from "./iaRecharge";
+import { segmentsJauge } from "../../lib/ia";
+import { appliquerLectureIa, verifierPhotoTableau, noterSaisieManuelle, controlerRecu, segmentsDuVehicule, verifierJaugeTableau, noterJauge, texteJauge, type Jauge } from "./iaRecharge";
 import { wrap, serverError, notFound } from "./helpers";
 
 const ERR = (fr: string, en: string) => ({ error: { fr, en } });
@@ -116,7 +117,7 @@ export function demandeRechargeRouter(prisma: PrismaClient): express.Router {
       ...d,
       preuvePaiementMediaId: voitPreuve ? d.preuvePaiementMediaId : null,
       iaPaiement: voitPreuve ? d.iaPaiement : null,
-      vehicule: vehicle,
+      vehicule: vehicle ? { ...vehicle, sansPourcentage: segmentsJauge(vehicle) !== null, segmentsJauge: segmentsJauge(vehicle) } : vehicle,
       chauffeur: driver,
       borne,
       messages: d.messages.map((m) => ({ ...m, auteurNom: m.auteurId ? nom.get(m.auteurId) ?? null : null })),
@@ -198,20 +199,44 @@ export function demandeRechargeRouter(prisma: PrismaClient): express.Router {
         await notifierAnomalie(d, refus);
         return res.status(409).json({ ...ERR(refus, "Anomaly detected"), anomalie: true });
       }
-      // L'IA vérifie la photo : refusée si ce n'est pas un tableau de bord ; le % lu fait foi.
-      const verif = await verifierPhotoTableau(prisma, String(tableauMediaId), d.vehicleId);
-      if (verif.ok === false) return res.status(422).json({ ...ERR(verif.refus, "Dashboard photo rejected"), aReprendre: true });
-      const socDebut = verif.soc ?? socSaisi;
-      if (socDebut === null) return res.status(400).json(ERR("Indiquez le % de batterie affiché (0 à 100)", "Battery % required"));
+      // L'IA vérifie la photo : refusée si ce n'est pas un tableau de bord ; ce qu'elle lit fait foi.
+      // Eado (pas de %) : jauge à barres + autonomie restante ; les autres : le %.
+      const segments = await segmentsDuVehicule(prisma, d.vehicleId);
+      const estJauge = segments !== null;
+      let socDebut: number | null;
+      let jauge: Jauge | null = null;
+      let suivi: () => Promise<void>;
+      if (estJauge) {
+        const v = await verifierJaugeTableau(prisma, String(tableauMediaId), segments);
+        if (v.ok === false) return res.status(422).json({ ...ERR(v.refus, "Dashboard photo rejected"), aReprendre: true });
+        jauge = v.jauge ?? jaugeValide(req.body?.barres, segments, req.body?.autonomieKm);
+        if (!jauge) return res.status(400).json(ERR("Indiquez le nombre de barres de la batterie et l'autonomie (km restants)", "Battery bars and range required"));
+        socDebut = socDepuisBarres(jauge.barres, jauge.total);
+        const j = jauge, etat = v.etat;
+        suivi = () => noterJauge(prisma, d.id, "debut", etat, j).catch((e) => console.error("[IA] suivi", e));
+      } else {
+        const verif = await verifierPhotoTableau(prisma, String(tableauMediaId), d.vehicleId);
+        if (verif.ok === false) return res.status(422).json({ ...ERR(verif.refus, "Dashboard photo rejected"), aReprendre: true });
+        socDebut = verif.soc ?? socSaisi;
+        if (socDebut === null) return res.status(400).json(ERR("Indiquez le % de batterie affiché (0 à 100)", "Battery % required"));
+        const retenu = socDebut;
+        suivi = () => suiviIa(d.id, "debut", String(tableauMediaId), verif.etat, socSaisi ?? retenu, retenu);
+      }
 
       const vehicle = await prisma.fleetVehicle.findUnique({ where: { id: d.vehicleId }, select: { capaciteBatterieKwh: true } });
       const borne = d.borneId ? await prisma.borneRecharge.findUnique({ where: { id: d.borneId }, select: { prixKwh: true } }) : null;
       const { kwhEstime, montantSuggere } = suggestionRecharge({ socDebut, capaciteBatterieKwh: vehicle?.capaciteBatterieKwh, prixKwh: borne?.prixKwh });
 
       await rattacher([String(qrMediaId), String(tableauMediaId)], d.id);
-      const maj = await prisma.demandeRecharge.update({ where: { id: d.id }, data: { statut: "SUR_PLACE", socDebut, kwhEstime, montantSuggere } });
-      await message(d.id, ctx.userId, "PHOTOS_ARRIVEE", { mediaIds: [String(qrMediaId), String(tableauMediaId)], meta: { socDebut, kwhEstime, montantSuggere } });
-      await suiviIa(d.id, "debut", String(tableauMediaId), verif.etat, socSaisi ?? socDebut, socDebut);
+      const maj = await prisma.demandeRecharge.update({
+        where: { id: d.id },
+        data: { statut: "SUR_PLACE", socDebut, kwhEstime, montantSuggere, ...(jauge ? { barresTotal: jauge.total, barresDebut: jauge.barres, autonomieDebutKm: jauge.autonomieKm } : {}) },
+      });
+      await message(d.id, ctx.userId, "PHOTOS_ARRIVEE", {
+        mediaIds: [String(qrMediaId), String(tableauMediaId)],
+        meta: { socDebut, kwhEstime, montantSuggere, ...(jauge ? { barres: jauge.barres, barresTotal: jauge.total, autonomieKm: jauge.autonomieKm } : {}) },
+      });
+      await suivi();
       await diffuser(maj, "statut");
       res.json(await detail(d.id, ctx));
     })
@@ -237,12 +262,34 @@ export function demandeRechargeRouter(prisma: PrismaClient): express.Router {
         await notifierAnomalie(d, refus);
         return res.status(409).json({ ...ERR(refus, "Anomaly detected"), anomalie: true });
       }
-      const verif = await verifierPhotoTableau(prisma, String(tableauFinMediaId), d.vehicleId);
-      if (verif.ok === false) return res.status(422).json({ ...ERR(verif.refus, "Dashboard photo rejected"), aReprendre: true });
-      const socFin = verif.soc ?? socSaisi;
-      if (socFin === null) return res.status(400).json(ERR("Indiquez le % de batterie affiché (0 à 100)", "Battery % required"));
-
-      const anomalie = anomalieFin(d.socDebut, socFin);
+      const segments = await segmentsDuVehicule(prisma, d.vehicleId);
+      const estJauge = segments !== null;
+      let socFin: number | null;
+      let jauge: Jauge | null = null;
+      let suivi: () => Promise<void>;
+      let anomalie: boolean;
+      let evolution: string; // ex. « 40 % → 80 % » ou « 2 barres sur 5 · autonomie 120 km → 5 barres sur 5 · autonomie 300 km »
+      if (estJauge) {
+        const v = await verifierJaugeTableau(prisma, String(tableauFinMediaId), segments);
+        if (v.ok === false) return res.status(422).json({ ...ERR(v.refus, "Dashboard photo rejected"), aReprendre: true });
+        jauge = v.jauge ?? jaugeValide(req.body?.barres, segments, req.body?.autonomieKm);
+        if (!jauge) return res.status(400).json(ERR("Indiquez le nombre de barres de la batterie et l'autonomie (km restants)", "Battery bars and range required"));
+        socFin = socDepuisBarres(jauge.barres, jauge.total);
+        anomalie = anomalieFinJauge({ barres: d.barresDebut, autonomieKm: d.autonomieDebutKm }, jauge);
+        const avant = d.barresDebut != null ? texteJauge({ barres: d.barresDebut, total: d.barresTotal ?? jauge.total, autonomieKm: d.autonomieDebutKm }) : "—";
+        evolution = `${avant} → ${texteJauge(jauge)}`;
+        const j = jauge, etat = v.etat;
+        suivi = () => noterJauge(prisma, d.id, "fin", etat, j).catch((e) => console.error("[IA] suivi", e));
+      } else {
+        const verif = await verifierPhotoTableau(prisma, String(tableauFinMediaId), d.vehicleId);
+        if (verif.ok === false) return res.status(422).json({ ...ERR(verif.refus, "Dashboard photo rejected"), aReprendre: true });
+        socFin = verif.soc ?? socSaisi;
+        if (socFin === null) return res.status(400).json(ERR("Indiquez le % de batterie affiché (0 à 100)", "Battery % required"));
+        anomalie = anomalieFin(d.socDebut, socFin);
+        evolution = `${d.socDebut} % → ${socFin} %`;
+        const retenu = socFin;
+        suivi = () => suiviIa(d.id, "fin", String(tableauFinMediaId), verif.etat, socSaisi ?? retenu, retenu);
+      }
       const [vehicle, borne] = await Promise.all([
         prisma.fleetVehicle.findUnique({ where: { id: d.vehicleId }, select: { kmActuel: true } }),
         d.borneId ? prisma.borneRecharge.findUnique({ where: { id: d.borneId } }) : Promise.resolve(null),
@@ -250,7 +297,10 @@ export function demandeRechargeRouter(prisma: PrismaClient): express.Router {
 
       await rattacher([String(tableauFinMediaId)], d.id);
       const maj = await prisma.$transaction(async (tx) => {
-        const up = await tx.demandeRecharge.update({ where: { id: d.id }, data: { statut: "TERMINEE", socFin, termineLe: new Date(), anomalie } });
+        const up = await tx.demandeRecharge.update({
+          where: { id: d.id },
+          data: { statut: "TERMINEE", socFin, termineLe: new Date(), anomalie, ...(jauge ? { barresFin: jauge.barres, autonomieFinKm: jauge.autonomieKm, barresTotal: d.barresTotal ?? jauge.total } : {}) },
+        });
         // Une seule recharge enregistrée par demande (contrôlé ici, la colonne n'est pas unique en base).
         const deja = await tx.rechargeRecord.findFirst({ where: { demandeId: d.id }, select: { id: true } });
         if (!deja) {
@@ -266,13 +316,16 @@ export function demandeRechargeRouter(prisma: PrismaClient): express.Router {
         await tx.fleetVehicle.update({ where: { id: d.vehicleId }, data: { socDernierConnu: socFin } });
         return up;
       });
-      await message(d.id, ctx.userId, "PHOTO_FIN", { mediaIds: [String(tableauFinMediaId)], meta: { socFin } });
-      await suiviIa(d.id, "fin", String(tableauFinMediaId), verif.etat, socSaisi ?? socFin, socFin);
-      await message(d.id, null, "SYSTEME", { texte: anomalie ? `Recharge terminée — anomalie : la batterie n'a pas monté (${d.socDebut} % → ${socFin} %).` : `Recharge terminée (${d.socDebut} % → ${socFin} %).` });
-      await writeAudit(prisma, ctx, { action: "recharge_demande.terminer", resourceType: "DemandeRecharge", resourceId: d.id, siteId: d.siteId, after: { socFin, anomalie } });
+      await message(d.id, ctx.userId, "PHOTO_FIN", {
+        mediaIds: [String(tableauFinMediaId)],
+        meta: { socFin, ...(jauge ? { barres: jauge.barres, barresTotal: jauge.total, autonomieKm: jauge.autonomieKm } : {}) },
+      });
+      await suivi();
+      await message(d.id, null, "SYSTEME", { texte: anomalie ? `Recharge terminée — anomalie : la batterie n'a pas monté (${evolution}).` : `Recharge terminée (${evolution}).` });
+      await writeAudit(prisma, ctx, { action: "recharge_demande.terminer", resourceType: "DemandeRecharge", resourceId: d.id, siteId: d.siteId, after: { socFin, anomalie, ...(jauge ? { jauge } : {}) } });
       if (anomalie) {
-        await notifierAnomalie(d, `La batterie n'a pas monté (${d.socDebut} % → ${socFin} %).`);
-        await alerterFinance(d, "Recharge à contrôler", `recharge payée ${d.montantPaye ?? 0} F mais la batterie n'a pas monté (${d.socDebut} % → ${socFin} %).`);
+        await notifierAnomalie(d, `La batterie n'a pas monté (${evolution}).`);
+        await alerterFinance(d, "Recharge à contrôler", `recharge payée ${d.montantPaye ?? 0} F mais la batterie n'a pas monté (${evolution}).`);
       }
       await diffuser(maj, "statut");
       res.json(await detail(d.id, ctx));
@@ -355,6 +408,7 @@ export function demandeRechargeRouter(prisma: PrismaClient): express.Router {
           montantPaye: d.montantPaye, montantSuggere: d.montantSuggere, refTransaction: d.refTransaction,
           ecartMontant: d.ecartMontant, anomalie: d.anomalie, socDebut: d.socDebut, socFin: d.socFin,
           ecartIa: d.ecartIa, socDebutIa: d.socDebutIa, socFinIa: d.socFinIa,
+          barresTotal: d.barresTotal, barresDebut: d.barresDebut, barresFin: d.barresFin, autonomieDebutKm: d.autonomieDebutKm, autonomieFinKm: d.autonomieFinKm,
           anomaliePaiement: d.anomaliePaiement, problemesRecu: ((d.iaPaiement as any)?.problemes ?? []) as string[],
           ecartPct: d.montantPaye != null && d.montantSuggere ? Math.round(((d.montantPaye - d.montantSuggere) / d.montantSuggere) * 100) : null,
           controleLe: d.controleLe, controleNote: d.controleNote, controleParNom: d.controleParId ? nom.get(d.controleParId) ?? null : null,
