@@ -32,7 +32,12 @@ export const CameraCapture: React.FC<{
     let active = true;
     (async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: facing } }, audio: false });
+        // Pleine résolution : sans contrainte, beaucoup de navigateurs se limitent à 640×480, trop peu
+        // pour lire de petits chiffres (l'IA confond alors 6 et 8 sur le % de batterie).
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: facing }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+          audio: false,
+        });
         if (!active) { stream.getTracks().forEach((t) => t.stop()); return; }
         streamRef.current = stream;
         if (videoRef.current) { videoRef.current.srcObject = stream; videoRef.current.play().catch(() => {}); }

@@ -23,7 +23,7 @@ async function main() {
   console.log(`Modèle : ${process.env.GEMINI_MODEL || MODELE_PAR_DEFAUT} — ${images.length} photos\n`);
 
   const resultats: any[] = [];
-  let socJustes = 0, tableauJustes = 0, erreurs = 0;
+  let socJustes = 0, tableauJustes = 0, erreurs = 0, nonLus = 0, faux = 0;
   for (const [i, nom] of images.entries()) {
     const att = attendus[nom];
     const fichier = path.join(dossier, "images", nom);
@@ -33,6 +33,8 @@ async function main() {
       const socOk = att.soc === null ? (l.pourcentage_affiche === false || l.soc_pourcentage === null) : l.soc_pourcentage === att.soc;
       const tabOk = l.est_tableau_de_bord === att.tableau;
       socJustes += socOk ? 1 : 0; tableauJustes += tabOk ? 1 : 0;
+      // « non lu » = sans risque (saisie manuelle) ; « faux » = mauvais chiffre proposé (dangereux).
+      if (!socOk) { if (l.soc_pourcentage === null || !l.pourcentage_affiche) nonLus++; else faux++; }
       console.log(`${socOk ? "✔" : "✘"} ${nom.padEnd(28)} attendu ${String(att.soc ?? "—").padStart(4)} | lu ${String(l.soc_pourcentage ?? "—").padStart(4)}`
         + ` (barres ${l.soc_estime_barres ?? "—"}, conf ${l.confiance.toFixed(2)}) | tableau ${l.est_tableau_de_bord ? "oui" : "non"}${tabOk ? "" : " ✘"}`
         + ` | ${dureeMs} ms${jetons ? `, ${jetons} jetons` : ""} | ${modele}${essais > 1 ? ` (${essais} essais)` : ""}\n    → ${d.message}  [IA : ${l.remarque}]`);
@@ -47,7 +49,8 @@ async function main() {
     if (i < images.length - 1) await pause(pauseMs);
   }
   const n = images.length - erreurs;
-  console.log(`\nNiveau de batterie correct : ${socJustes}/${n}   —   « est un tableau de bord » correct : ${tableauJustes}/${n}${erreurs ? `   —   erreurs : ${erreurs}` : ""}`);
+  console.log(`\nNiveau de batterie : ${socJustes}/${n} justes, ${nonLus} non lus (saisie manuelle, sans risque), ${faux} FAUX (mauvais chiffre)`);
+  console.log(`« est un tableau de bord » correct : ${tableauJustes}/${n}${erreurs ? `   —   erreurs : ${erreurs}` : ""}`);
   fs.writeFileSync(path.join(dossier, `resultats-${Date.now()}.json`), JSON.stringify(resultats, null, 2));
 }
 

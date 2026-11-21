@@ -26,7 +26,7 @@ async function upload(userId: string, lecture?: Partial<LectureBatterie>): Promi
   return res.body.id;
 }
 const L = (p: Partial<LectureBatterie>): LectureBatterie => ({
-  est_tableau_de_bord: true, pourcentage_affiche: false, soc_pourcentage: null, soc_estime_barres: null,
+  est_tableau_de_bord: true, pourcentage_affiche: false, soc_pourcentage: null, chiffres_nets: true, soc_estime_barres: null,
   autonomie_km: null, kilometrage_km: null, lisibilite: "bonne", confiance: 0.95, remarque: "test", ...p,
 });
 const original = ia.lireBatterie;

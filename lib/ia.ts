@@ -17,6 +17,7 @@ export interface LectureBatterie {
   est_tableau_de_bord: boolean;
   pourcentage_affiche: boolean;
   soc_pourcentage: number | null;
+  chiffres_nets: boolean;
   soc_estime_barres: number | null;
   autonomie_km: number | null;
   kilometrage_km: number | null;
@@ -31,6 +32,7 @@ Réponds uniquement selon le schéma JSON demandé :
 - est_tableau_de_bord : true si la photo montre l'instrumentation du véhicule (compteur, écran de bord) ou un écran affichant l'état de la batterie. false pour une vue extérieure, un siège, un menu sans information de batterie, un autre objet.
 - pourcentage_affiche : true seulement si le NIVEAU ACTUEL de la batterie est écrit en chiffres avec un « % ».
 - soc_pourcentage : ce niveau actuel (entier 0 à 100), sinon null.
+- chiffres_nets : true seulement si les chiffres du pourcentage sont assez grands et nets pour être lus SANS AUCUNE ambiguïté. Si l'écran est loin, petit, flou, de travers ou pixellisé au point qu'on pourrait confondre 6 et 8, 3 et 8, 5 et 6, 1 et 7 ou 0 et 8 : false, et soc_pourcentage = null.
 - soc_estime_barres : si le niveau n'est indiqué que par une jauge (barres, segments), estimation en % (barres pleines / barres totales × 100), sinon null.
 - autonomie_km : autonomie restante affichée en km, sinon null.
 - kilometrage_km : compteur kilométrique total (ODO), sinon null.
@@ -41,7 +43,7 @@ Réponds uniquement selon le schéma JSON demandé :
 PIÈGES À ÉVITER :
 - Un pourcentage qui est une CIBLE ou une LIMITE n'est pas le niveau actuel : « charge jusqu'à 100 % », « 100 % dans 2 h 30 », « limite de charge 80 % », « 100% de carga 2:30 ». Ne le mets jamais dans soc_pourcentage.
 - L'autonomie (km) n'est pas un pourcentage. La vitesse (km/h) non plus.
-- Ne devine jamais un chiffre illisible : mets null et une confiance basse.`;
+- Ne devine jamais un chiffre illisible : mets null et une confiance basse. Une valeur fausse est bien plus grave qu'une valeur manquante.`;
 
 /** Schéma de réponse (sous-ensemble OpenAPI accepté par Gemini). */
 export const SCHEMA_BATTERIE = {
@@ -50,6 +52,7 @@ export const SCHEMA_BATTERIE = {
     est_tableau_de_bord: { type: "BOOLEAN" },
     pourcentage_affiche: { type: "BOOLEAN" },
     soc_pourcentage: { type: "INTEGER", nullable: true },
+    chiffres_nets: { type: "BOOLEAN" },
     soc_estime_barres: { type: "INTEGER", nullable: true },
     autonomie_km: { type: "INTEGER", nullable: true },
     kilometrage_km: { type: "INTEGER", nullable: true },
@@ -57,7 +60,7 @@ export const SCHEMA_BATTERIE = {
     confiance: { type: "NUMBER" },
     remarque: { type: "STRING" },
   },
-  required: ["est_tableau_de_bord", "pourcentage_affiche", "soc_pourcentage", "soc_estime_barres", "autonomie_km", "kilometrage_km", "lisibilite", "confiance", "remarque"],
+  required: ["est_tableau_de_bord", "pourcentage_affiche", "soc_pourcentage", "chiffres_nets", "soc_estime_barres", "autonomie_km", "kilometrage_km", "lisibilite", "confiance", "remarque"],
 };
 
 export class ErreurIA extends Error {
@@ -70,7 +73,8 @@ export const iaConfiguree = (): boolean => !!process.env.GEMINI_API_KEY;
 /** Modèles de secours, essayés si le principal est saturé (réglable via GEMINI_MODELES_SECOURS). */
 export const MODELES_SECOURS_PAR_DEFAUT = ["gemini-3.1-flash-lite", "gemini-flash-lite-latest"];
 /** Erreurs passagères : on réessaie (saturation, quota par minute, délai, erreur serveur). */
-const passagere = (e: any) => e?.passagere === true || [429, 500, 502, 503, 504].includes(e?.statut);
+const passagere = (e: any) => e?.passagere === true || [429, 500, 502, 503, 504].includes(e?.statut)
+  || (e instanceof TypeError && /fetch failed|network|ECONNRESET|ETIMEDOUT|EAI_AGAIN/i.test(String(e?.message) + String((e?.cause as any)?.code ?? "")));
 const attendre = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** Un seul appel à un modèle donné. */
@@ -163,6 +167,9 @@ export function interpreterBatterie(l: LectureBatterie): {
   const valide = (v: unknown): v is number => typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= 100;
   if (!l.est_tableau_de_bord) return { soc: null, source: null, aConfirmer: false, aReprendre: true, message: "Cette photo ne montre pas le tableau de bord : reprenez-la." };
   if (l.lisibilite === "mauvaise") return { soc: null, source: null, aConfirmer: false, aReprendre: true, message: "Photo illisible : reprenez-la plus près, sans reflet." };
+  if (l.pourcentage_affiche && valide(l.soc_pourcentage) && l.chiffres_nets === false) {
+    return { soc: null, source: null, aConfirmer: false, aReprendre: true, message: "Chiffres trop petits ou flous : rapprochez-vous du tableau de bord et reprenez la photo." };
+  }
   if (l.pourcentage_affiche && valide(l.soc_pourcentage)) {
     const sur = l.confiance >= CONFIANCE_MIN;
     return { soc: l.soc_pourcentage, source: "pourcentage", aConfirmer: !sur, aReprendre: false, message: sur ? `Batterie lue : ${l.soc_pourcentage} %` : `Batterie lue : ${l.soc_pourcentage} % (à vérifier)` };
